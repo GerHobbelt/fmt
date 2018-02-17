@@ -30,6 +30,11 @@
 #  define FMT_MSVC_STL_UPDATE 0
 #endif
 
+#include <sstream>
+#if defined(_WIN64) || defined(_WIN32)
+#include <windows.h>
+#endif 
+
 FMT_BEGIN_NAMESPACE
 namespace detail {
 
@@ -60,6 +65,14 @@ void write_buffer(std::basic_ostream<Char>& os, buffer<Char>& buf) {
   do {
     unsigned_streamsize n = size <= max_size ? size : max_size;
     os.write(buf_data, static_cast<std::streamsize>(n));
+    if (os.fail()) {
+       std::ostringstream ostr;
+       ostr << "Error: write failed";
+#if defined( _WIN64 ) || defined( _WIN32 )
+       ostr << " " << GetLastError() << ": " << strerror(GetLastError());
+#endif
+       throw std::runtime_error(ostr.str());
+    }
     buf_data += n;
     size -= n;
   } while (size != 0);
