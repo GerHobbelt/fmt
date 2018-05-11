@@ -26,6 +26,11 @@
 
 #include "fmt/core.h"
 
+#pragma warning(disable : 4459)
+#if defined(__clang__)
+#  pragma clang diagnostic ignored "-Wunused-local-typedef"
+#endif
+
 #undef min
 #undef max
 

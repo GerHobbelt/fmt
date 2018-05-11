@@ -2868,6 +2868,10 @@ inline bool IsDir(const StatStruct& st) { return S_ISDIR(st.st_mode); }
 # pragma warning(push)
 # pragma warning(disable:4996)
 #endif
+#if defined(__clang__)
+# pragma clang diagnostic push
+# pragma clang diagnostic ignored "-Wdeprecated-declarations"
+#endif
 
 inline const char* StrNCpy(char* dest, const char* src, size_t n) {
   return strncpy(dest, src, n);
@@ -2914,6 +2918,9 @@ inline const char* GetEnv(const char* name) {
 #endif
 }
 
+#if defined(__clang__)
+# pragma clang diagnostic pop
+#endif
 #ifdef _MSC_VER
 # pragma warning(pop)  // Restores the warning state.
 #endif
@@ -18861,11 +18868,18 @@ AssertionResult CmpHelperEQ(const char* expected_expression,
 # pragma warning(disable:4389)  // Temporarily disables warning on
                                 // signed/unsigned mismatch.
 #endif
+#if defined(__clang__)
+# pragma clang diagnostic push
+# pragma clang diagnostic ignored "-Wsign-compare"
+#endif
 
   if (expected == actual) {
     return AssertionSuccess();
   }
 
+#if defined(__clang__)
+# pragma clang diagnostic pop
+#endif
 #ifdef _MSC_VER
 # pragma warning(pop)          // Restores the warning state.
 #endif

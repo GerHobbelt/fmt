@@ -9,6 +9,9 @@
 #  define _CRT_SECURE_NO_WARNINGS
 #endif
 
+#pragma warning(disable: 4456) // VS2015
+#pragma warning(disable: 4510 4512 4610) // VS2013
+
 #include "fmt/chrono.h"
 #include "gtest-extra.h"
 

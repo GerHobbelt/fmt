@@ -302,6 +302,11 @@ To safe_duration_cast(std::chrono::duration<FromRep, FromPeriod> from,
 }  // namespace safe_duration_cast
 #endif
 
+#ifdef _MSC_VER
+#  pragma warning(push)
+#  pragma warning(disable : 4127 4244 4146)
+#endif
+
 // Prevents expansion of a preceding token as a function-style macro.
 // Usage: f FMT_NOMACRO()
 #define FMT_NOMACRO
@@ -1102,5 +1107,9 @@ struct formatter<std::chrono::duration<Rep, Period>, Char> {
 };
 
 FMT_END_NAMESPACE
+
+#ifdef _MSC_VER
+#  pragma warning(pop)
+#endif
 
 #endif  // FMT_CHRONO_H_

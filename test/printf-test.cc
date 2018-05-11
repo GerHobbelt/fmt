@@ -15,6 +15,8 @@
 #include "gtest-extra.h"
 #include "util.h"
 
+#pragma warning(disable: 4127 4244)
+#pragma warning(disable: 4313) // VS2013
 using fmt::format;
 using fmt::format_error;
 using fmt::internal::max_value;

@@ -11,6 +11,11 @@
 #include <ostream>
 #include "format.h"
 
+#ifdef _MSC_VER
+#  pragma warning(push)
+#  pragma warning(disable : 4512)  // VS2013
+#endif
+
 FMT_BEGIN_NAMESPACE
 namespace internal {
 
@@ -137,5 +142,9 @@ void print(std::basic_ostream<Char>& os, const S& format_str, Args&&... args) {
          {internal::make_args_checked<Args...>(format_str, args...)});
 }
 FMT_END_NAMESPACE
+
+#ifdef _MSC_VER
+#  pragma warning(pop)
+#endif
 
 #endif  // FMT_OSTREAM_H_

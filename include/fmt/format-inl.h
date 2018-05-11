@@ -45,6 +45,7 @@
 #ifdef _MSC_VER
 #  pragma warning(push)
 #  pragma warning(disable : 4702)  // unreachable code
+#  pragma warning(disable : 4512)  // VS2013
 #endif
 
 // Dummy implementations of strerror_r and strerror_s called if corresponding

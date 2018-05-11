@@ -11,6 +11,11 @@
 #include "fmt/format.h"
 #include "gmock.h"
 
+#if defined(__clang__)
+#  pragma clang diagnostic push
+#  pragma clang diagnostic ignored "-Wunused-local-typedef"
+#endif
+
 template <typename T> class mock_allocator {
  public:
   mock_allocator() {}
@@ -57,4 +62,7 @@ template <typename Allocator> class allocator_ref {
   void deallocate(value_type* p, std::size_t n) { alloc_->deallocate(p, n); }
 };
 
+#if defined(__clang__)
+#  pragma clang diagnostic pop
+#endif
 #endif  // FMT_MOCK_ALLOCATOR_H_
