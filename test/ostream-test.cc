@@ -13,6 +13,11 @@
 #include "gtest-extra.h"
 #include "util.h"
 
+#pragma warning(disable: 4512)
+#if defined(__clang__)
+#  pragma clang diagnostic ignored "-Wunused-local-typedef"
+#endif
+
 using fmt::format;
 using fmt::format_error;
 

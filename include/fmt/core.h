@@ -212,6 +212,11 @@
 // parameters results in much shorter symbols: https://godbolt.org/z/sWw4vP.
 #define FMT_ENABLE_IF(...) typename std::enable_if<__VA_ARGS__, int>::type = 0
 
+#ifdef _MSC_VER
+#  pragma warning(push)
+#  pragma warning(disable : 4127 4512)  // VS2013
+#endif
+
 FMT_BEGIN_NAMESPACE
 namespace internal {
 
@@ -1501,4 +1506,8 @@ inline void print(const S& format_str, const Args&... args) {
 }
 FMT_END_NAMESPACE
 
-#endif  // FMT_CORE_H_
+#ifdef _MSC_VER
+#  pragma warning(pop)
+#endif
+
+#endif // FMT_CORE_H_

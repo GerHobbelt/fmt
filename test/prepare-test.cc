@@ -27,6 +27,10 @@
 #include "mock-allocator.h"
 #include "util.h"
 
+#if defined(__clang__)
+#  pragma clang diagnostic ignored "-Wunused-local-typedef"
+#endif
+
 #undef ERROR
 #undef min
 #undef max

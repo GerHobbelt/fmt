@@ -13,6 +13,11 @@
 
 #include "ostream.h"
 
+#ifdef _MSC_VER
+#  pragma warning(push)
+#  pragma warning(disable : 4127 4512)  // VS2013
+#endif
+
 FMT_BEGIN_NAMESPACE
 namespace internal {
 
@@ -780,5 +785,9 @@ inline int fprintf(std::basic_ostream<FMT_CHAR(S)>& os, const S& format_str,
                   basic_format_args<context>(as));
 }
 FMT_END_NAMESPACE
+
+#ifdef _MSC_VER
+#  pragma warning(pop)
+#endif
 
 #endif  // FMT_PRINTF_H_

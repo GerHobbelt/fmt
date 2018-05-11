@@ -31,6 +31,11 @@
 #undef min
 #undef max
 
+#pragma warning(disable: 4459)
+#pragma warning(disable: 4127) // VS2013
+#if defined(__clang__)
+#  pragma clang diagnostic ignored "-Wunused-local-typedef"
+#endif
 using std::size_t;
 
 using fmt::basic_memory_buffer;
@@ -1931,7 +1936,7 @@ TEST(FormatTest, Enum) { EXPECT_EQ("0", fmt::format("{}", A)); }
 
 TEST(FormatTest, EnumFormatterUnambiguous) {
   fmt::formatter<TestEnum> f;
-  ASSERT_GE(sizeof(f), 0);  // use f to avoid compiler warning
+  ASSERT_GE(sizeof(f), 0u); // use f to avoid compiler warning
 }
 
 #if FMT_HAS_FEATURE(cxx_strong_enums)

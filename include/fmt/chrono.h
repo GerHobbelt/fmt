@@ -16,6 +16,11 @@
 #include <locale>
 #include <sstream>
 
+#ifdef _MSC_VER
+#  pragma warning(push)
+#  pragma warning(disable : 4127)
+#endif
+
 FMT_BEGIN_NAMESPACE
 
 // Prevents expansion of a preceding token as a function-style macro.
@@ -637,5 +642,9 @@ struct formatter<std::chrono::duration<Rep, Period>, Char> {
 };
 
 FMT_END_NAMESPACE
+
+#ifdef _MSC_VER
+#  pragma warning(pop)
+#endif
 
 #endif  // FMT_CHRONO_H_

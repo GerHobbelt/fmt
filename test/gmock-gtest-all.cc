@@ -2259,7 +2259,15 @@ TimeInMillis GetTimeInMillis() {
   //   SystemTimeToFileTime()
 #    pragma warning(push)            // Saves the current warning state.
 #    pragma warning(disable : 4996)  // Temporarily disables warning 4996.
+#if defined(__clang__)
+# pragma clang diagnostic push
+# pragma clang diagnostic ignored "-Wdeprecated-declarations"
+#endif
+
   _ftime64(&now);
+#if defined(__clang__)
+# pragma clang diagnostic pop
+#endif
 #    pragma warning(pop)             // Restores the warning state.
 #  else
 
@@ -4581,7 +4589,14 @@ std::string FormatEpochTimeInMillisAsIso8601(TimeInMillis ms) {
 #  pragma warning(push)            // Saves the current warning state.
 #  pragma warning(disable : 4996)  // Temporarily disables warning 4996
                                    // (function or variable may be unsafe).
+#if defined(__clang__)
+# pragma clang diagnostic push
+# pragma clang diagnostic ignored "-Wdeprecated-declarations"
+#endif
   const struct tm* const time_struct = localtime(&seconds);  // NOLINT
+#if defined(__clang__)
+# pragma clang diagnostic pop
+#endif
 #  pragma warning(pop)  // Restores the warning state again.
 #else
   const struct tm* const time_struct = localtime(&seconds);  // NOLINT
@@ -6487,6 +6502,7 @@ static bool g_in_fast_death_test_child = false;
 // tests.  IMPORTANT: This is an internal utility.  Using it may break the
 // implementation of death tests.  User code MUST NOT use it.
 bool InDeathTestChild() {
+  (void)g_in_fast_death_test_child;
 #  if GTEST_OS_WINDOWS
 
   // On Windows, death tests are thread-safe regardless of the value of the
@@ -7771,6 +7787,8 @@ const char kCurrentDirectoryString[] = "./";
 
 // Returns whether the given character is a valid path separator.
 static bool IsPathSeparator(char c) {
+  (void)kPathSeparator; (void)kAlternatePathSeparator;
+  (void)kPathSeparatorString; (void)kAlternatePathSeparatorString;
 #if GTEST_HAS_ALT_PATH_SEP_
   return (c == kPathSeparator) || (c == kAlternatePathSeparator);
 #else
@@ -8560,6 +8578,10 @@ GTestLog::~GTestLog() {
 #  pragma warning(push)
 #  pragma warning(disable : 4996)
 #endif  // _MSC_VER
+#if defined(__clang__)
+# pragma clang diagnostic push
+# pragma clang diagnostic ignored "-Wdeprecated-declarations"
+#endif
 
 #if GTEST_HAS_STREAM_REDIRECTION
 
@@ -8676,6 +8698,9 @@ std::string CapturedStream::ReadEntireFile(FILE* file) {
   return content;
 }
 
+#if defined(__clang__)
+# pragma clang diagnostic pop
+#endif
 #  ifdef _MSC_VER
 #    pragma warning(pop)
 #  endif  // _MSC_VER

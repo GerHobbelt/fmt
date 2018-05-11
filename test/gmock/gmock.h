@@ -1365,6 +1365,11 @@ class ReturnAction {
   // to allow Return("string literal") to compile.
   explicit ReturnAction(R value) : value_(value) {}
 
+#if defined(__clang__)
+# pragma clang diagnostic push
+# pragma clang diagnostic ignored "-Wunused-local-typedef"
+#endif
+
   // This template type conversion operator allows Return(x) to be
   // used in ANY function that returns x's type.
   template <typename F>
@@ -1383,6 +1388,10 @@ class ReturnAction {
         use_ReturnRef_instead_of_Return_to_return_a_reference);
     return Action<F>(new Impl<F>(value_));
   }
+
+#if defined(__clang__)
+# pragma clang diagnostic pop
+#endif
 
  private:
   // Implements the Return(x) action for a particular function type F.
@@ -5423,6 +5432,11 @@ class TuplePrefix<0> {
                                      ::std::ostream* /* os */) {}
 };
 
+#if defined(__clang__)
+# pragma clang diagnostic push
+# pragma clang diagnostic ignored "-Wunused-local-typedef"
+#endif
+
 // TupleMatches(matcher_tuple, value_tuple) returns true iff all
 // matchers in matcher_tuple match the corresponding fields in
 // value_tuple.  It is a compiler error if matcher_tuple and
@@ -5440,6 +5454,10 @@ bool TupleMatches(const MatcherTuple& matcher_tuple,
   return TuplePrefix<tuple_size<ValueTuple>::value>::
       Matches(matcher_tuple, value_tuple);
 }
+
+#if defined(__clang__)
+# pragma clang diagnostic pop
+#endif
 
 // Describes failures in matching matchers against values.  If there
 // is no failure, nothing will be streamed to os.

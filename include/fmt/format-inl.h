@@ -48,6 +48,7 @@
 #  pragma warning(push)
 #  pragma warning(disable : 4127)  // conditional expression is constant
 #  pragma warning(disable : 4702)  // unreachable code
+#  pragma warning(disable : 4512)  // VS2013
 // Disable deprecation warning for strerror. The latter is not called but
 // MSVC fails to detect it.
 #  pragma warning(disable : 4996)
