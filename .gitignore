@@ -32,3 +32,12 @@ FMT.build
 Makefile
 run-msbuild.bat
 fmt.pc
+
+lib32
+lib64
+Win32
+x86
+x64
+.vs
+*.user
+Version.h

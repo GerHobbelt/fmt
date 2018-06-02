@@ -1,0 +1,30 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Template zur automatischen Erzeugung einer projektspezifischen Datei 'Version.wxi' im jeweiligen Projektverzeichnis
+
+  'Version.wxi' ist Ergebnis des Pre-Build-Steps
+  Die eigentliche Arbeit (Abfrage des SubVersion-Repository, Ersetzen der Platzhalter und Schreiben der Ausgabedatei)
+  wird von SubWCRev.exe aus der TortoiseSVN-Installation erledigt
+-->
+<Include>
+  <?define ProductName="PCUSpro-TestApp"      ?>
+  <?define ShrtProduct="PCUSpro-TestApp"      ?>
+  <?define CompanyName="GMH Prüftechnik GmbH" ?>
+  <?define ShrtCompany="GMH Prüftechnik"      ?>
+  <?define GmhptDomain="gmh-prueftechnik.de"  ?>
+  <!--
+  Product Version. Diese muß für Upgrades geändert werden. Es reicht nicht, nur neuere Files zu verwenden.
+  'ProductBuild' wird nicht für die Upgrade Prozedur beachtet.
+  -->
+  <?define ProductMajor="1"       ?>
+  <?define ProductMinor="0"       ?>
+  <?define ProductFixes="4"       ?>
+  <?define ProductBuild="$WCREV$" ?>
+  <!-- Volle Produkt-Versionsnummer -->
+  <?define ProductVersion="$(var.ProductMajor).$(var.ProductMinor).$(var.ProductFixes)"                    ?>
+  <?define VersionNumber="$(var.ProductMajor).$(var.ProductMinor).$(var.ProductFixes).$(var.ProductBuild)" ?>
+
+  <?define Year=$WCDATE=%Y$?>
+
+  <?define ResourcesDir="$(var.SolutionDir)include" ?>
+</Include>
