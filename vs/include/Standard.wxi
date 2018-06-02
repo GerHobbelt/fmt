@@ -1,0 +1,22 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Standardsettings
+-->
+<Include>
+  <!--
+  Abhängig von der Bitness der Installer-Plattform ist das Zielverzeichnis anzupassen
+  Dies wird von Wix gefordert und ist für ein Gelingen der Compilierung notwendig!
+  -->
+  <?if $(var.Platform) = x64 ?>
+  <?define PlatformProgramFilesFolder = "ProgramFiles64Folder" ?>
+  <?else?>
+  <?define PlatformProgramFilesFolder = "ProgramFilesFolder" ?>
+  <?endif?>
+
+  <!--
+  Die Variable 'ToolsetVersion' wird abhängig von der VisualStudio-Version in 'Gmpt.Wix.Common.props' gesetzt.
+  Daraus können z.B. die Namen von DLLs passend erstellt werden.
+  -->
+  <?define ToolsetPrefix=vc$(var.ToolsetVersion)?>
+
+</Include>

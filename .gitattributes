@@ -1,0 +1,2 @@
+# PO files are text with single linefeeds as line ending
+*.po text eol=lf

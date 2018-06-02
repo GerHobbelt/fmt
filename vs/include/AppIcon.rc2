@@ -1,0 +1,5 @@
+#ifndef IDI_APPICON
+#define APPICON 1
+#endif
+
+IDI_APPICON		ICON	DISCARDABLE	"GMH.ico"

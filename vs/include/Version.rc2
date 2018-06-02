@@ -1,0 +1,73 @@
+//
+// resources Microsoft Visual C++ does not edit directly
+//
+
+#ifdef APSTUDIO_INVOKED
+#error this file is not editable by Microsoft Visual C++
+#endif //APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+// Add manually edited resources here...
+/////////////////////////////////////////////////////////////////////////////
+
+//
+// Version
+//
+
+#include "Version.h"
+#ifdef _HAVE_VERSIONEXT
+#  include "VersionExt.h"
+#endif
+#ifndef FILEDESCRIPTION
+#  ifdef PROJECT_NAME
+#    define FILEDESCRIPTION PROJECT_NAME
+#  else
+#    define FILEDESCRIPTION PRODUCT_NAME
+#  endif
+#endif
+
+1 VERSIONINFO
+ FILEVERSION VERSION_MAJOR,VERSION_MINOR,VERSION_FIXES,VERSION_BUILD
+ PRODUCTVERSION PRODUCT_MAJOR,PRODUCT_MINOR,PRODUCT_FIXES,PRODUCT_BUILD
+ FILEFLAGSMASK VS_FFI_FILEFLAGSMASK
+#ifdef _DEBUG
+ FILEFLAGS VS_FF_DEBUG
+#else
+ FILEFLAGS 0L
+#endif
+ FILEOS   VOS__WINDOWS32
+#ifdef _DLL
+ FILETYPE VFT_DLL
+#else
+ FILETYPE VFT_APP
+#endif
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040704e4"
+        BEGIN
+#ifdef _DEBUG
+            VALUE "FileDescription",  L"(dbg) " FILEDESCRIPTION
+#else			
+            VALUE "FileDescription",  FILEDESCRIPTION
+#endif			
+            VALUE "CompanyName", COMPANY_NAME
+            VALUE "FileVersion",  FULLVERSION
+            VALUE "LegalCopyright", COPYRIGHT
+            VALUE "ProductName", PRODUCT_NAME
+            VALUE "ProductVersion", PRODVERSION
+            VALUE "SCM URL", SCM_URL
+            VALUE "SCM Revision", SCM_REVISION
+            VALUE "SCM Datum", SCM_DATE
+            VALUE "SCM Status", SCM_MODIFIED
+            VALUE "-", "-"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x407, 1252
+    END
+END
+
+/////////////////////////////////////////////////////////////////////////////
