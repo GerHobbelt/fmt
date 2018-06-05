@@ -98,7 +98,23 @@
 
 #ifndef FMT_THROW
 # if FMT_EXCEPTIONS
-#  define FMT_THROW(x) throw x
+#  if FMT_MSC_VER
+FMT_BEGIN_NAMESPACE
+namespace internal {
+template <typename Exception>
+inline void do_throw(const Exception &x) {
+  // Silence unreachable code warnings in MSVC because these are nearly
+  // impossible to fix in a generic code.
+  volatile bool b = true;
+  if (b)
+    throw x;
+}
+}
+FMT_END_NAMESPACE
+#   define FMT_THROW(x) fmt::internal::do_throw(x)
+#  else
+#   define FMT_THROW(x) throw x
+#  endif
 # else
 #  define FMT_THROW(x) assert(false)
 # endif
