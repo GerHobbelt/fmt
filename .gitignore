@@ -19,6 +19,7 @@ virtualenv
 /install_manifest.txt
 *~
 *.a
+*.o
 *.so*
 *.xcodeproj
 *.zip
