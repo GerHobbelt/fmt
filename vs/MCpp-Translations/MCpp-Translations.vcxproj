@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{F739AA0E-49D8-4172-8A61-5C899CB97818}</ProjectGuid>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup>
+    <LinkIncremental Condition="'$(PlatformToolsetVersion)' &lt; '140' AND '$(Configuration)'=='Debug'">true</LinkIncremental>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <FloatingPointModel>Fast</FloatingPointModel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <TreatWarningAsError>false</TreatWarningAsError>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <AdditionalOptions>/Ignore:4199 %(AdditionalOptions)</AdditionalOptions>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="Translations.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\fmt.vcxproj">
+      <Project>{a1e0ce51-b05e-49c9-85ef-671bb4ad805b}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\libEnvironment\libEnvironment.vcxproj">
+      <Project>{5f6c7600-e5b8-41da-aadd-0cda37567f34}</Project>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <POCompile Include="MCpp-Translations-de.po" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" Condition="'$(PlatformToolset)'!='llvm' OR '$(DesignTimeBuild)'=='true'"/>
+  <Import Project="$(SolutionDir)\Gmhpt.Cpp.DontBuild.targets" Condition="'$(PlatformToolset)'=='llvm' AND '$(DesignTimeBuild)'!='true'"/>
+</Project>

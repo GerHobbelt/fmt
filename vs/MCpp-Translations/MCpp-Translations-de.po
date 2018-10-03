@@ -1,0 +1,35 @@
+# Copyright (©)
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: MCpp-Translations 1.0\n"
+"Report-Msgid-Bugs-To: info@gmh-prueftechnik.de\n"
+"POT-Creation-Date: \n"
+"PO-Revision-Date: 2018-10-22 08:35+0200\n"
+"Last-Translator: <EMAIL@ADDRESS>\n"
+"Language-Team: German\n"
+"Language: de\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"X-Qt-Contexts: true\n"
+"X-Generator: Poedit 1.8.12\n"
+
+#: Translations.cpp
+msgid "{:*^50} - Greetings from Nuremberg"
+msgstr "{:*^50} - Grüße aus Nürnberg"
+
+#: Translations.cpp
+msgctxt "QObject|"
+msgid "{:*^50} - Greetings from Nuremberg"
+msgstr "{:*^50} - Grüße aus Nürnberg"
+
+#: Translations.cpp
+msgid "© 2018 All rights reserved"
+msgstr "Copyright (©) 2018 Alle Rechte vorbehalten"
+
+#: Translations.cpp
+msgctxt "QObject|"
+msgid "© 2018 All rights reserved"
+msgstr "Copyright (©) 2018 Alle Rechte vorbehalten"
