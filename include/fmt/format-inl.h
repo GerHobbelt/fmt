@@ -905,6 +905,7 @@ FMT_FUNC void report_windows_error(int error_code,
 #endif
 
 FMT_FUNC void vprint(std::FILE* f, string_view format_str, format_args args) {
+
   memory_buffer buffer;
   internal::vformat_to(buffer, format_str,
                        basic_format_args<buffer_context<char>::type>(args));
@@ -924,6 +925,7 @@ FMT_FUNC void vprint(string_view format_str, format_args args) {
 FMT_FUNC void vprint(wstring_view format_str, wformat_args args) {
   vprint(stdout, format_str, args);
 }
+#endif
 
 FMT_END_NAMESPACE
 
