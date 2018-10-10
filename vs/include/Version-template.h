@@ -4,14 +4,14 @@
  * Die eigentliche Arbeit (Abfrage des SubVersion-Repository, Ersetzen der Platzhalter und Schreiben der Ausgabedatei)
  * wird von SubWCRev.exe aus der TortoiseSVN-Installation erledigt
  */
-#define _QUOTER_(x) L#x
+#define _QUOTER_(x) #x
 
 // Namen
-#define PRODUCT_NAME L"{fmt} TestApps"
-#define SHORT_PRODNM L"{fmt}"
-#define COMPANY_NAME L"{fmt} contributors"
-#define SHORTCOMPANY L"{fmt} contributors"
-#define VENDORDOMAIN L"fmtlib.net"
+#define PRODUCT_NAME "{fmt} TestApps"
+#define SHORT_PRODNM "{fmt}"
+#define COMPANY_NAME "{fmt} contributors"
+#define SHORTCOMPANY "{fmt} contributors"
+#define VENDORDOMAIN "fmtlib.net"
 
 // Copyright
 #define COPYRIGHT_YEAR_FIRST 2012
@@ -19,9 +19,9 @@
 #if COPYRIGHT_YEAR_FIRST==COPYRIGHT_YEAR_LAST
 #define _COPYRIGHT_(yf,yl) _QUOTER_(yf)
 #else
-#define _COPYRIGHT_(yf,yl) _QUOTER_(yf) L"-" _QUOTER_(yl)
+#define _COPYRIGHT_(yf,yl) _QUOTER_(yf) "-" _QUOTER_(yl)
 #endif
-#define COPYRIGHT       L"© " _COPYRIGHT_(COPYRIGHT_YEAR_FIRST,COPYRIGHT_YEAR_LAST) L" " COMPANY_NAME L". Alle Rechte vorbehalten."
+#define COPYRIGHT       "© " _COPYRIGHT_(COPYRIGHT_YEAR_FIRST,COPYRIGHT_YEAR_LAST) " " COMPANY_NAME ". Alle Rechte vorbehalten."
 #define COPYRIGHTYEARS  _COPYRIGHT_(COPYRIGHT_YEAR_FIRST,COPYRIGHT_YEAR_LAST)
 
 // Software Version
@@ -43,11 +43,11 @@
 #define PRODUCT_FIXES	1
 #define PRODUCT_BUILD	0
 
-#define _VERSION_(maj,min,fix,bld) _QUOTER_(maj) L"." _QUOTER_(min) L"." _QUOTER_(fix) L"." _QUOTER_(bld)
+#define _VERSION_(maj,min,fix,bld) _QUOTER_(maj) "." _QUOTER_(min) "." _QUOTER_(fix) "." _QUOTER_(bld)
 #define FULLVERSION _VERSION_(VERSION_MAJOR,VERSION_MINOR,VERSION_FIXES,VERSION_BUILDID)
 #define PRODVERSION _VERSION_(PRODUCT_MAJOR,PRODUCT_MINOR,PRODUCT_FIXES,VERSION_BUILDID)
 
-#define _SHRTVRSN_(maj,min) _QUOTER_(maj) L"." _QUOTER_(min)
+#define _SHRTVRSN_(maj,min) _QUOTER_(maj) "." _QUOTER_(min)
 #define SHORTVERSION _SHRTVRSN_(VERSION_MAJOR,VERSION_MINOR)
 #define SHORTPRODVER _SHRTVRSN_(PRODUCT_MAJOR,PRODUCT_MINOR)
 
