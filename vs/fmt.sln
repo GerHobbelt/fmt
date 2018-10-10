@@ -44,6 +44,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libcurl", "curl\libcurl.vcx
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "date", "date\date.vcxproj", "{11433414-74A2-49B4-8ACC-1547B7738723}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libEnvironment", "libEnvironment\libEnvironment.vcxproj", "{5F6C7600-E5B8-41DA-AADD-0CDA37567F34}"
+EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "chrono-test", "chrono-test\chrono-test.vcxproj", "{EB67CACB-1A41-42FE-B04F-7B3C847DE5D9}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "locale-test", "locale-test\locale-test.vcxproj", "{EB67CACB-1A41-42FE-B04F-7A5C847DE5D9}"
@@ -189,6 +191,14 @@ Global
 		{11433414-74A2-49B4-8ACC-1547B7738723}.Release|x64.Build.0 = Release|x64
 		{11433414-74A2-49B4-8ACC-1547B7738723}.Release|x86.ActiveCfg = Release|Win32
 		{11433414-74A2-49B4-8ACC-1547B7738723}.Release|x86.Build.0 = Release|Win32
+		{5F6C7600-E5B8-41DA-AADD-0CDA37567F34}.Debug|x64.ActiveCfg = Debug|x64
+		{5F6C7600-E5B8-41DA-AADD-0CDA37567F34}.Debug|x64.Build.0 = Debug|x64
+		{5F6C7600-E5B8-41DA-AADD-0CDA37567F34}.Debug|x86.ActiveCfg = Debug|Win32
+		{5F6C7600-E5B8-41DA-AADD-0CDA37567F34}.Debug|x86.Build.0 = Debug|Win32
+		{5F6C7600-E5B8-41DA-AADD-0CDA37567F34}.Release|x64.ActiveCfg = Release|x64
+		{5F6C7600-E5B8-41DA-AADD-0CDA37567F34}.Release|x64.Build.0 = Release|x64
+		{5F6C7600-E5B8-41DA-AADD-0CDA37567F34}.Release|x86.ActiveCfg = Release|Win32
+		{5F6C7600-E5B8-41DA-AADD-0CDA37567F34}.Release|x86.Build.0 = Release|Win32
 		{EB67CACB-1A41-42FE-B04F-7B3C847DE5D9}.Debug|x64.ActiveCfg = Debug|x64
 		{EB67CACB-1A41-42FE-B04F-7B3C847DE5D9}.Debug|x64.Build.0 = Debug|x64
 		{EB67CACB-1A41-42FE-B04F-7B3C847DE5D9}.Debug|x86.ActiveCfg = Debug|Win32
