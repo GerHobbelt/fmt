@@ -4,6 +4,14 @@ sudo: false
 
 os: linux
 
+branches:
+  except:
+  - master
+  - my-master
+  - /feature\/.*/
+  only:
+  - /check\/.*/
+
 git:
   depth: 1
 
