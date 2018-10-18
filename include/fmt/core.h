@@ -8,8 +8,6 @@
 #ifndef FMT_CORE_H_
 #define FMT_CORE_H_
 
-//#define TEMPLATED_FORMAT_ARGS
-
 #include <cassert>
 #include <cstdio>  // std::FILE
 #include <cstring>
@@ -1309,18 +1307,8 @@ template <typename Context> class basic_format_args {
 
 /** An alias to ``basic_format_args<context>``. */
 // It is a separate type rather than a typedef to make symbols readable.
-#ifdef TEMPLATED_FORMAT_ARGS
-template <typename Char>
-struct fmt_args : basic_format_args<typename buffer_context<Char>::type> {
+struct format_args : basic_format_args<format_context> {
   template <typename... Args>
-  format_args(Args&&... arg)
-      : basic_format_args<format_context>(std::forward<Args>(arg)...) {}
-};
-using format_args = fmt_args<char>;
-using wformat_args = fmt_args<wchar_t>;
-#else
-struct format_args: basic_format_args<format_context> {
-  template <typename ...Args>
   format_args(Args &&... arg)
   : basic_format_args<format_context>(std::forward<Args>(arg)...) {}
 };
@@ -1329,7 +1317,6 @@ struct wformat_args : basic_format_args<wformat_context> {
   wformat_args(Args&&... arg)
       : basic_format_args<wformat_context>(std::forward<Args>(arg)...) {}
 };
-#endif
 
 #ifndef FMT_USE_ALIAS_TEMPLATES
 #  define FMT_USE_ALIAS_TEMPLATES FMT_HAS_FEATURE(cxx_alias_templates)
@@ -1478,13 +1465,8 @@ inline std::basic_string<FMT_CHAR(S)> format(const S& format_str,
                            {internal::make_args_checked(format_str, args...)});
 }
 
-#ifdef TEMPLATED_FORMAT_ARGS
-template <typename Char>
-FMT_API void vprint(std::FILE *f, basic_string_view<Char> format_str, fmt_args<Char> args);
-#else
 FMT_API void vprint(std::FILE* f, string_view format_str, format_args args);
 FMT_API void vprint(std::FILE* f, wstring_view format_str, wformat_args args);
-#endif
 
 /**
   \rst
@@ -1504,13 +1486,8 @@ inline void print(std::FILE* f, const S& format_str, const Args&... args) {
          internal::make_args_checked(format_str, args...));
 }
 
-#ifdef TEMPLATED_FORMAT_ARGS
-template <typename Char>
-FMT_API void vprint(basic_string_view<Char> format_str, fmt_args<Char> args);
-#else
 FMT_API void vprint(string_view format_str, format_args args);
 FMT_API void vprint(wstring_view format_str, wformat_args args);
-#endif
 
 /**
   \rst

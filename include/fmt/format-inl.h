@@ -925,7 +925,6 @@ FMT_FUNC void vprint(string_view format_str, format_args args) {
 FMT_FUNC void vprint(wstring_view format_str, wformat_args args) {
   vprint(stdout, format_str, args);
 }
-#endif
 
 FMT_END_NAMESPACE
 
