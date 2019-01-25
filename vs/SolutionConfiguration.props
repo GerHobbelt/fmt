@@ -3,6 +3,7 @@
   <PropertyGroup Label="UserMacros">
     <_ForcedWindowsSDK></_ForcedWindowsSDK>
     <_ForcedPlatformToolset></_ForcedPlatformToolset>
+    <!--_ForcedVCToolsVersion>14.16.27305</_ForcedVCToolsVersion-->
     <SignOutput>false</SignOutput>
   </PropertyGroup>
   <ItemGroup>
@@ -11,6 +12,9 @@
     </BuildMacro>
     <BuildMacro Include="_ForcedPlatformToolset">
       <Value>$(_ForcedPlatformToolset)</Value>
+    </BuildMacro>
+    <BuildMacro Include="_ForcedVCToolsVersion">
+      <Value>$(_ForcedVCToolsVersion)</Value>
     </BuildMacro>
   </ItemGroup>
 </Project>
