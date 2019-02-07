@@ -34,6 +34,5 @@
       <Project>{a1e0ce51-b05e-49c9-85ef-671bb4ad805b}</Project>
     </ProjectReference>
   </ItemGroup>
-  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" Condition="'$(PlatformToolset)'!='llvm' OR '$(DesignTimeBuild)'=='true'"/>
-  <Import Project="$(SolutionDir)\Gmhpt.Cpp.DontBuild.targets" Condition="'$(PlatformToolset)'=='llvm' AND '$(DesignTimeBuild)'!='true'"/>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets"/>
 </Project>
