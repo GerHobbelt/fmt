@@ -26,30 +26,29 @@ Core API
 and a lightweight subset of formatting functions.
 
 The following functions use :ref:`format string syntax <syntax>`
-imilar to that of Python's `str.format
+similar to that of Python's `str.format
 <http://docs.python.org/3/library/stdtypes.html#str.format>`_.
 They take *format_str* and *args* as arguments.
 
 *format_str* is a format string that contains literal text and replacement
 fields surrounded by braces ``{}``. The fields are replaced with formatted
-arguments in the resulting string.
+arguments in the resulting string. A function taking *format_str* doesn't
+participate in an overload resolution if the latter is not a string.
 
 *args* is an argument list representing objects to be formatted.
 
 .. _format:
 
-.. doxygenfunction:: format(string_view, const Args&...)
-.. doxygenfunction:: vformat(string_view, format_args)
+.. doxygenfunction:: format(const S&, const Args&...)
+.. doxygenfunction:: vformat(const S&, basic_format_args<typename buffer_context<Char>::type>)
 
 .. _print:
 
-.. doxygenfunction:: print(string_view, const Args&...)
+.. doxygenfunction:: print(const S&, const Args&...)
 .. doxygenfunction:: vprint(string_view, format_args)
 
-.. doxygenfunction:: print(std::FILE *, string_view, const Args&...)
+.. doxygenfunction:: print(std::FILE *, const S&, const Args&...)
 .. doxygenfunction:: vprint(std::FILE *, string_view, format_args)
-
-.. doxygenfunction:: print(std::FILE *, wstring_view, const Args&...)
 .. doxygenfunction:: vprint(std::FILE *, wstring_view, wformat_args)
 
 Named arguments
@@ -130,6 +129,54 @@ always be formatted in the same way. See ``formatter<tm>::parse`` in
 :file:`fmt/time.h` for an advanced example of how to parse the format string and
 customize the formatted output.
 
+You can also reuse existing formatters, for example::
+
+  enum class color {red, green, blue};
+
+  template <>
+  struct fmt::formatter<color>: formatter<string_view> {
+    // parse is inherited from formatter<string_view>.
+    template <typename FormatContext>
+    auto format(color c, FormatContext &ctx) {
+      string_view name = "unknown";
+      switch (c) {
+      case color::red:   name = "red"; break;
+      case color::green: name = "green"; break;
+      case color::blue:  name = "blue"; break;
+      }
+      return formatter<string_view>::format(name, ctx);
+    }
+  };
+
+You can also write a formatter for a hierarchy of classes::
+
+  #include <type_traits>
+  #include <fmt/format.h>
+
+  struct A {
+    virtual ~A() {}
+    virtual std::string name() const { return "A"; }
+  };
+
+  struct B : A {
+    virtual std::string name() const { return "B"; }
+  };
+
+  template <typename T>
+  struct fmt::formatter<T, std::enable_if_t<std::is_base_of<A, T>::value, char>> :
+      fmt::formatter<std::string> {
+    template <typename FormatCtx>
+    auto format(const A& a, FormatCtx& ctx) {
+      return fmt::formatter<std::string>::format(a.name(), ctx);
+    }
+  };
+
+  int main() {
+    B b;
+    A& a = b;
+    fmt::print("{}", a); // prints "B"
+  }
+
 This section shows how to define a custom format function for a user-defined
 type. The next section describes how to get ``fmt`` to use a conventional stream
 output ``operator<<`` when one is defined for a user-defined type.
@@ -137,8 +184,8 @@ output ``operator<<`` when one is defined for a user-defined type.
 Output iterator support
 -----------------------
 
-.. doxygenfunction:: fmt::format_to(OutputIt, string_view, const Args&...)
-.. doxygenfunction:: fmt::format_to_n(OutputIt, size_t, string_view, const Args&...)
+.. doxygenfunction:: fmt::format_to(OutputIt, const S&, const Args&...)
+.. doxygenfunction:: fmt::format_to_n(OutputIt, std::size_t, string_view, const Args&...)
 .. doxygenstruct:: fmt::format_to_n_result
    :members:
 
@@ -154,11 +201,15 @@ The following user-defined literals are defined in ``fmt/format.h``.
 Utilities
 ---------
 
+.. doxygentypedef:: fmt::char_t
+
 .. doxygenfunction:: fmt::formatted_size(string_view, const Args&...)
 
 .. doxygenfunction:: fmt::to_string(const T&)
 
 .. doxygenfunction:: fmt::to_wstring(const T&)
+
+.. doxygenfunction:: fmt::to_string_view(basic_string_view<Char>)
 
 .. doxygenclass:: fmt::basic_memory_buffer
    :protected-members:
@@ -229,16 +280,16 @@ custom argument formatter class::
   // with the ``x`` format specifier.
   class custom_arg_formatter : public arg_formatter {
    public:
-    custom_arg_formatter(fmt::format_context &ctx, fmt::format_specs &spec)
+    custom_arg_formatter(fmt::format_context &ctx,
+                         fmt::format_specs *spec = nullptr)
       : arg_formatter(ctx, spec) {}
 
     using arg_formatter::operator();
 
-    void operator()(int value) {
+    auto operator()(int value) {
       if (spec().type() == 'x')
-        (*this)(static_cast<unsigned>(value)); // convert to unsigned and format
-      else
-        arg_formatter::operator()(value);
+        return (*this)(static_cast<unsigned>(value)); // convert to unsigned and format
+      return arg_formatter::operator()(value);
     }
   };
 
@@ -301,7 +352,7 @@ user-defined types that have overloaded ``operator<<``::
   std::string s = fmt::format("The date is {}", date(2012, 12, 9));
   // s == "The date is 2012-12-9"
 
-.. doxygenfunction:: print(std::ostream&, string_view, const Args&...)
+.. doxygenfunction:: print(std::basic_ostream<fmt::char_t<S>>&, const S&, const Args&...)
 
 .. _printf-api:
 
@@ -315,10 +366,10 @@ the POSIX extension for positional arguments. Unlike their standard
 counterparts, the ``fmt`` functions are type-safe and throw an exception if an
 argument type doesn't match its format specification.
 
-.. doxygenfunction:: printf(string_view, const Args&...)
+.. doxygenfunction:: printf(const S&, const Args&...)
 
-.. doxygenfunction:: fprintf(std::FILE *, string_view, const Args&...)
+.. doxygenfunction:: fprintf(std::FILE *, const S&, const Args&...)
 
-.. doxygenfunction:: fprintf(std::ostream&, string_view, const Args&...)
+.. doxygenfunction:: fprintf(std::basic_ostream<fmt::char_t<S>>&, const S&, const Args&...)
 
-.. doxygenfunction:: sprintf(string_view, const Args&...)
+.. doxygenfunction:: sprintf(const S&, const Args&...)

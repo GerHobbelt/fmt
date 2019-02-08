@@ -5,13 +5,13 @@
 //
 // For the license information refer to format.h.
 
-#define FMT_EXTENDED_COLORS
 #define FMT_NOEXCEPT
 #undef FMT_SHARED
 #include "test-assert.h"
 
 // Include format.cc instead of format.h to test implementation.
 #include "../src/format.cc"
+#include "fmt/color.h"
 #include "fmt/printf.h"
 
 #include <algorithm>
@@ -23,6 +23,89 @@
 
 #undef min
 #undef max
+
+#if FMT_HAS_CPP_ATTRIBUTE(noreturn)
+# define FMT_NORETURN [[noreturn]]
+#else
+# define FMT_NORETURN
+#endif
+
+using fmt::internal::fp;
+
+template <bool is_iec559>
+void test_construct_from_double() {
+  fmt::print("warning: double is not IEC559, skipping FP tests\n");
+}
+
+template <>
+void test_construct_from_double<true>() {
+  auto v = fp(1.23);
+  EXPECT_EQ(v.f, 0x13ae147ae147aeu);
+  EXPECT_EQ(v.e, -52);
+}
+
+TEST(FPTest, ConstructFromDouble) {
+  test_construct_from_double<std::numeric_limits<double>::is_iec559>();
+}
+
+TEST(FPTest, Normalize) {
+  auto v = fp(0xbeef, 42);
+  v.normalize();
+  EXPECT_EQ(0xbeef000000000000, v.f);
+  EXPECT_EQ(-6, v.e);
+}
+
+TEST(FPTest, ComputeBoundariesSubnormal) {
+  auto v = fp(0xbeef, 42);
+  fp lower, upper;
+  v.compute_boundaries(lower, upper);
+  EXPECT_EQ(0xbeee800000000000, lower.f);
+  EXPECT_EQ(-6, lower.e);
+  EXPECT_EQ(0xbeef800000000000, upper.f);
+  EXPECT_EQ(-6, upper.e);
+}
+
+TEST(FPTest, ComputeBoundaries) {
+  auto v = fp(0x10000000000000, 42);
+  fp lower, upper;
+  v.compute_boundaries(lower, upper);
+  EXPECT_EQ(0x7ffffffffffffe00, lower.f);
+  EXPECT_EQ(31, lower.e);
+  EXPECT_EQ(0x8000000000000400, upper.f);
+  EXPECT_EQ(31, upper.e);
+}
+
+TEST(FPTest, Subtract) {
+  auto v = fp(123, 1) - fp(102, 1);
+  EXPECT_EQ(v.f, 21u);
+  EXPECT_EQ(v.e, 1);
+}
+
+TEST(FPTest, Multiply) {
+  auto v = fp(123ULL << 32, 4) * fp(56ULL << 32, 7);
+  EXPECT_EQ(v.f, 123u * 56u);
+  EXPECT_EQ(v.e, 4 + 7 + 64);
+  v = fp(123ULL << 32, 4) * fp(567ULL << 31, 8);
+  EXPECT_EQ(v.f, (123 * 567 + 1u) / 2);
+  EXPECT_EQ(v.e, 4 + 8 + 64);
+}
+
+TEST(FPTest, GetCachedPower) {
+  typedef std::numeric_limits<double> limits;
+  for (auto exp = limits::min_exponent; exp <= limits::max_exponent; ++exp) {
+    int dec_exp = 0;
+    auto fp = fmt::internal::get_cached_power(exp, dec_exp);
+    EXPECT_LE(exp, fp.e);
+    int dec_exp_step = 8;
+    EXPECT_LE(fp.e, exp + dec_exp_step * log2(10));
+    EXPECT_DOUBLE_EQ(pow(10, dec_exp), ldexp(fp.f, fp.e));
+  }
+}
+
+TEST(FPTest, Grisu2FormatCompilesWithNonIEEEDouble) {
+  fmt::memory_buffer buf;
+  grisu2_format(4.2f, buf, fmt::core_format_specs());
+}
 
 template <typename T>
 struct ValueExtractor: fmt::internal::function<T> {
@@ -46,16 +129,17 @@ TEST(FormatTest, ArgConverter) {
 
 TEST(FormatTest, FormatNegativeNaN) {
   double nan = std::numeric_limits<double>::quiet_NaN();
-  if (fmt::internal::fputil::isnegative(-nan))
+  if (std::signbit(-nan))
     EXPECT_EQ("-nan", fmt::format("{}", -nan));
   else
     fmt::print("Warning: compiler doesn't handle negative NaN correctly");
 }
 
 TEST(FormatTest, StrError) {
-  char *message = nullptr;
+  char *message = FMT_NULL;
   char buffer[BUFFER_SIZE];
-  EXPECT_ASSERT(fmt::safe_strerror(EDOM, message = nullptr, 0), "invalid buffer");
+  EXPECT_ASSERT(fmt::safe_strerror(EDOM, message = FMT_NULL, 0),
+                "invalid buffer");
   EXPECT_ASSERT(fmt::safe_strerror(EDOM, message = buffer, 0),
                 "invalid buffer");
   buffer[0] = 'x';
@@ -68,7 +152,7 @@ TEST(FormatTest, StrError) {
 #endif
 
   int result = fmt::safe_strerror(error_code, message = buffer, BUFFER_SIZE);
-  EXPECT_EQ(0, result);
+  EXPECT_EQ(result, 0);
   std::size_t message_size = std::strlen(message);
   EXPECT_GE(BUFFER_SIZE - 1u, message_size);
   EXPECT_EQ(get_system_error(error_code), message);
@@ -118,9 +202,45 @@ TEST(FormatTest, FormatErrorCode) {
   }
 }
 
+TEST(FormatTest, CountCodePoints) {
+  EXPECT_EQ(4, fmt::internal::count_code_points(fmt::u8string_view("ёжик")));
+}
+
 TEST(ColorsTest, Colors) {
-  EXPECT_WRITE(stdout, fmt::print(fmt::rgb(255,20,30), "rgb(255,20,30)"),
+  EXPECT_WRITE(stdout, fmt::print(fg(fmt::rgb(255, 20, 30)), "rgb(255,20,30)"),
                "\x1b[38;2;255;020;030mrgb(255,20,30)\x1b[0m");
-  EXPECT_WRITE(stdout, fmt::print(fmt::color::blue,"blue"),
+  EXPECT_WRITE(stdout, fmt::print(fg(fmt::color::blue), "blue"),
                "\x1b[38;2;000;000;255mblue\x1b[0m");
+  EXPECT_WRITE(
+      stdout,
+      fmt::print(fg(fmt::color::blue) | bg(fmt::color::red), "two color"),
+      "\x1b[38;2;000;000;255m\x1b[48;2;255;000;000mtwo color\x1b[0m");
+  EXPECT_WRITE(stdout, fmt::print(fmt::emphasis::bold, "bold"),
+               "\x1b[1mbold\x1b[0m");
+  EXPECT_WRITE(stdout, fmt::print(fmt::emphasis::italic, "italic"),
+               "\x1b[3mitalic\x1b[0m");
+  EXPECT_WRITE(stdout, fmt::print(fmt::emphasis::underline, "underline"),
+               "\x1b[4munderline\x1b[0m");
+  EXPECT_WRITE(stdout,
+               fmt::print(fmt::emphasis::strikethrough, "strikethrough"),
+               "\x1b[9mstrikethrough\x1b[0m");
+  EXPECT_WRITE(
+      stdout,
+      fmt::print(fg(fmt::color::blue) | fmt::emphasis::bold, "blue/bold"),
+      "\x1b[1m\x1b[38;2;000;000;255mblue/bold\x1b[0m");
+  EXPECT_WRITE(stderr, fmt::print(stderr, fmt::emphasis::bold, "bold error"),
+               "\x1b[1mbold error\x1b[0m");
+  EXPECT_WRITE(stderr, fmt::print(stderr, fg(fmt::color::blue), "blue log"),
+                 "\x1b[38;2;000;000;255mblue log\x1b[0m");
+  EXPECT_WRITE(stdout, fmt::print(fmt::text_style(), "hi"), "hi");
+  EXPECT_WRITE(stdout, fmt::print(fg(fmt::terminal_color::red), "tred"),
+               "\x1b[31mtred\x1b[0m");
+  EXPECT_WRITE(stdout, fmt::print(bg(fmt::terminal_color::cyan), "tcyan"),
+               "\x1b[46mtcyan\x1b[0m");
+  EXPECT_WRITE(stdout,
+               fmt::print(fg(fmt::terminal_color::bright_green), "tbgreen"),
+               "\x1b[92mtbgreen\x1b[0m");
+  EXPECT_WRITE(stdout,
+               fmt::print(bg(fmt::terminal_color::bright_magenta), "tbmagenta"),
+               "\x1b[105mtbmagenta\x1b[0m");
 }

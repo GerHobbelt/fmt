@@ -9,53 +9,48 @@
 #define FMT_MOCK_ALLOCATOR_H_
 
 #include "gmock.h"
+#include "fmt/format.h"
 
 template <typename T>
-class MockAllocator {
+class mock_allocator {
  public:
-  MockAllocator() {}
-  MockAllocator(const MockAllocator &) {}
+  mock_allocator() {}
+  mock_allocator(const mock_allocator &) {}
   typedef T value_type;
   MOCK_METHOD1_T(allocate, T* (std::size_t n));
   MOCK_METHOD2_T(deallocate, void (T* p, std::size_t n));
 };
 
 template <typename Allocator>
-class AllocatorRef {
+class allocator_ref {
  private:
   Allocator *alloc_;
+
+  void move(allocator_ref &other) {
+    alloc_ = other.alloc_;
+    other.alloc_ = FMT_NULL;
+  }
 
  public:
   typedef typename Allocator::value_type value_type;
 
-  explicit AllocatorRef(Allocator *alloc = nullptr) : alloc_(alloc) {}
+  explicit allocator_ref(Allocator *alloc = FMT_NULL) : alloc_(alloc) {}
 
-  AllocatorRef(const AllocatorRef &other) : alloc_(other.alloc_) {}
+  allocator_ref(const allocator_ref &other) : alloc_(other.alloc_) {}
+  allocator_ref(allocator_ref &&other) { move(other); }
 
-  AllocatorRef& operator=(const AllocatorRef &other) {
-    alloc_ = other.alloc_;
-    return *this;
-  }
-
-#if FMT_USE_RVALUE_REFERENCES
- private:
-  void move(AllocatorRef &other) {
-    alloc_ = other.alloc_;
-    other.alloc_ = nullptr;
-  }
-
- public:
-  AllocatorRef(AllocatorRef &&other) {
-    move(other);
-  }
-
-  AllocatorRef& operator=(AllocatorRef &&other) {
+  allocator_ref& operator=(allocator_ref &&other) {
     assert(this != &other);
     move(other);
     return *this;
   }
-#endif
 
+  allocator_ref& operator=(const allocator_ref &other) {
+    alloc_ = other.alloc_;
+    return *this;
+  }
+
+ public:
   Allocator *get() const { return alloc_; }
 
   value_type* allocate(std::size_t n) {
