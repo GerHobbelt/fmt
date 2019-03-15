@@ -60,6 +60,7 @@ FMT_DEPRECATED inline void vprint_colored(color c, wstring_view format,
 
 #else
 
+FMT_EXPORT
 enum class color : uint32_t {
   alice_blue = 0xF0F8FF,               // rgb(240,248,255)
   antique_white = 0xFAEBD7,            // rgb(250,235,215)
@@ -204,6 +205,7 @@ enum class color : uint32_t {
   yellow_green = 0x9ACD32              // rgb(154,205,50)
 };                                     // enum class color
 
+FMT_EXPORT
 enum class terminal_color : uint8_t {
   black = 30,
   red,
@@ -223,6 +225,7 @@ enum class terminal_color : uint8_t {
   bright_white
 };  // enum class terminal_color
 
+FMT_EXPORT
 enum class emphasis : uint8_t {
   bold = 1,
   italic = 1 << 1,
@@ -233,6 +236,7 @@ enum class emphasis : uint8_t {
 // rgb is a struct for red, green and blue colors.
 // We use rgb as name because some editors will show it as color direct in the
 // editor.
+FMT_EXPORT
 struct rgb {
   FMT_CONSTEXPR rgb() : r(0), g(0), b(0) {}
   FMT_CONSTEXPR rgb(uint8_t r_, uint8_t g_, uint8_t b_) : r(r_), g(g_), b(b_) {}
@@ -250,6 +254,7 @@ struct rgb {
 namespace internal {
 
 // color is a struct of either a rgb color or a terminal color.
+FMT_EXPORT
 struct color_type {
   FMT_CONSTEXPR color_type() FMT_NOEXCEPT : is_rgb(), value{} {}
   FMT_CONSTEXPR color_type(color rgb_color) FMT_NOEXCEPT : is_rgb(true),
@@ -273,6 +278,7 @@ struct color_type {
 }  // namespace internal
 
 // Experimental text formatting support.
+FMT_EXPORT
 class text_style {
  public:
   FMT_CONSTEXPR text_style(emphasis em = emphasis()) FMT_NOEXCEPT
@@ -387,14 +393,17 @@ class text_style {
   emphasis ems;
 };
 
+FMT_EXPORT
 FMT_CONSTEXPR text_style fg(internal::color_type foreground) FMT_NOEXCEPT {
   return text_style(/*is_foreground=*/true, foreground);
 }
 
+FMT_EXPORT
 FMT_CONSTEXPR text_style bg(internal::color_type background) FMT_NOEXCEPT {
   return text_style(/*is_foreground=*/false, background);
 }
 
+FMT_EXPORT
 FMT_CONSTEXPR text_style operator|(emphasis lhs, emphasis rhs) FMT_NOEXCEPT {
   return text_style(lhs) | rhs;
 }
@@ -556,6 +565,7 @@ std::basic_string<Char> vformat(
 }
 }  // namespace internal
 
+FMT_EXPORT
 template <typename S, typename Char = typename internal::char_t<S>::type>
 void vprint(std::FILE* f, const text_style& ts, const S& format,
             basic_format_args<typename buffer_context<Char>::type> args) {
@@ -587,6 +597,7 @@ void vprint(std::FILE* f, const text_style& ts, const S& format,
     fmt::print(fmt::emphasis::bold | fg(fmt::color::red),
                "Elapsed time: {0:.2f} seconds", 1.23);
  */
+FMT_EXPORT
 template <typename String, typename... Args,
           FMT_ENABLE_IF(internal::is_string<String>::value)>
 void print(std::FILE* f, const text_style& ts, const String& format_str,
@@ -605,6 +616,7 @@ void print(std::FILE* f, const text_style& ts, const String& format_str,
     fmt::print(fmt::emphasis::bold | fg(fmt::color::red),
                "Elapsed time: {0:.2f} seconds", 1.23);
  */
+FMT_EXPORT
 template <typename String, typename... Args,
           FMT_ENABLE_IF(internal::is_string<String>::value)>
 void print(const text_style& ts, const String& format_str,
@@ -612,6 +624,7 @@ void print(const text_style& ts, const String& format_str,
   return print(stdout, ts, format_str, args...);
 }
 
+FMT_EXPORT
 template <typename S, typename Char = FMT_CHAR(S)>
 inline std::basic_string<Char> vformat(
     const text_style& ts, const S& format_str,
@@ -631,6 +644,7 @@ inline std::basic_string<Char> vformat(
                                       "The answer is {}", 42);
   \endrst
 */
+FMT_EXPORT
 template <typename S, typename... Args>
 inline std::basic_string<FMT_CHAR(S)> format(const text_style& ts,
                                              const S& format_str,

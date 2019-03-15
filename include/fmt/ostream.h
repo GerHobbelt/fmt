@@ -139,6 +139,7 @@ inline void vprint(
     fmt::print(cerr, "Don't {}!", "panic");
   \endrst
  */
+FMT_EXPORT
 template <typename S, typename... Args,
           FMT_ENABLE_IF(internal::is_string<S>::value)>
 inline void print(std::basic_ostream<FMT_CHAR(S)>& os, const S& format_str,

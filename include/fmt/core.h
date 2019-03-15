@@ -178,7 +178,7 @@
 #endif
 
 #if !defined(FMT_HEADER_ONLY) && defined(_WIN32)
-#  ifdef FMT_EXPORT
+#  ifdef FMT_DLLEXPORT
 #    define FMT_API __declspec(dllexport)
 #  elif defined(FMT_SHARED)
 #    define FMT_API __declspec(dllimport)
@@ -186,6 +186,12 @@
 #endif
 #ifndef FMT_API
 #  define FMT_API
+#endif
+
+#ifdef FMT_BUILDING_MODULE
+#  define FMT_EXPORT export
+#else
+#  define FMT_EXPORT
 #endif
 
 #ifndef FMT_ASSERT
@@ -385,6 +391,7 @@ struct dummy_formatter_arg {};  // Workaround broken is_constructible in MSVC.
   compiled with a different ``-std`` option than the client code (which is not
   recommended).
  */
+FMT_EXPORT
 template <typename Char> class basic_string_view {
  private:
   const Char* data_;
@@ -465,8 +472,8 @@ template <typename Char> class basic_string_view {
   }
 };
 
-typedef basic_string_view<char> string_view;
-typedef basic_string_view<wchar_t> wstring_view;
+FMT_EXPORT typedef basic_string_view<char> string_view;
+FMT_EXPORT typedef basic_string_view<wchar_t> wstring_view;
 
 /**
   \rst
@@ -528,6 +535,7 @@ FMT_CONSTEXPR basic_string_view<typename S::char_type> to_string_view(
 
 // Parsing context consisting of a format string range being parsed and an
 // argument counter for automatic indexing.
+FMT_EXPORT
 template <typename Char, typename ErrorHandler = internal::error_handler>
 class basic_parse_context : private ErrorHandler {
  private:
@@ -577,8 +585,8 @@ class basic_parse_context : private ErrorHandler {
   FMT_CONSTEXPR ErrorHandler error_handler() const { return *this; }
 };
 
-typedef basic_parse_context<char> format_parse_context;
-typedef basic_parse_context<wchar_t> wformat_parse_context;
+FMT_EXPORT typedef basic_parse_context<char> format_parse_context;
+FMT_EXPORT typedef basic_parse_context<wchar_t> wformat_parse_context;
 
 FMT_DEPRECATED typedef basic_parse_context<char> parse_context;
 FMT_DEPRECATED typedef basic_parse_context<wchar_t> wparse_context;
@@ -587,6 +595,7 @@ template <typename Context> class basic_format_arg;
 template <typename Context> class basic_format_args;
 
 // A formatter for objects of type T.
+FMT_EXPORT
 template <typename T, typename Char = char, typename Enable = void>
 struct formatter {
   explicit formatter(internal::dummy_formatter_arg);
@@ -905,6 +914,7 @@ template <typename Context> class arg_map;
 
 // A formatting argument. It is a trivially copyable/constructible type to
 // allow storage in basic_memory_buffer.
+FMT_EXPORT
 template <typename Context> class basic_format_arg {
  private:
   internal::value<Context> value_;
@@ -1089,6 +1099,7 @@ inline basic_format_arg<Context> make_arg(const T& value) {
 }  // namespace internal
 
 // Formatting context.
+FMT_EXPORT
 template <typename OutputIt, typename Char> class basic_format_context {
  public:
   /** The character type for the output. */
@@ -1140,13 +1151,14 @@ template <typename OutputIt, typename Char> class basic_format_context {
   internal::locale_ref locale() { return loc_; }
 };
 
+FMT_EXPORT
 template <typename Char> struct buffer_context {
   typedef basic_format_context<
       std::back_insert_iterator<internal::basic_buffer<Char>>, Char>
       type;
 };
-typedef buffer_context<char>::type format_context;
-typedef buffer_context<wchar_t>::type wformat_context;
+FMT_EXPORT typedef buffer_context<char>::type format_context;
+FMT_EXPORT typedef buffer_context<wchar_t>::type wformat_context;
 
 /**
   \rst
@@ -1155,6 +1167,7 @@ typedef buffer_context<wchar_t>::type wformat_context;
   such as `~fmt::vformat`.
   \endrst
  */
+FMT_EXPORT
 template <typename Context, typename... Args> class format_arg_store {
  private:
   static const size_t NUM_ARGS = sizeof...(Args);
@@ -1212,6 +1225,7 @@ const unsigned long long format_arg_store<Context, Args...>::TYPES =
   See `~fmt::arg` for lifetime considerations.
   \endrst
  */
+FMT_EXPORT
 template <typename Context = format_context, typename... Args>
 inline format_arg_store<Context, Args...> make_format_args(
     const Args&... args) {
@@ -1219,6 +1233,7 @@ inline format_arg_store<Context, Args...> make_format_args(
 }
 
 /** Formatting arguments. */
+FMT_EXPORT
 template <typename Context> class basic_format_args {
  public:
   typedef unsigned size_type;
@@ -1307,11 +1322,13 @@ template <typename Context> class basic_format_args {
 
 /** An alias to ``basic_format_args<context>``. */
 // It is a separate type rather than a typedef to make symbols readable.
+FMT_EXPORT
 struct format_args : basic_format_args<format_context> {
   template <typename... Args>
   format_args(Args &&... arg)
   : basic_format_args<format_context>(std::forward<Args>(arg)...) {}
 };
+FMT_EXPORT
 struct wformat_args : basic_format_args<wformat_context> {
   template <typename... Args>
   wformat_args(Args&&... arg)
@@ -1419,6 +1436,7 @@ template <typename Char>
 struct is_contiguous<internal::basic_buffer<Char>> : std::true_type {};
 
 /** Formats a string and writes the output to ``out``. */
+FMT_EXPORT
 template <typename Container, typename S>
 typename std::enable_if<is_contiguous<Container>::value,
                         std::back_insert_iterator<Container>>::type
@@ -1429,6 +1447,7 @@ vformat_to(std::back_insert_iterator<Container> out, const S& format_str,
   return out;
 }
 
+FMT_EXPORT
 template <typename Container, typename S, typename... Args,
           FMT_ENABLE_IF(
               is_contiguous<Container>::value&& internal::is_string<S>::value)>
@@ -1439,6 +1458,7 @@ inline std::back_insert_iterator<Container> format_to(
                     {internal::make_args_checked(format_str, args...)});
 }
 
+FMT_EXPORT
 template <typename S, typename Char = FMT_CHAR(S),
           FMT_ENABLE_IF(internal::is_string<S>::value)>
 inline std::basic_string<Char> vformat(
@@ -1457,6 +1477,7 @@ inline std::basic_string<Char> vformat(
     std::string message = fmt::format("The answer is {}", 42);
   \endrst
 */
+FMT_EXPORT
 template <typename S, typename... Args,
           FMT_ENABLE_IF(internal::is_string<S>::value)>
 inline std::basic_string<FMT_CHAR(S)> format(const S& format_str,
@@ -1465,8 +1486,8 @@ inline std::basic_string<FMT_CHAR(S)> format(const S& format_str,
                            {internal::make_args_checked(format_str, args...)});
 }
 
-FMT_API void vprint(std::FILE* f, string_view format_str, format_args args);
-FMT_API void vprint(std::FILE* f, wstring_view format_str, wformat_args args);
+FMT_EXPORT FMT_API void vprint(std::FILE* f, string_view format_str, format_args args);
+FMT_EXPORT FMT_API void vprint(std::FILE* f, wstring_view format_str, wformat_args args);
 
 /**
   \rst
@@ -1479,6 +1500,7 @@ FMT_API void vprint(std::FILE* f, wstring_view format_str, wformat_args args);
     fmt::print(stderr, "Don't {}!", "panic");
   \endrst
  */
+FMT_EXPORT
 template <typename S, typename... Args,
           FMT_ENABLE_IF(internal::is_string<S>::value)>
 inline void print(std::FILE* f, const S& format_str, const Args&... args) {
@@ -1486,8 +1508,8 @@ inline void print(std::FILE* f, const S& format_str, const Args&... args) {
          internal::make_args_checked(format_str, args...));
 }
 
-FMT_API void vprint(string_view format_str, format_args args);
-FMT_API void vprint(wstring_view format_str, wformat_args args);
+FMT_EXPORT FMT_API void vprint(string_view format_str, format_args args);
+FMT_EXPORT FMT_API void vprint(wstring_view format_str, wformat_args args);
 
 /**
   \rst
@@ -1498,6 +1520,7 @@ FMT_API void vprint(wstring_view format_str, wformat_args args);
     fmt::print("Elapsed time: {0:.2f} seconds", 1.23);
   \endrst
  */
+FMT_EXPORT
 template <typename S, typename... Args,
           FMT_ENABLE_IF(internal::is_string<S>::value)>
 inline void print(const S& format_str, const Args&... args) {

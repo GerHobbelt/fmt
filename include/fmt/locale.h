@@ -34,6 +34,7 @@ std::basic_string<Char> vformat(
 }
 }  // namespace internal
 
+FMT_EXPORT
 template <typename S, typename Char = FMT_CHAR(S)>
 inline std::basic_string<Char> vformat(
     const std::locale& loc, const S& format_str,
@@ -41,6 +42,7 @@ inline std::basic_string<Char> vformat(
   return internal::vformat(loc, to_string_view(format_str), args);
 }
 
+FMT_EXPORT
 template <typename S, typename... Args>
 inline std::basic_string<FMT_CHAR(S)> format(const std::locale& loc,
                                              const S& format_str,
@@ -49,6 +51,7 @@ inline std::basic_string<FMT_CHAR(S)> format(const std::locale& loc,
                            {internal::make_args_checked(format_str, args...)});
 }
 
+FMT_EXPORT
 template <typename String, typename OutputIt, typename... Args,
           FMT_ENABLE_IF(internal::is_output_iterator<OutputIt>::value)>
 inline OutputIt vformat_to(
@@ -59,6 +62,7 @@ inline OutputIt vformat_to(
       range(out), to_string_view(format_str), args, internal::locale_ref(loc));
 }
 
+FMT_EXPORT
 template <typename OutputIt, typename S, typename... Args,
           FMT_ENABLE_IF(internal::is_string<S>::value&&
                             internal::is_output_iterator<OutputIt>::value)>

@@ -603,6 +603,7 @@ struct basic_printf_n_context_t {
   arguments and can be implicitly converted to `~fmt::printf_args`.
   \endrst
  */
+FMT_EXPORT
 template <typename... Args>
 inline format_arg_store<printf_context, Args...> make_printf_args(
     const Args&... args) {
@@ -615,6 +616,7 @@ inline format_arg_store<printf_context, Args...> make_printf_args(
   arguments and can be implicitly converted to `~fmt::wprintf_args`.
   \endrst
  */
+FMT_EXPORT
 template <typename... Args>
 inline format_arg_store<wprintf_context, Args...> make_wprintf_args(
     const Args&... args) {
@@ -652,6 +654,7 @@ inline format_to_n_result<OutputIt> vsnprintf(
     std::string message = fmt::sprintf("The answer is %d", 42);
   \endrst
 */
+FMT_EXPORT
 template <typename S, typename... Args,
           FMT_ENABLE_IF(internal::is_string<S>::value)>
 inline std::basic_string<FMT_CHAR(S)> sprintf(const S& format,
@@ -677,6 +680,7 @@ inline std::basic_string<FMT_CHAR(S)> sprintf(const S& format,
     res Res = fmt::snprintf(std::back_inserter(out), 5, "The answer is %d", 42);
   \endrst
 */
+FMT_EXPORT
 template <typename OutputIt, typename S, typename... Args,
           FMT_ENABLE_IF(internal::is_string<S>::value&&
                             internal::is_output_iterator<OutputIt>::value)>
@@ -714,6 +718,7 @@ inline int vfprintf(
     fmt::fprintf(stderr, "Don't %s!", "panic");
   \endrst
  */
+FMT_EXPORT
 template <typename S, typename... Args,
           FMT_ENABLE_IF(internal::is_string<S>::value)>
 inline int fprintf(std::FILE* f, const S& format, const Args&... args) {
@@ -742,6 +747,7 @@ inline int vprintf(
     fmt::printf("Elapsed time: %.2f seconds", 1.23);
   \endrst
  */
+FMT_EXPORT
 template <typename S, typename... Args,
           FMT_ENABLE_IF(internal::is_string<S>::value)>
 inline int printf(const S& format_str, const Args&... args) {
@@ -773,6 +779,7 @@ inline int vfprintf(
     fmt::fprintf(cerr, "Don't %s!", "panic");
   \endrst
  */
+FMT_EXPORT
 template <typename S, typename... Args,
           FMT_ENABLE_IF(internal::is_string<S>::value)>
 inline int fprintf(std::basic_ostream<FMT_CHAR(S)>& os, const S& format_str,

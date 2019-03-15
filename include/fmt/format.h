@@ -341,6 +341,7 @@ typedef basic_writer<back_insert_range<internal::buffer>> writer;
 typedef basic_writer<back_insert_range<internal::wbuffer>> wwriter;
 
 /** A formatting error such as invalid format string. */
+FMT_EXPORT
 class format_error : public std::runtime_error {
  public:
   explicit format_error(const char* message) : std::runtime_error(message) {}
@@ -381,7 +382,7 @@ void basic_buffer<T>::append(const U* begin, const U* end) {
 // type in this mode. If this is the case __cpp_char8_t will be defined.
 #if !defined(__cpp_char8_t)
 // A UTF-8 code unit type.
-enum char8_t : unsigned char {};
+FMT_EXPORT enum char8_t : unsigned char {};
 #endif
 
 // A UTF-8 string view.
@@ -397,6 +398,7 @@ class u8string_view : public basic_string_view<char8_t> {
 };
 
 #if FMT_USE_USER_DEFINED_LITERALS
+FMT_EXPORT
 inline namespace literals {
 inline u8string_view operator"" _u(const char* s, std::size_t n) {
   return {s, n};
@@ -437,6 +439,7 @@ enum { inline_buffer_size = 500 };
   The output can be converted to an ``std::string`` with ``to_string(out)``.
   \endrst
  */
+FMT_EXPORT
 template <typename T, std::size_t SIZE = inline_buffer_size,
           typename Allocator = std::allocator<T>>
 class basic_memory_buffer : private Allocator,
@@ -525,8 +528,8 @@ void basic_memory_buffer<T, SIZE, Allocator>::grow(std::size_t size) {
   if (old_data != store_) Allocator::deallocate(old_data, old_capacity);
 }
 
-typedef basic_memory_buffer<char> memory_buffer;
-typedef basic_memory_buffer<wchar_t> wmemory_buffer;
+FMT_EXPORT typedef basic_memory_buffer<char> memory_buffer;
+FMT_EXPORT typedef basic_memory_buffer<wchar_t> wmemory_buffer;
 
 namespace internal {
 
@@ -1077,7 +1080,7 @@ struct basic_format_specs : align_spec, core_format_specs {
   FMT_CONSTEXPR basic_format_specs() {}
 };
 
-typedef basic_format_specs<char> format_specs;
+FMT_EXPORT typedef basic_format_specs<char> format_specs;
 
 template <typename Char, typename ErrorHandler>
 FMT_CONSTEXPR unsigned basic_parse_context<Char, ErrorHandler>::next_arg_id() {
@@ -2246,6 +2249,7 @@ void handle_dynamic_spec(Spec& value, arg_ref<typename Context::char_type> ref,
 }  // namespace internal
 
 /** The default argument formatter. */
+FMT_EXPORT
 template <typename Range>
 class arg_formatter
     : public internal::function<
@@ -2294,6 +2298,7 @@ class arg_formatter
  An error returned by an operating system or a language runtime,
  for example a file opening error.
 */
+FMT_EXPORT
 class system_error : public std::runtime_error {
  private:
   FMT_API void init(int err_code, string_view format_str, format_args args);
@@ -2347,6 +2352,7 @@ class system_error : public std::runtime_error {
   may look like "Unknown error -1" and is platform-dependent.
   \endrst
  */
+FMT_EXPORT
 FMT_API void format_system_error(internal::buffer& out, int error_code,
                                  fmt::string_view message) FMT_NOEXCEPT;
 
@@ -3306,6 +3312,7 @@ auto join(const Range& range, wstring_view sep)
     std::string answer = fmt::to_string(42);
   \endrst
  */
+FMT_EXPORT
 template <typename T> std::string to_string(const T& value) {
   std::string str;
   internal::container_buffer<std::string> buf(str);
@@ -3316,6 +3323,7 @@ template <typename T> std::string to_string(const T& value) {
 /**
   Converts *value* to ``std::wstring`` using the default format for type *T*.
  */
+FMT_EXPORT
 template <typename T> std::wstring to_wstring(const T& value) {
   std::wstring str;
   internal::container_buffer<std::wstring> buf(str);
@@ -3433,6 +3441,7 @@ inline OutputIt vformat_to(
    fmt::format_to(std::back_inserter(out), "{}", 42);
  \endrst
  */
+FMT_EXPORT
 template <typename OutputIt, typename S, typename... Args>
 inline
     typename std::enable_if<internal::is_string<S>::value &&
@@ -3446,6 +3455,7 @@ inline
                     basic_format_args<context>(as));
 }
 
+FMT_EXPORT
 template <typename OutputIt> struct format_to_n_result {
   /** Iterator past the end of the output range. */
   OutputIt out;
@@ -3488,6 +3498,7 @@ inline format_to_n_result<OutputIt> vformat_to_n(
  end of the output range.
  \endrst
  */
+FMT_EXPORT
 template <typename OutputIt, typename S, typename... Args,
           FMT_ENABLE_IF(internal::is_string<S>::value&&
                             internal::is_output_iterator<OutputIt>::value)>
@@ -3515,6 +3526,7 @@ inline std::basic_string<Char> internal::vformat(
   Returns the number of characters in the output of
   ``format(format_str, args...)``.
  */
+FMT_EXPORT
 template <typename... Args>
 inline std::size_t formatted_size(string_view format_str, const Args&... args) {
   auto it = format_to(internal::counting_iterator<char>(), format_str, args...);
@@ -3561,6 +3573,7 @@ template <typename Char> struct udl_arg {
 
 inline namespace literals {
 #  if FMT_UDL_TEMPLATE
+FMT_EXPORT
 template <typename Char, Char... CHARS>
 FMT_CONSTEXPR internal::udl_formatter<Char, CHARS...> operator""_format() {
   return {};
@@ -3576,10 +3589,12 @@ FMT_CONSTEXPR internal::udl_formatter<Char, CHARS...> operator""_format() {
     std::string message = "The answer is {}"_format(42);
   \endrst
  */
+FMT_EXPORT
 inline internal::udl_formatter<char> operator"" _format(const char* s,
                                                         std::size_t) {
   return {s};
 }
+FMT_EXPORT
 inline internal::udl_formatter<wchar_t> operator"" _format(const wchar_t* s,
                                                            std::size_t) {
   return {s};
@@ -3596,9 +3611,11 @@ inline internal::udl_formatter<wchar_t> operator"" _format(const wchar_t* s,
     fmt::print("Elapsed time: {s:.2f} seconds", "s"_a=1.23);
   \endrst
  */
+FMT_EXPORT
 inline internal::udl_arg<char> operator"" _a(const char* s, std::size_t) {
   return {s};
 }
+FMT_EXPORT
 inline internal::udl_arg<wchar_t> operator"" _a(const wchar_t* s, std::size_t) {
   return {s};
 }

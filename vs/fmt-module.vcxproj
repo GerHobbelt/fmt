@@ -1,7 +1,7 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{A1E0CE51-B05E-49C9-85EF-671BB4AD805B}</ProjectGuid>
+    <ProjectGuid>{A1E0CE51-B05E-49C9-85EF-671CC2AD805B}</ProjectGuid>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Label="Configuration">
@@ -16,23 +16,25 @@
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
-      <IntrinsicFunctions>true</IntrinsicFunctions>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <!-- EnableModules>true</EnableModules -->
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="fmt/format.cc" />
-    <ClCompile Include="fmt/posix.cc" />
     <ClInclude Include="fmt/locale.h" />
     <ClInclude Include="fmt/chrono.h" />
     <ClInclude Include="fmt/color.h" />
     <ClInclude Include="fmt/core.h" />
     <ClInclude Include="fmt/format.h" />
     <ClInclude Include="fmt/ostream.h" />
-    <ClInclude Include="fmt/posix.h" />
     <ClInclude Include="fmt/prepare.h" />
     <ClInclude Include="fmt/printf.h" />
     <ClInclude Include="fmt/format-inl.h" />
+    <ClCompile Include="fmt/fmt.ipp">
+      <PreprocessorDefinitions>module=;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalOptions>%(AdditionalOptions) /experimental:module /module:output $(IFCOutputDir)fmt.ifc /module:export</AdditionalOptions>
+    </ClCompile>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>
