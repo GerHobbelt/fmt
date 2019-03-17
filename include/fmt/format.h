@@ -28,7 +28,7 @@
 #ifndef FMT_FORMAT_H_
 #define FMT_FORMAT_H_
 
-#include <stdint.h>
+#include <cstdint>
 #include <algorithm>
 #include <cassert>
 #include <cmath>
