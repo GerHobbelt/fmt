@@ -292,7 +292,7 @@ class text_style {
       foreground_color = rhs.foreground_color;
     } else if (rhs.set_foreground_color) {
       if (!foreground_color.is_rgb || !rhs.foreground_color.is_rgb)
-        throw format_error("can't OR a terminal color");
+        FMT_THROW(format_error("can't OR a terminal color"));
       foreground_color.value.rgb_color |= rhs.foreground_color.value.rgb_color;
     }
 
@@ -301,7 +301,7 @@ class text_style {
       background_color = rhs.background_color;
     } else if (rhs.set_background_color) {
       if (!background_color.is_rgb || !rhs.background_color.is_rgb)
-        throw format_error("can't OR a terminal color");
+        FMT_THROW(format_error("can't OR a terminal color"));
       background_color.value.rgb_color |= rhs.background_color.value.rgb_color;
     }
 
@@ -321,7 +321,7 @@ class text_style {
       foreground_color = rhs.foreground_color;
     } else if (rhs.set_foreground_color) {
       if (!foreground_color.is_rgb || !rhs.foreground_color.is_rgb)
-        throw format_error("can't AND a terminal color");
+        FMT_THROW(format_error("can't AND a terminal color"));
       foreground_color.value.rgb_color &= rhs.foreground_color.value.rgb_color;
     }
 
@@ -330,7 +330,7 @@ class text_style {
       background_color = rhs.background_color;
     } else if (rhs.set_background_color) {
       if (!background_color.is_rgb || !rhs.background_color.is_rgb)
-        throw format_error("can't AND a terminal color");
+        FMT_THROW(format_error("can't AND a terminal color"));
       background_color.value.rgb_color &= rhs.background_color.value.rgb_color;
     }
 
