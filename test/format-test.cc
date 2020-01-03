@@ -2586,21 +2586,33 @@ TEST(FormatTest, FmtStringInTemplate) {
 using fmt::char8_t;
 #endif
 
+// Convert 'char8_t' character sequences to 'char' sequences
+// Otherwise GTest will insist on inserting 'char8_t' NTBS into a 'char' stream,
+// but basic_ostream<char>::operator<< overloads taking 'char8_t' arguments
+// are defined as deleted by P1423.
+// Handling individual 'char8_t's is done inline.
+std::string from_u8str(const std::basic_string<char8_t>& str) {
+  return std::string(str.begin(), str.end());
+}
+std::string from_u8str(const fmt::u8string_view str) {
+  return std::string(str.begin(), str.end());
+}
+
 TEST(FormatTest, ConstructU8StringViewFromCString) {
   fmt::u8string_view s("ab");
   EXPECT_EQ(s.size(), 2u);
   const char8_t* data = s.data();
-  EXPECT_EQ(data[0], 'a');
-  EXPECT_EQ(data[1], 'b');
+  EXPECT_EQ(char(data[0]), 'a');
+  EXPECT_EQ(char(data[1]), 'b');
 }
 
 TEST(FormatTest, ConstructU8StringViewFromDataAndSize) {
   fmt::u8string_view s("foobar", 3);
   EXPECT_EQ(s.size(), 3u);
   const char8_t* data = s.data();
-  EXPECT_EQ(data[0], 'f');
-  EXPECT_EQ(data[1], 'o');
-  EXPECT_EQ(data[2], 'o');
+  EXPECT_EQ(char(data[0]), 'f');
+  EXPECT_EQ(char(data[1]), 'o');
+  EXPECT_EQ(char(data[2]), 'o');
 }
 
 #if FMT_USE_USER_DEFINED_LITERALS
@@ -2609,14 +2621,15 @@ TEST(FormatTest, U8StringViewLiteral) {
   fmt::u8string_view s = "ab"_u;
   EXPECT_EQ(s.size(), 2u);
   const char8_t* data = s.data();
-  EXPECT_EQ(data[0], 'a');
-  EXPECT_EQ(data[1], 'b');
-  EXPECT_EQ(format("{:*^5}"_u, "🤡"_u), "**🤡**"_u);
+  EXPECT_EQ(char(data[0]), 'a');
+  EXPECT_EQ(char(data[1]), 'b');
+  EXPECT_EQ(from_u8str(format("{:*^5}"_u, "🤡"_u)), from_u8str("**🤡**"_u));
 }
 #endif
 
 TEST(FormatTest, FormatU8String) {
-  EXPECT_EQ(format(fmt::u8string_view("{}"), 42), fmt::u8string_view("42"));
+  EXPECT_EQ(from_u8str(format(fmt::u8string_view("{}"), 42)),
+            from_u8str(fmt::u8string_view("42")));
 }
 
 TEST(FormatTest, EmphasisNonHeaderOnly) {
@@ -2664,5 +2677,5 @@ TEST(FormatTest, FormatUTF8Precision) {
   auto result = fmt::format(format, str);
   EXPECT_EQ(fmt::internal::count_code_points(result), 4);
   EXPECT_EQ(result.size(), 5);
-  EXPECT_EQ(result, str.substr(0, 5));
+  EXPECT_EQ(from_u8str(result), from_u8str(str.substr(0, 5)));
 }
