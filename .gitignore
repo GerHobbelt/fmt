@@ -3,6 +3,7 @@ config/
 makefile
 
 .vscode/
+.vs/
 
 *.iml
 .idea/

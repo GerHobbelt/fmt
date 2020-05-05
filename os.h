@@ -1,12 +1,12 @@
-// A C++ interface to POSIX functions.
+// Formatting library for C++ - optional OS-specific functionality
 //
-// Copyright (c) 2012 - 2016, Victor Zverovich
+// Copyright (c) 2012 - present, Victor Zverovich
 // All rights reserved.
 //
 // For the license information refer to format.h.
 
-#ifndef FMT_POSIX_H_
-#define FMT_POSIX_H_
+#ifndef FMT_OS_H_
+#define FMT_OS_H_
 
 #if defined(__MINGW32__) || defined(__CYGWIN__)
 // Workaround MinGW bug https://sourceforge.net/p/mingw/bugs/2024/.
@@ -15,10 +15,9 @@
 
 #include <cerrno>
 #include <clocale>  // for locale_t
+#include <cstddef>
 #include <cstdio>
 #include <cstdlib>  // for strtod_l
-
-#include <cstddef>
 
 #if defined __APPLE__ || defined(__FreeBSD__)
 #  include <xlocale.h>  // for LC_NUMERIC_MASK on OS X
@@ -132,6 +131,78 @@ class error_code {
 
   int get() const FMT_NOEXCEPT { return value_; }
 };
+
+#ifdef _WIN32
+namespace internal {
+// A converter from UTF-16 to UTF-8.
+// It is only provided for Windows since other systems support UTF-8 natively.
+class utf16_to_utf8 {
+ private:
+  memory_buffer buffer_;
+
+ public:
+  utf16_to_utf8() {}
+  FMT_API explicit utf16_to_utf8(wstring_view s);
+  operator string_view() const { return string_view(&buffer_[0], size()); }
+  size_t size() const { return buffer_.size() - 1; }
+  const char* c_str() const { return &buffer_[0]; }
+  std::string str() const { return std::string(&buffer_[0], size()); }
+
+  // Performs conversion returning a system error code instead of
+  // throwing exception on conversion error. This method may still throw
+  // in case of memory allocation error.
+  FMT_API int convert(wstring_view s);
+};
+
+FMT_API void format_windows_error(buffer<char>& out, int error_code,
+                                  string_view message) FMT_NOEXCEPT;
+}  // namespace internal
+
+/** A Windows error. */
+class windows_error : public system_error {
+ private:
+  FMT_API void init(int error_code, string_view format_str, format_args args);
+
+ public:
+  /**
+   \rst
+   Constructs a :class:`fmt::windows_error` object with the description
+   of the form
+
+   .. parsed-literal::
+     *<message>*: *<system-message>*
+
+   where *<message>* is the formatted message and *<system-message>* is the
+   system message corresponding to the error code.
+   *error_code* is a Windows error code as given by ``GetLastError``.
+   If *error_code* is not a valid error code such as -1, the system message
+   will look like "error -1".
+
+   **Example**::
+
+     // This throws a windows_error with the description
+     //   cannot open file 'madeup': The system cannot find the file specified.
+     // or similar (system message may vary).
+     const char *filename = "madeup";
+     LPOFSTRUCT of = LPOFSTRUCT();
+     HFILE file = OpenFile(filename, &of, OF_READ);
+     if (file == HFILE_ERROR) {
+       throw fmt::windows_error(GetLastError(),
+                                "cannot open file '{}'", filename);
+     }
+   \endrst
+  */
+  template <typename... Args>
+  windows_error(int error_code, string_view message, const Args&... args) {
+    init(error_code, message, make_format_args(args...));
+  }
+};
+
+// Reports a Windows error without throwing an exception.
+// Can be used to report errors from destructors.
+FMT_API void report_windows_error(int error_code,
+                                  string_view message) FMT_NOEXCEPT;
+#endif  // _WIN32
 
 // A buffered file.
 class buffered_file {
@@ -274,21 +345,15 @@ long getpagesize();
 
 #ifdef FMT_LOCALE
 // A "C" numeric locale.
-class Locale {
+class locale {
  private:
 #  ifdef _WIN32
   using locale_t = _locale_t;
 
-  enum { LC_NUMERIC_MASK = LC_NUMERIC };
+  static void freelocale(locale_t loc) { _free_locale(loc); }
 
-  static locale_t newlocale(int category_mask, const char* locale, locale_t) {
-    return _create_locale(category_mask, locale);
-  }
-
-  static void freelocale(locale_t locale) { _free_locale(locale); }
-
-  static double strtod_l(const char* nptr, char** endptr, _locale_t locale) {
-    return _strtod_l(nptr, endptr, locale);
+  static double strtod_l(const char* nptr, char** endptr, _locale_t loc) {
+    return _strtod_l(nptr, endptr, loc);
   }
 #  endif
 
@@ -296,13 +361,18 @@ class Locale {
 
  public:
   using type = locale_t;
-  Locale(const Locale&) = delete;
-  void operator=(const Locale&) = delete;
+  locale(const locale&) = delete;
+  void operator=(const locale&) = delete;
 
-  Locale() : locale_(newlocale(LC_NUMERIC_MASK, "C", nullptr)) {
+  locale() {
+#  ifndef _WIN32
+    locale_ = FMT_SYSTEM(newlocale(LC_NUMERIC_MASK, "C", nullptr));
+#  else
+    locale_ = _create_locale(LC_NUMERIC, "C");
+#  endif
     if (!locale_) FMT_THROW(system_error(errno, "cannot create locale"));
   }
-  ~Locale() { freelocale(locale_); }
+  ~locale() { freelocale(locale_); }
 
   type get() const { return locale_; }
 
@@ -315,7 +385,8 @@ class Locale {
     return result;
   }
 };
+using Locale FMT_DEPRECATED_ALIAS = locale;
 #endif  // FMT_LOCALE
 FMT_END_NAMESPACE
 
-#endif  // FMT_POSIX_H_
+#endif  // FMT_OS_H_
