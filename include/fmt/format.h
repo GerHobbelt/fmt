@@ -273,6 +273,7 @@ inline auto is_big_endian() -> bool {
   return bit_cast<bytes>(u).data[0] == 0;
 }
 
+#undef assume
 // A fallback implementation of uintptr_t for systems that lack it.
 struct fallback_uintptr {
   unsigned char value[sizeof(void*)];
