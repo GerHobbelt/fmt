@@ -9,7 +9,9 @@
 #define FMT_FORMAT_INL_H_
 
 #include <algorithm>
+#ifndef FMT_MODULE
 #include <cassert>
+#endif
 #include <cctype>
 #include <climits>
 #include <cmath>

@@ -654,6 +654,7 @@ inline std::basic_string<Char> vsprintf(
     std::string message = fmt::sprintf("The answer is %d", 42);
   \endrst
 */
+FMT_MODULE_EXPORT
 template <typename S, typename... Args,
           typename Char = enable_if_t<detail::is_string<S>::value, char_t<S>>>
 inline std::basic_string<Char> sprintf(const S& format, const Args&... args) {
@@ -682,6 +683,7 @@ inline int vfprintf(
     fmt::fprintf(stderr, "Don't %s!", "panic");
   \endrst
  */
+FMT_MODULE_EXPORT
 template <typename S, typename... Args,
           typename Char = enable_if_t<detail::is_string<S>::value, char_t<S>>>
 inline int fprintf(std::FILE* f, const S& format, const Args&... args) {
@@ -706,6 +708,7 @@ inline int vprintf(
     fmt::printf("Elapsed time: %.2f seconds", 1.23);
   \endrst
  */
+FMT_MODULE_EXPORT
 template <typename S, typename... Args,
           FMT_ENABLE_IF(detail::is_string<S>::value)>
 inline int printf(const S& format_str, const Args&... args) {
@@ -745,6 +748,7 @@ typename ArgFormatter::iterator vprintf(
     fmt::fprintf(cerr, "Don't %s!", "panic");
   \endrst
  */
+FMT_MODULE_EXPORT
 template <typename S, typename... Args, typename Char = char_t<S>>
 inline int fprintf(std::basic_ostream<Char>& os, const S& format_str,
                    const Args&... args) {

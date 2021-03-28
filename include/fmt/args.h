@@ -60,6 +60,8 @@ class dynamic_arg_list {
 };
 }  // namespace detail
 
+FMT_MODULE_EXPORT_BEGIN
+
 /**
   \rst
   A dynamic version of `fmt::format_arg_store`.
@@ -233,6 +235,7 @@ class dynamic_format_arg_store
   }
 };
 
+FMT_MODULE_EXPORT_END
 FMT_END_NAMESPACE
 
 #endif  // FMT_ARGS_H_

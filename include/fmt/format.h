@@ -700,6 +700,7 @@ enum { inline_buffer_size = 500 };
   The output can be converted to an ``std::string`` with ``to_string(out)``.
   \endrst
  */
+FMT_MODULE_EXPORT
 template <typename T, size_t SIZE = inline_buffer_size,
           typename Allocator = std::allocator<T>>
 class basic_memory_buffer final : public detail::buffer<T> {
@@ -813,14 +814,17 @@ void basic_memory_buffer<T, SIZE, Allocator>::grow(size_t size) {
   if (old_data != store_) alloc_.deallocate(old_data, old_capacity);
 }
 
+FMT_MODULE_EXPORT_BEGIN
 using memory_buffer = basic_memory_buffer<char>;
 using wmemory_buffer = basic_memory_buffer<wchar_t>;
+FMT_MODULE_EXPORT_END
 
 template <typename T, size_t SIZE, typename Allocator>
 struct is_contiguous<basic_memory_buffer<T, SIZE, Allocator>> : std::true_type {
 };
 
 /** A formatting error such as invalid format string. */
+FMT_MODULE_EXPORT
 FMT_CLASS_API
 class FMT_API format_error : public std::runtime_error {
  public:
@@ -3329,6 +3333,7 @@ using arg_formatter FMT_DEPRECATED_ALIAS =
  An error returned by an operating system or a language runtime,
  for example a file opening error.
 */
+FMT_MODULE_EXPORT
 FMT_CLASS_API
 class FMT_API system_error : public std::runtime_error {
  private:
@@ -3388,6 +3393,7 @@ class FMT_API system_error : public std::runtime_error {
   may look like "Unknown error -1" and is platform-dependent.
   \endrst
  */
+FMT_MODULE_EXPORT
 FMT_API void format_system_error(detail::buffer<char>& out, int error_code,
                                  string_view message) FMT_NOEXCEPT;
 
@@ -3660,6 +3666,7 @@ FMT_CONSTEXPR void advance_to(
   ctx.advance_to(ctx.begin() + (p - &*ctx.begin()));
 }
 
+FMT_MODULE_EXPORT_BEGIN
 /**
   \rst
   Converts ``p`` to ``const void*`` for pointer formatting.
@@ -3676,6 +3683,7 @@ template <typename T> inline const void* ptr(const std::unique_ptr<T>& p) {
 template <typename T> inline const void* ptr(const std::shared_ptr<T>& p) {
   return p.get();
 }
+FMT_MODULE_EXPORT_END
 
 class bytes {
  private:
@@ -3754,6 +3762,8 @@ struct formatter<arg_join<It, Sentinel, Char>, Char> {
     return out;
   }
 };
+
+FMT_MODULE_EXPORT_BEGIN
 
 /**
   Returns an object that formats the iterator range `[begin, end)` with elements
@@ -3838,6 +3848,8 @@ std::basic_string<Char> to_string(const basic_memory_buffer<Char, SIZE>& buf) {
   detail::assume(size < std::basic_string<Char>().max_size());
   return std::basic_string<Char>(buf.data(), size);
 }
+
+FMT_MODULE_EXPORT_END
 
 template <typename Char>
 void detail::vformat_to(
@@ -4003,6 +4015,8 @@ template <typename Char> struct udl_arg {
 };
 }  // namespace detail
 
+FMT_MODULE_EXPORT_BEGIN
+
 inline namespace literals {
 #  if FMT_USE_UDL_TEMPLATE
 #    pragma GCC diagnostic push
@@ -4053,6 +4067,8 @@ FMT_CONSTEXPR detail::udl_arg<wchar_t> operator"" _a(const wchar_t* s, size_t) {
   return {s};
 }
 }  // namespace literals
+
+FMT_MODULE_EXPORT_END
 #endif  // FMT_USE_USER_DEFINED_LITERALS
 FMT_END_NAMESPACE
 

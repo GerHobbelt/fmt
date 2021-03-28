@@ -202,6 +202,16 @@
     FMT_INLINE_NAMESPACE v7 {
 #endif
 
+#ifdef FMT_MODULE
+#  define FMT_MODULE_EXPORT export
+#  define FMT_MODULE_EXPORT_BEGIN export {
+#  define FMT_MODULE_EXPORT_END }
+#else
+#  define FMT_MODULE_EXPORT
+#  define FMT_MODULE_EXPORT_BEGIN
+#  define FMT_MODULE_EXPORT_END
+#endif
+
 #if !defined(FMT_HEADER_ONLY) && defined(_WIN32)
 #  define FMT_CLASS_API FMT_MSC_WARNING(suppress : 4275)
 #  ifdef FMT_EXPORT
@@ -560,6 +570,7 @@ template <typename S> using char_t = typename detail::char_t_impl<S>::type;
   +-----------------------+-------------------------------------+
   \endrst
  */
+FMT_MODULE_EXPORT
 template <typename Char, typename ErrorHandler = detail::error_handler>
 class basic_format_parse_context : private ErrorHandler {
  private:
@@ -667,6 +678,7 @@ inline Container& get_container(std::back_insert_iterator<Container> it) {
   class and shouldn't be used directly, only via `~fmt::basic_memory_buffer`.
   \endrst
  */
+FMT_MODULE_EXPORT
 template <typename T> class buffer {
  private:
   T* ptr_;
@@ -1521,6 +1533,7 @@ using wformat_context = buffer_context<wchar_t>;
   such as `~fmt::vformat`.
   \endrst
  */
+FMT_MODULE_EXPORT
 template <typename Context, typename... Args>
 class format_arg_store
 #if FMT_GCC_VERSION && FMT_GCC_VERSION < 409
@@ -1570,6 +1583,7 @@ class format_arg_store
   See `~fmt::arg` for lifetime considerations.
   \endrst
  */
+FMT_MODULE_EXPORT
 template <typename Context = format_context, typename... Args>
 inline format_arg_store<Context, Args...> make_format_args(
     const Args&... args) {
@@ -1584,6 +1598,7 @@ inline format_arg_store<Context, Args...> make_format_args(
   its validity at compile time.
   \endrst
  */
+FMT_MODULE_EXPORT
 template <typename... Args, typename S, typename Char = char_t<S>>
 inline auto make_args_checked(const S& format_str,
                               const remove_reference_t<Args>&... args)
@@ -1607,6 +1622,7 @@ inline auto make_args_checked(const S& format_str,
     fmt::print("Elapsed time: {s:.2f} seconds", fmt::arg("s", 1.23));
   \endrst
  */
+FMT_MODULE_EXPORT
 template <typename Char, typename T>
 inline detail::named_arg<Char, T> arg(const Char* name, const T& arg) {
   static_assert(!detail::is_named_arg<T>(), "nested named arguments");
@@ -1623,6 +1639,7 @@ inline detail::named_arg<Char, T> arg(const Char* name, const T& arg) {
     format_args args = make_format_args(42);  // Error: dangling reference
   \endrst
  */
+FMT_MODULE_EXPORT
 template <typename Context> class basic_format_args {
  public:
   using size_type = int;
@@ -1795,6 +1812,7 @@ auto vformat_to(OutputIt out, const S& format_str,
  \endrst
  */
 // We cannot use FMT_ENABLE_IF because of a bug in gcc 8.3.
+FMT_MODULE_EXPORT
 template <typename OutputIt, typename S, typename... Args,
           bool enable = detail::is_output_iterator<OutputIt, char_t<S>>::value>
 inline auto format_to(OutputIt out, const S& format_str, Args&&... args) ->
@@ -1803,6 +1821,7 @@ inline auto format_to(OutputIt out, const S& format_str, Args&&... args) ->
   return vformat_to(out, to_string_view(format_str), vargs);
 }
 
+FMT_MODULE_EXPORT
 template <typename OutputIt> struct format_to_n_result {
   /** Iterator past the end of the output range. */
   OutputIt out;
@@ -1828,6 +1847,7 @@ inline format_to_n_result<OutputIt> vformat_to_n(
  end of the output range.
  \endrst
  */
+FMT_MODULE_EXPORT
 template <typename OutputIt, typename S, typename... Args,
           bool enable = detail::is_output_iterator<OutputIt, char_t<S>>::value>
 inline auto format_to_n(OutputIt out, size_t n, const S& format_str,
@@ -1841,6 +1861,7 @@ inline auto format_to_n(OutputIt out, size_t n, const S& format_str,
   Returns the number of characters in the output of
   ``format(format_str, args...)``.
  */
+FMT_MODULE_EXPORT
 template <typename... Args>
 inline size_t formatted_size(string_view format_str, Args&&... args) {
   const auto& vargs = fmt::make_args_checked<Args...>(format_str, args...);
@@ -1868,6 +1889,7 @@ FMT_INLINE std::basic_string<Char> vformat(
 */
 // Pass char_t as a default template parameter instead of using
 // std::basic_string<char_t<S>> to reduce the symbol size.
+FMT_MODULE_EXPORT
 template <typename S, typename... Args, typename Char = char_t<S>,
           FMT_ENABLE_IF(!FMT_COMPILE_TIME_CHECKS ||
                         !std::is_same<Char, char>::value)>
@@ -1890,6 +1912,7 @@ FMT_API void vprint(std::FILE*, string_view, format_args);
     fmt::print(stderr, "Don't {}!", "panic");
   \endrst
  */
+FMT_MODULE_EXPORT
 template <typename S, typename... Args, typename Char = char_t<S>>
 inline void print(std::FILE* f, const S& format_str, Args&&... args) {
   const auto& vargs = fmt::make_args_checked<Args...>(format_str, args...);
@@ -1909,6 +1932,7 @@ inline void print(std::FILE* f, const S& format_str, Args&&... args) {
     fmt::print("Elapsed time: {0:.2f} seconds", 1.23);
   \endrst
  */
+FMT_MODULE_EXPORT
 template <typename S, typename... Args, typename Char = char_t<S>>
 inline void print(const S& format_str, Args&&... args) {
   const auto& vargs = fmt::make_args_checked<Args...>(format_str, args...);
