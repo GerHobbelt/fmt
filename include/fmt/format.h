@@ -737,6 +737,7 @@ enum { inline_buffer_size = 500 };
   The output can be converted to an ``std::string`` with ``to_string(out)``.
   \endrst
  */
+FMT_MODULE_EXPORT
 template <typename T, size_t SIZE = inline_buffer_size,
           typename Allocator = std::allocator<T>>
 class basic_memory_buffer final : public detail::buffer<T> {
@@ -850,14 +851,17 @@ void basic_memory_buffer<T, SIZE, Allocator>::grow(size_t size) {
   if (old_data != store_) alloc_.deallocate(old_data, old_capacity);
 }
 
+FMT_MODULE_EXPORT_BEGIN
 using memory_buffer = basic_memory_buffer<char>;
 using wmemory_buffer = basic_memory_buffer<wchar_t>;
+FMT_MODULE_EXPORT_END
 
 template <typename T, size_t SIZE, typename Allocator>
 struct is_contiguous<basic_memory_buffer<T, SIZE, Allocator>> : std::true_type {
 };
 
 /** A formatting error such as invalid format string. */
+FMT_MODULE_EXPORT
 FMT_CLASS_API
 class FMT_API format_error : public std::runtime_error {
  public:
@@ -3336,6 +3340,7 @@ using arg_formatter FMT_DEPRECATED_ALIAS =
  An error returned by an operating system or a language runtime,
  for example a file opening error.
 */
+FMT_MODULE_EXPORT
 FMT_CLASS_API
 class FMT_API system_error : public std::runtime_error {
  private:
@@ -3395,6 +3400,7 @@ class FMT_API system_error : public std::runtime_error {
   may look like "Unknown error -1" and is platform-dependent.
   \endrst
  */
+FMT_MODULE_EXPORT
 FMT_API void format_system_error(detail::buffer<char>& out, int error_code,
                                  string_view message) FMT_NOEXCEPT;
 
@@ -3465,6 +3471,7 @@ class format_int {
 
 // A formatter specialization for the core types corresponding to detail::type
 // constants.
+FMT_MODULE_EXPORT
 template <typename T, typename Char>
 struct formatter<T, Char,
                  enable_if_t<detail::type_constant<T, Char>::value !=
@@ -3673,6 +3680,7 @@ FMT_CONSTEXPR void advance_to(
   ctx.advance_to(ctx.begin() + (p - &*ctx.begin()));
 }
 
+FMT_MODULE_EXPORT_BEGIN
 /**
   \rst
   Converts ``p`` to ``const void*`` for pointer formatting.
@@ -3692,6 +3700,7 @@ template <typename T> const void* ptr(const std::unique_ptr<T>& p) {
 template <typename T> const void* ptr(const std::shared_ptr<T>& p) {
   return p.get();
 }
+FMT_MODULE_EXPORT_END
 
 class bytes {
  private:
@@ -3770,6 +3779,8 @@ struct formatter<arg_join<It, Sentinel, Char>, Char> {
     return out;
   }
 };
+
+FMT_MODULE_EXPORT_BEGIN
 
 /**
   Returns an object that formats the iterator range `[begin, end)` with elements
@@ -3855,6 +3866,8 @@ std::basic_string<Char> to_string(const basic_memory_buffer<Char, SIZE>& buf) {
   return std::basic_string<Char>(buf.data(), size);
 }
 
+FMT_MODULE_EXPORT_END
+
 template <typename Char>
 void detail::vformat_to(
     detail::buffer<Char>& buf, basic_string_view<Char> format_str,
@@ -3911,6 +3924,7 @@ inline void vformat_to(
   return detail::vformat_to(buf, to_string_view(format_str), args);
 }
 
+FMT_MODULE_EXPORT
 template <typename S, typename... Args, size_t SIZE = inline_buffer_size,
           typename Char = enable_if_t<detail::is_string<S>::value, char_t<S>>>
 inline typename buffer_context<Char>::iterator format_to(
@@ -3956,6 +3970,7 @@ template <typename... Args> struct format_string {
   format_string(const T& s) : str(s) {}
 };
 
+FMT_MODULE_EXPORT
 template <typename... Args>
 FMT_INLINE std::string format(
     format_string<std::type_identity_t<Args>...> format_str, Args&&... args) {
@@ -3963,6 +3978,7 @@ FMT_INLINE std::string format(
 }
 #endif
 
+FMT_MODULE_EXPORT
 template <typename Char, enable_if_t<(!std::is_same<Char, char>::value), int>>
 std::basic_string<Char> detail::vformat(
     basic_string_view<Char> format_str,
@@ -3972,6 +3988,7 @@ std::basic_string<Char> detail::vformat(
   return to_string(buffer);
 }
 
+FMT_MODULE_EXPORT
 template <typename Char, FMT_ENABLE_IF(std::is_same<Char, wchar_t>::value)>
 void vprint(std::FILE* f, basic_string_view<Char> format_str,
             wformat_args args) {
@@ -3982,6 +3999,7 @@ void vprint(std::FILE* f, basic_string_view<Char> format_str,
     FMT_THROW(system_error(errno, "cannot write to file"));
 }
 
+FMT_MODULE_EXPORT
 template <typename Char, FMT_ENABLE_IF(std::is_same<Char, wchar_t>::value)>
 void vprint(basic_string_view<Char> format_str, wformat_args args) {
   vprint(stdout, format_str, args);
@@ -4006,6 +4024,8 @@ template <typename Char> struct udl_arg {
   }
 };
 }  // namespace detail
+
+FMT_MODULE_EXPORT_BEGIN
 
 inline namespace literals {
 /**
@@ -4044,6 +4064,8 @@ constexpr detail::udl_arg<wchar_t> operator"" _a(const wchar_t* s, size_t) {
   return {s};
 }
 }  // namespace literals
+
+FMT_MODULE_EXPORT_END
 #endif  // FMT_USE_USER_DEFINED_LITERALS
 #endif  // FMT_MODULE_IMPLEMENTATION
 FMT_END_NAMESPACE
