@@ -398,6 +398,8 @@ namespace internal = detail;  // DEPRECATED
   compiled with a different ``-std`` option than the client code (which is not
   recommended).
  */
+FMT_MODULE_EXPORT_BEGIN
+
 template <typename Char> class basic_string_view {
  private:
   const Char* data_;
@@ -501,6 +503,8 @@ template <> struct is_char<detail::char8_type> : std::true_type {};
 template <> struct is_char<char16_t> : std::true_type {};
 template <> struct is_char<char32_t> : std::true_type {};
 
+FMT_MODULE_EXPORT_END
+
 /**
   \rst
   Returns a string view of `s`. In order to add custom string type support to
@@ -590,6 +594,7 @@ struct error_handler {
 }  // namespace detail
 
 /** String's character type. */
+FMT_MODULE_EXPORT
 template <typename S> using char_t = typename detail::char_t_impl<S>::type;
 
 /**
@@ -608,6 +613,8 @@ template <typename S> using char_t = typename detail::char_t_impl<S>::type;
   +-----------------------+-------------------------------------+
   \endrst
  */
+FMT_MODULE_EXPORT_BEGIN
+
 template <typename Char, typename ErrorHandler = detail::error_handler>
 class basic_format_parse_context : private ErrorHandler {
  private:
@@ -685,6 +692,8 @@ struct formatter {
   formatter() = delete;
 };
 
+FMT_MODULE_EXPORT_END
+
 // Specifies if T has an enabled formatter specialization. A type can be
 // formattable even if it doesn't have a formatter e.g. via a conversion.
 template <typename T, typename Context>
@@ -715,6 +724,7 @@ inline Container& get_container(std::back_insert_iterator<Container> it) {
   class and shouldn't be used directly, only via `~fmt::basic_memory_buffer`.
   \endrst
  */
+FMT_MODULE_EXPORT
 template <typename T> class buffer {
  private:
   T* ptr_;
@@ -1316,6 +1326,7 @@ enum : unsigned long long { has_named_args_bit = 1ULL << 62 };
 
 // A formatting argument. It is a trivially copyable/constructible type to
 // allow storage in basic_memory_buffer.
+FMT_MODULE_EXPORT
 template <typename Context> class basic_format_arg {
  private:
   detail::value<Context> value_;
@@ -1509,6 +1520,8 @@ inline basic_format_arg<Context> make_arg(const T& value) {
 }
 }  // namespace detail
 
+FMT_MODULE_EXPORT_BEGIN
+
 // Formatting context.
 template <typename OutputIt, typename Char> class basic_format_context {
  public:
@@ -1564,6 +1577,7 @@ using buffer_context =
 using format_context = buffer_context<char>;
 using wformat_context = buffer_context<wchar_t>;
 
+FMT_MODULE_EXPORT_END
 #endif  // FMT_MODULE_IMPLEMENTATION
 
 // Workaround an alias issue: https://stackoverflow.com/q/62767544/471164.
@@ -1584,6 +1598,8 @@ using is_formattable = bool_constant<!std::is_same<
   such as `~fmt::vformat`.
   \endrst
  */
+FMT_MODULE_EXPORT_BEGIN
+
 template <typename Context, typename... Args>
 class format_arg_store
 #if FMT_GCC_VERSION && FMT_GCC_VERSION < 409
@@ -1813,6 +1829,7 @@ struct wformat_args : basic_format_args<wformat_context> {
   using basic_format_args::basic_format_args;
 };
 #endif
+FMT_MODULE_EXPORT_END
 
 namespace detail {
 
@@ -1838,6 +1855,8 @@ FMT_API void vprint_mojibake(std::FILE*, string_view, format_args);
 inline void vprint_mojibake(std::FILE*, string_view, format_args) {}
 #endif
 }  // namespace detail
+
+FMT_MODULE_EXPORT_BEGIN
 
 /** Formats a string and writes the output to ``out``. */
 // GCC 8 and earlier cannot handle std::back_insert_iterator<Container> with
@@ -1987,6 +2006,7 @@ inline void print(const S& format_str, Args&&... args) {
                                        vargs);
 }
 
+FMT_MODULE_EXPORT_END
 #endif  // FMT_MODULE_IMPLEMENTATION
 FMT_GCC_PRAGMA("GCC pop_options")
 FMT_END_NAMESPACE

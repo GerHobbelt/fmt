@@ -19,6 +19,8 @@
 
 FMT_BEGIN_NAMESPACE
 
+FMT_MODULE_EXPORT_BEGIN
+
 enum class color : uint32_t {
   alice_blue = 0xF0F8FF,               // rgb(240,248,255)
   antique_white = 0xFAEBD7,            // rgb(250,235,215)
@@ -205,6 +207,8 @@ struct rgb {
   uint8_t b;
 };
 
+FMT_MODULE_EXPORT_END
+
 namespace detail {
 
 // color is a struct of either a rgb color or a terminal color.
@@ -231,6 +235,7 @@ struct color_type {
 }  // namespace detail
 
 /** A text style consisting of foreground and background colors and emphasis. */
+FMT_MODULE_EXPORT
 class text_style {
  public:
   FMT_CONSTEXPR text_style(emphasis em = emphasis()) FMT_NOEXCEPT
@@ -352,6 +357,8 @@ class text_style {
   emphasis ems;
 };
 
+FMT_MODULE_EXPORT_BEGIN
+
 /** Creates a text style from the foreground (text) color. */
 FMT_CONSTEXPR inline text_style fg(detail::color_type foreground) FMT_NOEXCEPT {
   return text_style(true, foreground);
@@ -366,6 +373,8 @@ FMT_CONSTEXPR inline text_style operator|(emphasis lhs,
                                           emphasis rhs) FMT_NOEXCEPT {
   return text_style(lhs) | rhs;
 }
+
+FMT_MODULE_EXPORT_END
 
 namespace detail {
 
@@ -531,6 +540,7 @@ void vprint(std::FILE* f, const text_style& ts, const S& format,
                "Elapsed time: {0:.2f} seconds", 1.23);
   \endrst
  */
+FMT_MODULE_EXPORT
 template <typename S, typename... Args,
           FMT_ENABLE_IF(detail::is_string<S>::value)>
 void print(std::FILE* f, const text_style& ts, const S& format_str,
@@ -550,12 +560,14 @@ void print(std::FILE* f, const text_style& ts, const S& format_str,
                "Elapsed time: {0:.2f} seconds", 1.23);
   \endrst
  */
+FMT_MODULE_EXPORT
 template <typename S, typename... Args,
           FMT_ENABLE_IF(detail::is_string<S>::value)>
 void print(const text_style& ts, const S& format_str, const Args&... args) {
   return print(stdout, ts, format_str, args...);
 }
 
+FMT_MODULE_EXPORT
 template <typename S, typename Char = char_t<S>>
 inline std::basic_string<Char> vformat(
     const text_style& ts, const S& format_str,
@@ -577,6 +589,7 @@ inline std::basic_string<Char> vformat(
                                       "The answer is {}", 42);
   \endrst
 */
+FMT_MODULE_EXPORT
 template <typename S, typename... Args, typename Char = char_t<S>>
 inline std::basic_string<Char> format(const text_style& ts, const S& format_str,
                                       const Args&... args) {
@@ -587,6 +600,7 @@ inline std::basic_string<Char> format(const text_style& ts, const S& format_str,
 /**
   Formats a string with the given text_style and writes the output to ``out``.
  */
+FMT_MODULE_EXPORT
 template <typename OutputIt, typename Char,
           FMT_ENABLE_IF(detail::is_output_iterator<OutputIt, Char>::value)>
 OutputIt vformat_to(
@@ -609,6 +623,7 @@ OutputIt vformat_to(
                    fmt::emphasis::bold | fg(fmt::color::red), "{}", 42);
   \endrst
 */
+FMT_MODULE_EXPORT
 template <typename OutputIt, typename S, typename... Args,
           bool enable = detail::is_output_iterator<OutputIt, char_t<S>>::value&&
               detail::is_string<S>::value>
