@@ -204,7 +204,7 @@
     FMT_INLINE_NAMESPACE v7 {
 #endif
 
-#ifdef FMT_MODULE
+#if defined(FMT_MODULE) && !defined(FMT_MODULE_IMPLEMENTATION)
 #  define FMT_MODULE_EXPORT export
 #  define FMT_MODULE_EXPORT_BEGIN export {
 #  define FMT_MODULE_EXPORT_END }
@@ -269,6 +269,7 @@ FMT_GCC_PRAGMA("GCC optimize(\"Og\")")
 #endif
 
 FMT_BEGIN_NAMESPACE
+#ifndef FMT_MODULE_IMPLEMENTATION
 
 // Implementations of enable_if_t and other metafunctions for older systems.
 template <bool B, class T = void>
@@ -287,6 +288,8 @@ template <typename T> using type_identity_t = typename type_identity<T>::type;
 
 struct monostate {};
 
+#endif // FMT_MODULE_IMPLEMENTATION
+
 // An enable_if helper to be used in template parameters which results in much
 // shorter symbols: https://godbolt.org/z/sWw4vP. Extra parentheses are needed
 // to workaround a bug in MSVC 2019 (see #1140 and #1186).
@@ -297,6 +300,8 @@ struct monostate {};
 #endif
 
 namespace detail {
+
+#ifndef FMT_MODULE_IMPLEMENTATION
 
 constexpr FMT_INLINE bool is_constant_evaluated() FMT_NOEXCEPT {
 #ifdef __cpp_lib_is_constant_evaluated
@@ -312,6 +317,8 @@ template <typename T> constexpr T const_check(T value) { return value; }
 FMT_NORETURN FMT_API void assert_fail(const char* file, int line,
                                       const char* message);
 
+#endif // FMT_MODULE_IMPLEMENTATION
+
 #ifndef FMT_ASSERT
 #  ifdef NDEBUG
 // FMT_ASSERT is not empty to avoid -Werror=empty-body.
@@ -324,6 +331,8 @@ FMT_NORETURN FMT_API void assert_fail(const char* file, int line,
 #  endif
 #endif
 
+#ifndef FMT_MODULE_IMPLEMENTATION
+
 #if defined(FMT_USE_STRING_VIEW)
 template <typename Char> using std_string_view = std::basic_string_view<Char>;
 #elif defined(FMT_USE_EXPERIMENTAL_STRING_VIEW)
@@ -332,6 +341,8 @@ using std_string_view = std::experimental::basic_string_view<Char>;
 #else
 template <typename T> struct std_string_view {};
 #endif
+
+#endif // FMT_MODULE_IMPLEMENTATION
 
 #ifdef FMT_USE_INT128
 // Do nothing.
@@ -343,6 +354,9 @@ using uint128_t = __uint128_t;
 #else
 #  define FMT_USE_INT128 0
 #endif
+
+#ifndef FMT_MODULE_IMPLEMENTATION
+
 #if !FMT_USE_INT128
 struct int128_t {};
 struct uint128_t {};
@@ -367,7 +381,11 @@ using char8_type = char8_t;
 #else
 enum char8_type : unsigned char {};
 #endif
+
+#endif // FMT_MODULE_IMPLEMENTATION
 }  // namespace detail
+
+#ifndef FMT_MODULE_IMPLEMENTATION
 
 #ifdef FMT_USE_INTERNAL
 namespace internal = detail;  // DEPRECATED
@@ -1543,9 +1561,13 @@ using buffer_context =
 using format_context = buffer_context<char>;
 using wformat_context = buffer_context<wchar_t>;
 
+#endif  // FMT_MODULE_IMPLEMENTATION
+
 // Workaround an alias issue: https://stackoverflow.com/q/62767544/471164.
 #define FMT_BUFFER_CONTEXT(Char) \
   basic_format_context<detail::buffer_appender<Char>, Char>
+
+#ifndef FMT_MODULE_IMPLEMENTATION
 
 template <typename T, typename Char = char>
 using is_formattable = bool_constant<!std::is_same<
@@ -1961,6 +1983,8 @@ inline void print(const S& format_str, Args&&... args) {
              : detail::vprint_mojibake(stdout, to_string_view(format_str),
                                        vargs);
 }
+
+#endif  // FMT_MODULE_IMPLEMENTATION
 FMT_GCC_PRAGMA("GCC pop_options")
 FMT_END_NAMESPACE
 
