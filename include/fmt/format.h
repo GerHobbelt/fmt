@@ -106,6 +106,7 @@
 #ifndef FMT_THROW
 #  if FMT_EXCEPTIONS
 #    if FMT_MSC_VER || FMT_NVCC
+#ifndef FMT_MODULE_IMPLEMENTATION
 FMT_BEGIN_NAMESPACE
 namespace detail {
 template <typename Exception> inline void do_throw(const Exception& x) {
@@ -116,6 +117,7 @@ template <typename Exception> inline void do_throw(const Exception& x) {
 }
 }  // namespace detail
 FMT_END_NAMESPACE
+#endif  // FMT_MODULE_IMPLEMENTATION
 #      define FMT_THROW(x) detail::do_throw(x)
 #    else
 #      define FMT_THROW(x) throw x
@@ -186,6 +188,7 @@ FMT_END_NAMESPACE
 #  include <intrin.h>  // _BitScanReverse[64], _BitScanForward[64], _umul128
 #endif
 
+#ifndef FMT_MODULE_IMPLEMENTATION
 // Some compilers masquerade as both MSVC and GCC-likes or otherwise support
 // __builtin_clz and __builtin_clzll, so only define FMT_BUILTIN_CLZ using the
 // MSVC intrinsics if the clz and clzll builtins are not available.
@@ -262,6 +265,7 @@ inline int ctzll(uint64_t x) {
 }  // namespace detail
 FMT_END_NAMESPACE
 #endif
+#endif  // FMT_MODULE_IMPLEMENTATION
 
 // Enable the deprecated numeric alignment.
 #ifndef FMT_DEPRECATED_NUMERIC_ALIGN
@@ -269,6 +273,7 @@ FMT_END_NAMESPACE
 #endif
 
 FMT_BEGIN_NAMESPACE
+#ifndef FMT_MODULE_IMPLEMENTATION
 namespace detail {
 
 #if __cplusplus >= 202002L || \
@@ -665,10 +670,13 @@ inline size_t code_point_index(basic_string_view<char8_type> s, size_t n) {
 template <typename T>
 using is_fast_float = bool_constant<std::numeric_limits<T>::is_iec559 &&
                                     sizeof(T) <= sizeof(double)>;
+#endif // FMT_MODULE_IMPLEMENTATION
 
 #ifndef FMT_USE_FULL_CACHE_DRAGONBOX
 #  define FMT_USE_FULL_CACHE_DRAGONBOX 0
 #endif
+
+#ifndef FMT_MODULE_IMPLEMENTATION
 
 template <typename T>
 template <typename U>
@@ -690,8 +698,8 @@ void iterator_buffer<OutputIt, T, Traits>::flush() {
   this->clear();
   out_ = copy_str<T>(data_, data_ + this->limit(size), out_);
 }
-}  // namespace detail
 
+}  // namespace detail
 FMT_MODULE_EXPORT_BEGIN
 
 // The number of characters to store in the basic_memory_buffer object itself
@@ -1055,6 +1063,8 @@ template <int BITS, typename UInt> FMT_CONSTEXPR int count_digits(UInt n) {
 
 template <> int count_digits<4>(detail::fallback_uintptr n);
 
+#endif // FMT_MODULE_IMPLEMENTATION
+
 #if FMT_GCC_VERSION || FMT_CLANG_VERSION
 #  define FMT_ALWAYS_INLINE inline __attribute__((always_inline))
 #elif FMT_MSC_VER
@@ -1062,6 +1072,8 @@ template <> int count_digits<4>(detail::fallback_uintptr n);
 #else
 #  define FMT_ALWAYS_INLINE inline
 #endif
+
+#ifndef FMT_MODULE_IMPLEMENTATION
 
 #ifdef FMT_BUILTIN_CLZ
 // Optional version of count_digits for better performance on 32-bit platforms.
@@ -3248,6 +3260,8 @@ FMT_CONSTEXPR basic_string_view<Char> compile_string_to_view(
   return {s.data(), s.size()};
 }
 
+#endif // FMT_MODULE_IMPLEMENTATION
+
 #define FMT_STRING_IMPL(s, base)                                           \
   [] {                                                                     \
     /* Use the hidden visibility as a workaround for a GCC bug (#1973). */ \
@@ -3273,6 +3287,8 @@ FMT_CONSTEXPR basic_string_view<Char> compile_string_to_view(
   \endrst
  */
 #define FMT_STRING(s) FMT_STRING_IMPL(s, fmt::compile_string)
+
+#ifndef FMT_MODULE_IMPLEMENTATION
 
 template <typename... Args, typename S,
           enable_if_t<(is_compile_string<S>::value), int>>
@@ -4038,6 +4054,7 @@ constexpr detail::udl_arg<wchar_t> operator"" _a(const wchar_t* s, size_t) {
 
 FMT_MODULE_EXPORT_END
 #endif  // FMT_USE_USER_DEFINED_LITERALS
+#endif  // FMT_MODULE_IMPLEMENTATION
 FMT_END_NAMESPACE
 
 #ifdef FMT_HEADER_ONLY
