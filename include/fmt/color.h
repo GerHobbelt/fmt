@@ -357,6 +357,8 @@ class text_style {
   emphasis ems;
 };
 
+FMT_MODULE_EXPORT_BEGIN
+
 /** Creates a text style from the foreground (text) color. */
 FMT_CONSTEXPR text_style fg(detail::color_type foreground) FMT_NOEXCEPT {
   return text_style(true, foreground);
@@ -370,6 +372,8 @@ FMT_CONSTEXPR text_style bg(detail::color_type background) FMT_NOEXCEPT {
 FMT_CONSTEXPR text_style operator|(emphasis lhs, emphasis rhs) FMT_NOEXCEPT {
   return text_style(lhs) | rhs;
 }
+
+FMT_MODULE_EXPORT_END
 
 namespace detail {
 
@@ -562,6 +566,7 @@ void print(const text_style& ts, const S& format_str, const Args&... args) {
   return print(stdout, ts, format_str, args...);
 }
 
+FMT_MODULE_EXPORT
 template <typename S, typename Char = char_t<S>>
 inline std::basic_string<Char> vformat(
     const text_style& ts, const S& format_str,
