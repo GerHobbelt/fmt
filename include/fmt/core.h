@@ -367,6 +367,8 @@ namespace internal = detail;  // DEPRECATED
   compiled with a different ``-std`` option than the client code (which is not
   recommended).
  */
+FMT_MODULE_EXPORT_BEGIN
+
 template <typename Char> class basic_string_view {
  private:
   const Char* data_;
@@ -463,6 +465,8 @@ template <> struct is_char<detail::char8_type> : std::true_type {};
 template <> struct is_char<char16_t> : std::true_type {};
 template <> struct is_char<char32_t> : std::true_type {};
 
+FMT_MODULE_EXPORT_END
+
 /**
   \rst
   Returns a string view of `s`. In order to add custom string type support to
@@ -552,6 +556,7 @@ struct error_handler {
 }  // namespace detail
 
 /** String's character type. */
+FMT_MODULE_EXPORT
 template <typename S> using char_t = typename detail::char_t_impl<S>::type;
 
 /**
