@@ -204,6 +204,16 @@
     FMT_INLINE_NAMESPACE v7 {
 #endif
 
+#ifdef FMT_MODULE
+#  define FMT_MODULE_EXPORT export
+#  define FMT_MODULE_EXPORT_BEGIN export {
+#  define FMT_MODULE_EXPORT_END }
+#else
+#  define FMT_MODULE_EXPORT
+#  define FMT_MODULE_EXPORT_BEGIN
+#  define FMT_MODULE_EXPORT_END
+#endif
+
 #if !defined(FMT_HEADER_ONLY) && defined(_WIN32)
 #  define FMT_CLASS_API FMT_MSC_WARNING(suppress : 4275)
 #  ifdef FMT_EXPORT
