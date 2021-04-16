@@ -503,8 +503,6 @@ template <> struct is_char<detail::char8_type> : std::true_type {};
 template <> struct is_char<char16_t> : std::true_type {};
 template <> struct is_char<char32_t> : std::true_type {};
 
-FMT_MODULE_EXPORT_END
-
 /**
   \rst
   Returns a string view of `s`. In order to add custom string type support to
@@ -555,6 +553,7 @@ constexpr basic_string_view<typename S::char_type> to_string_view(const S& s) {
   return s;
 }
 
+FMT_MODULE_EXPORT_END
 namespace detail {
 void to_string_view(...);
 using fmt::v7::to_string_view;
@@ -592,9 +591,9 @@ struct error_handler {
   FMT_NORETURN FMT_API void on_error(const char* message);
 };
 }  // namespace detail
+FMT_MODULE_EXPORT_BEGIN
 
 /** String's character type. */
-FMT_MODULE_EXPORT
 template <typename S> using char_t = typename detail::char_t_impl<S>::type;
 
 /**
@@ -613,8 +612,6 @@ template <typename S> using char_t = typename detail::char_t_impl<S>::type;
   +-----------------------+-------------------------------------+
   \endrst
  */
-FMT_MODULE_EXPORT_BEGIN
-
 template <typename Char, typename ErrorHandler = detail::error_handler>
 class basic_format_parse_context : private ErrorHandler {
  private:
@@ -692,8 +689,6 @@ struct formatter {
   formatter() = delete;
 };
 
-FMT_MODULE_EXPORT_END
-
 // Specifies if T has an enabled formatter specialization. A type can be
 // formattable even if it doesn't have a formatter e.g. via a conversion.
 template <typename T, typename Context>
@@ -705,6 +700,7 @@ template <typename T> struct is_contiguous : std::false_type {};
 template <typename Char>
 struct is_contiguous<std::basic_string<Char>> : std::true_type {};
 
+FMT_MODULE_EXPORT_END
 namespace detail {
 
 // Extracts a reference to the container from back_insert_iterator.
@@ -1323,10 +1319,10 @@ enum { max_packed_args = 62 / packed_arg_bits };
 enum : unsigned long long { is_unpacked_bit = 1ULL << 63 };
 enum : unsigned long long { has_named_args_bit = 1ULL << 62 };
 }  // namespace detail
+FMT_MODULE_EXPORT_BEGIN
 
 // A formatting argument. It is a trivially copyable/constructible type to
 // allow storage in basic_memory_buffer.
-FMT_MODULE_EXPORT
 template <typename Context> class basic_format_arg {
  private:
   detail::value<Context> value_;
@@ -1433,6 +1429,7 @@ FMT_CONSTEXPR_DECL FMT_INLINE auto visit_format_arg(
   return vis(monostate());
 }
 
+FMT_MODULE_EXPORT_END
 namespace detail {
 
 #if FMT_GCC_VERSION && FMT_GCC_VERSION < 500
@@ -1519,7 +1516,6 @@ inline basic_format_arg<Context> make_arg(const T& value) {
   return make_arg<Context>(value);
 }
 }  // namespace detail
-
 FMT_MODULE_EXPORT_BEGIN
 
 // Formatting context.
@@ -1586,6 +1582,8 @@ FMT_MODULE_EXPORT_END
 
 #ifndef FMT_MODULE_IMPLEMENTATION
 
+FMT_MODULE_EXPORT_BEGIN
+
 template <typename T, typename Char = char>
 using is_formattable = bool_constant<!std::is_same<
     decltype(detail::arg_mapper<buffer_context<Char>>().map(std::declval<T>())),
@@ -1598,8 +1596,6 @@ using is_formattable = bool_constant<!std::is_same<
   such as `~fmt::vformat`.
   \endrst
  */
-FMT_MODULE_EXPORT_BEGIN
-
 template <typename Context, typename... Args>
 class format_arg_store
 #if FMT_GCC_VERSION && FMT_GCC_VERSION < 409
@@ -1829,8 +1825,8 @@ struct wformat_args : basic_format_args<wformat_context> {
   using basic_format_args::basic_format_args;
 };
 #endif
-FMT_MODULE_EXPORT_END
 
+FMT_MODULE_EXPORT_END
 namespace detail {
 
 template <typename Char, FMT_ENABLE_IF(!std::is_same<Char, char>::value)>
@@ -1855,7 +1851,6 @@ FMT_API void vprint_mojibake(std::FILE*, string_view, format_args);
 inline void vprint_mojibake(std::FILE*, string_view, format_args) {}
 #endif
 }  // namespace detail
-
 FMT_MODULE_EXPORT_BEGIN
 
 /** Formats a string and writes the output to ``out``. */
