@@ -283,6 +283,7 @@ FMT_GCC_PRAGMA("GCC optimize(\"Og\")")
 
 FMT_BEGIN_NAMESPACE
 #ifndef FMT_MODULE_IMPLEMENTATION
+FMT_MODULE_EXPORT_BEGIN
 
 // Implementations of enable_if_t and other metafunctions for older systems.
 template <bool B, class T = void>
@@ -301,6 +302,7 @@ template <typename T> using type_identity_t = typename type_identity<T>::type;
 
 struct monostate {};
 
+FMT_MODULE_EXPORT_END
 #endif // FMT_MODULE_IMPLEMENTATION
 
 // An enable_if helper to be used in template parameters which results in much
