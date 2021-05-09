@@ -74,10 +74,10 @@ TEST(os_test, format_std_error_code) {
                         std::error_code(42, std::generic_category())));
   EXPECT_EQ("system:42",
             fmt::format(FMT_STRING("{0}"),
-                        std::error_code(42, std::system_category())));
+                        std::error_code(42, fmt::system_category())));
   EXPECT_EQ("system:-42",
             fmt::format(FMT_STRING("{0}"),
-                        std::error_code(-42, std::system_category())));
+                        std::error_code(-42, fmt::system_category())));
 }
 
 TEST(os_test, format_std_error_code_wide) {
@@ -86,10 +86,10 @@ TEST(os_test, format_std_error_code_wide) {
                         std::error_code(42, std::generic_category())));
   EXPECT_EQ(L"system:42",
             fmt::format(FMT_STRING(L"{0}"),
-                        std::error_code(42, std::system_category())));
+                        std::error_code(42, fmt::system_category())));
   EXPECT_EQ(L"system:-42",
             fmt::format(FMT_STRING(L"{0}"),
-                        std::error_code(-42, std::system_category())));
+                        std::error_code(-42, fmt::system_category())));
 }
 
 TEST(os_test, format_windows_error) {
@@ -120,7 +120,10 @@ TEST(os_test, format_long_windows_error) {
                                0, static_cast<DWORD>(provisioning_not_allowed),
                                MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
                                reinterpret_cast<LPWSTR>(&message), 0, 0);
-  EXPECT_NE(result, 0);
+  if (result == 0) {
+    LocalFree(message);
+    return;
+  }
   fmt::detail::utf16_to_utf8 utf8_message(message);
   LocalFree(message);
   fmt::memory_buffer actual_message;
