@@ -2,7 +2,9 @@ add_subdirectory(gtest)
 
 set(TEST_MAIN_SRC test-main.cc gtest-extra.cc gtest-extra.h util.cc)
 add_library(test-main STATIC ${TEST_MAIN_SRC})
-target_link_libraries(test-main gtest fmt)
+target_include_directories(test-main PUBLIC
+  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>)
+target_link_libraries(test-main gtest)
 
 include(CheckCXXCompilerFlag)
 
@@ -29,17 +31,25 @@ endfunction()
 # Adds a test.
 # Usage: add_fmt_test(name srcs...)
 function(add_fmt_test name)
-  cmake_parse_arguments(ADD_FMT_TEST "HEADER_ONLY" "" "" ${ARGN})
+  cmake_parse_arguments(ADD_FMT_TEST "HEADER_ONLY;MODULE;COMPILE_FAIL" "" "" ${ARGN})
 
   set(sources ${name}.cc ${ADD_FMT_TEST_UNPARSED_ARGUMENTS})
-  set(libs test-main)
   if (ADD_FMT_TEST_HEADER_ONLY)
     set(sources ${sources} ${TEST_MAIN_SRC} ../src/os.cc)
     set(libs gtest fmt-header-only)
     if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
       set(PEDANTIC_COMPILE_FLAGS ${PEDANTIC_COMPILE_FLAGS} -Wno-weak-vtables)
     endif ()
+  elseif (ADD_FMT_TEST_MODULE)
+    set(libs test-main test-module)
+    set_source_files_properties(${name}.cc PROPERTIES OBJECT_DEPENDS test-module)
+  else ()
+    set(libs test-main fmt)
   endif ()
+  if (ADD_FMT_TEST_COMPILE_FAIL)
+    list (REMOVE_ITEM libs test-main)
+  endif ()
+
   add_fmt_executable(${name} ${sources})
   target_link_libraries(${name} ${libs})
 
@@ -50,7 +60,19 @@ function(add_fmt_test name)
   if (FMT_WERROR)
     target_compile_options(${name} PRIVATE ${WERROR_FLAG})
   endif ()
-  add_test(NAME ${name} COMMAND ${name})
+
+  if (ADD_FMT_TEST_COMPILE_FAIL)
+    set_target_properties(${name} PROPERTIES
+      EXCLUDE_FROM_ALL TRUE
+      EXCLUDE_FROM_DEFAULT_BUILD TRUE)
+    add_test(NAME ${name} COMMAND ${CMAKE_COMMAND}
+       --build .
+       --target ${name}
+       WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+    set_tests_properties(${name} PROPERTIES WILL_FAIL TRUE)
+  else ()
+    add_test(NAME ${name} COMMAND ${name})
+  endif ()
 endfunction()
 
 add_fmt_test(args-test)
@@ -72,6 +94,21 @@ add_fmt_test(compile-test)
 add_fmt_test(printf-test)
 add_fmt_test(ranges-test)
 add_fmt_test(scan-test)
+
+if (FMT_CAN_MODULE)
+  # The tests need {fmt} to be compiled as traditional library
+  # because of visibility of implementation details.
+  # If module support is present the module tests require a
+  # test-only module to be built from {fmt}
+  add_library(test-module OBJECT ${CMAKE_SOURCE_DIR}/src/fmt.cc)
+  target_compile_features(test-module PUBLIC ${FMT_REQUIRED_FEATURES})
+  target_include_directories(test-module PUBLIC
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>)
+  enable_module(test-module)
+
+  add_fmt_test(module-test MODULE)
+  add_fmt_test(module-compile-fail MODULE COMPILE_FAIL)
+endif ()
 
 if (NOT MSVC)
   # FMT_ENFORCE_COMPILE_STRING is not supported under MSVC due to compiler bugs.
