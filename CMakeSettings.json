@@ -1,0 +1,70 @@
+﻿{
+  "configurations": [
+    {
+      "name": "x64-Debug",
+      "generator": "Ninja",
+      "configurationType": "Debug",
+      "inheritEnvironments": [ "msvc_x64_x64" ],
+      "buildRoot": "${projectDir}\\out\\build\\${name}",
+      "installRoot": "${projectDir}\\out\\install\\${name}",
+      "cmakeCommandArgs": "-D CMAKE_CXX_STANDARD:STRING=20",
+      "buildCommandArgs": "",
+      "ctestCommandArgs": "",
+      "variables": [
+        {
+          "name": "FMT_DEBUG_POSTFIX",
+          "value": "",
+          "type": "STRING"
+        },
+        {
+          "name": "CMAKE_CXX_STANDARD",
+          "value": "20",
+          "type": "STRING"
+        },
+        {
+          "name": "FMT_OS",
+          "value": "True",
+          "type": "BOOL"
+        },
+        {
+          "name": "FMT_DOC",
+          "value": "False",
+          "type": "BOOL"
+        }
+      ]
+    },
+    {
+      "name": "x64-Release",
+      "generator": "Ninja",
+      "configurationType": "Release",
+      "buildRoot": "${projectDir}\\out\\build\\${name}",
+      "installRoot": "${projectDir}\\out\\install\\${name}",
+      "cmakeCommandArgs": "-D CMAKE_CXX_STANDARD:STRING=20",
+      "buildCommandArgs": "",
+      "ctestCommandArgs": "",
+      "inheritEnvironments": [ "msvc_x64_x64" ],
+      "variables": [
+        {
+          "name": "FMT_DEBUG_POSTFIX",
+          "value": "",
+          "type": "STRING"
+        },
+        {
+          "name": "CMAKE_CXX_STANDARD",
+          "value": "20",
+          "type": "STRING"
+        },
+        {
+          "name": "FMT_OS",
+          "value": "True",
+          "type": "BOOL"
+        },
+        {
+          "name": "FMT_DOC",
+          "value": "False",
+          "type": "BOOL"
+        }
+      ]
+    }
+  ]
+}

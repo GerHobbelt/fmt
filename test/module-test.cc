@@ -38,3 +38,30 @@ TEST(module_test, macros) {
 #endif
   EXPECT_FALSE(macro_leaked);
 }
+
+TEST(module_test, to_string) {
+  EXPECT_EQ("42", fmt::to_string(42));
+  EXPECT_EQ("42", fmt::to_string(42u));
+  EXPECT_EQ("42", fmt::to_string(short{42}));
+  EXPECT_EQ("42", fmt::to_string(unsigned short{42u}));
+  EXPECT_EQ("42", fmt::to_string(42l));
+  EXPECT_EQ("42", fmt::to_string(42ul));
+#if 0 // enable this to see msvc ICE
+  EXPECT_EQ("42", fmt::to_string(42.0));
+  EXPECT_EQ("42", fmt::to_string(42.0f));
+#endif
+  EXPECT_EQ("42", fmt::to_string("42"));
+  EXPECT_EQ("a", fmt::to_string('a'));
+}
+
+#if 0 // enable this to see msvc ICE
+TEST(module_test, string_view) {
+  fmt::string_view nsv("fmt");
+  EXPECT_EQ("fmt", nsv);
+  EXPECT_TRUE(fmt::string_view("fmt") == nsv);
+
+  fmt::wstring_view wsv(L"fmt");
+  EXPECT_EQ(L"fmt", wsv);
+  EXPECT_TRUE(fmt::wstring_view(L"fmt") == wsv);
+}
+#endif
