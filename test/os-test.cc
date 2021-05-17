@@ -45,7 +45,6 @@ void check_utf_conversion_error(
     fmt::basic_string_view<Char> str = fmt::basic_string_view<Char>(0, 1)) {
   fmt::memory_buffer out;
   fmt::detail::format_windows_error(out, ERROR_INVALID_PARAMETER, message);
-  out.resize(out.size() - 2);  // Remove newline.
   auto error = std::system_error(std::error_code());
   try {
     (Converter)(str);
@@ -99,7 +98,8 @@ TEST(os_test, format_windows_error) {
           FORMAT_MESSAGE_IGNORE_INSERTS,
       0, ERROR_FILE_EXISTS, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
       reinterpret_cast<LPWSTR>(&message), 0, 0);
-  fmt::detail::utf16_to_utf8 utf8_message(message);
+  fmt::detail::utf16_to_utf8 utf8_message(
+      fmt::wstring_view(message, result - 2));
   LocalFree(message);
   fmt::memory_buffer actual_message;
   fmt::detail::format_windows_error(actual_message, ERROR_FILE_EXISTS, "test");
@@ -124,7 +124,8 @@ TEST(os_test, format_long_windows_error) {
     LocalFree(message);
     return;
   }
-  fmt::detail::utf16_to_utf8 utf8_message(message);
+  fmt::detail::utf16_to_utf8 utf8_message(
+      fmt::wstring_view(message, result - 2));
   LocalFree(message);
   fmt::memory_buffer actual_message;
   fmt::detail::format_windows_error(actual_message, provisioning_not_allowed,
@@ -142,7 +143,6 @@ TEST(os_test, windows_error) {
   }
   fmt::memory_buffer message;
   fmt::detail::format_windows_error(message, ERROR_FILE_EXISTS, "test error");
-  message.resize(message.size() - 2);
   EXPECT_THAT(error.what(), HasSubstr(to_string(message)));
   EXPECT_EQ(ERROR_FILE_EXISTS, error.code().value());
 }
