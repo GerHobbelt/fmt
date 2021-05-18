@@ -1,4 +1,7 @@
+#if defined(__STDC_VERSION__) && (__STDC_VERSION__ > 201710L)
 module;
+#endif
+
 // put all implementation-provided headers into the global module fragment
 // to prevent attachment to this module
 #if !defined(_CRT_SECURE_NO_WARNINGS) && defined(_MSC_VER)
@@ -65,11 +68,17 @@ module;
 #  include <windows.h>
 #endif
 
+#if defined(__STDC_VERSION__) && (__STDC_VERSION__ > 201710L)
 export module fmt;
 
 #define FMT_MODULE_EXPORT export
 #define FMT_MODULE_EXPORT_BEGIN export {
 #define FMT_MODULE_EXPORT_END }
+#else
+#define FMT_MODULE_EXPORT 
+#define FMT_MODULE_EXPORT_BEGIN 
+#define FMT_MODULE_EXPORT_END 
+#endif
 
 // all library-provided declarations and definitions
 // must be in the module purview to be exported
@@ -82,7 +91,9 @@ export module fmt;
 #include "fmt/printf.h"
 #include "fmt/os.h"
 
+#if defined(__STDC_VERSION__) && (__STDC_VERSION__ > 201710L)
 module : private;
+#endif
 
 #include "format.cc"
 #include "os.cc"
