@@ -396,7 +396,7 @@ struct ostream_params {
 static constexpr detail::buffer_size buffer_size;
 
 /** A fast output stream which is not thread-safe. */
-class ostream final : private detail::buffer<char> {
+class FMT_API ostream final : private detail::buffer<char> {
  private:
   file file_;
 
@@ -406,7 +406,7 @@ class ostream final : private detail::buffer<char> {
     clear();
   }
 
-  FMT_API void grow(size_t) override final;
+  void grow(size_t) override;
 
   ostream(cstring_view path, const detail::ostream_params& params)
       : file_(path, params.oflag) {
@@ -434,13 +434,12 @@ class ostream final : private detail::buffer<char> {
   }
 
   /**
-    Formats ``args`` according to specifications in ``format_str`` and writes
-    the output to the file.
+    Formats ``args`` according to specifications in ``fmt`` and writes the
+    output to the file.
    */
-  template <typename S, typename... Args>
-  void print(const S& format_str, Args&&... args) {
-    format_to(detail::buffer_appender<char>(*this), format_str,
-              std::forward<Args>(args)...);
+  template <typename... T> void print(format_string<T...> fmt, T&&... args) {
+    vformat_to(detail::buffer_appender<char>(*this), fmt,
+               make_format_args(args...));
   }
 };
 
