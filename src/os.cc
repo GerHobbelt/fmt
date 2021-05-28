@@ -132,12 +132,12 @@ class system_message {
   operator basic_string_view<wchar_t>() const FMT_NOEXCEPT {
     return basic_string_view<wchar_t>(message_, result_);
   }
-  wstring_view rtrim() const FMT_NOEXCEPT {
+  basic_string_view<wchar_t> rtrim() const FMT_NOEXCEPT {
     auto len = result_;
     while (len != 0 && is_whitespace(message_[len - 1])) {
       --len;
     }
-    return wstring_view(message_, len);
+    return basic_string_view<wchar_t>(message_, len);
   }
 };
 

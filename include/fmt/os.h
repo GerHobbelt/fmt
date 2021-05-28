@@ -137,8 +137,6 @@ template <typename Char> struct formatter<std::error_code, Char> {
   }
 };
 
-FMT_API const std::error_category& system_category() FMT_NOEXCEPT;
-
 #ifdef _WIN32
 FMT_API const std::error_category& system_category() FMT_NOEXCEPT;
 
