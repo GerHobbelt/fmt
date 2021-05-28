@@ -33,9 +33,8 @@
 #ifndef FMT_FORMAT_H_
 #define FMT_FORMAT_H_
 
-#include <cerrno>  // errno
-#include <cmath>   // std::signbit
-#include <cstdint>
+#include <cmath>         // std::signbit
+#include <cstdint>       // uint32_t
 #include <limits>        // std::numeric_limits
 #include <memory>        // std::uninitialized_copy
 #include <stdexcept>     // std::runtime_error
@@ -428,9 +427,9 @@ using needs_conversion = bool_constant<
 
 template <typename OutChar, typename InputIt, typename OutputIt,
           FMT_ENABLE_IF(!needs_conversion<InputIt, OutChar>::value)>
-FMT_CONSTEXPR OutputIt copy_str(InputIt begin, InputIt end, OutputIt it) {
-  while (begin != end) *it++ = *begin++;
-  return it;
+FMT_CONSTEXPR OutputIt copy_str(InputIt begin, InputIt end, OutputIt out) {
+  while (begin != end) *out++ = *begin++;
+  return out;
 }
 
 template <typename OutChar, typename InputIt,
@@ -446,17 +445,23 @@ FMT_CONSTEXPR20 OutChar* copy_str(InputIt begin, InputIt end, OutChar* out) {
 
 template <typename OutChar, typename InputIt, typename OutputIt,
           FMT_ENABLE_IF(needs_conversion<InputIt, OutChar>::value)>
-OutputIt copy_str(InputIt begin, InputIt end, OutputIt it) {
-  while (begin != end) *it++ = static_cast<char8_type>(*begin++);
-  return it;
+OutputIt copy_str(InputIt begin, InputIt end, OutputIt out) {
+  while (begin != end) *out++ = static_cast<char8_type>(*begin++);
+  return out;
 }
 
 template <typename OutChar, typename InputIt,
           FMT_ENABLE_IF(!needs_conversion<InputIt, OutChar>::value)>
-buffer_appender<OutChar> copy_str(InputIt begin, InputIt end,
-                                  buffer_appender<OutChar> out) {
+appender copy_str(InputIt begin, InputIt end, appender out) {
   get_container(out).append(begin, end);
   return out;
+}
+
+template <typename OutChar, typename InputIt, typename OutputIt>
+FMT_CONSTEXPR FMT_NOINLINE OutputIt copy_str_noinline(InputIt begin,
+                                                      InputIt end,
+                                                      OutputIt out) {
+  return copy_str<OutChar>(begin, end, out);
 }
 
 // A public domain branchless UTF-8 decoder by Christopher Wellons:
@@ -619,11 +624,14 @@ void iterator_buffer<OutputIt, T, Traits>::flush() {
   this->clear();
   out_ = copy_str<T>(data_, data_ + this->limit(size), out_);
 }
+
+template <typename T, typename Enable = void>
+struct is_locale : std::false_type {};
+template <typename T>
+struct is_locale<T, void_t<decltype(T::classic())>> : std::true_type {};
 }  // namespace detail
 
 FMT_MODULE_EXPORT_BEGIN
-
-using wstring_view = basic_string_view<wchar_t>;
 
 template <> struct is_char<wchar_t> : std::true_type {};
 template <> struct is_char<detail::char8_type> : std::true_type {};
@@ -796,6 +804,27 @@ class FMT_API format_error : public std::runtime_error {
   format_error& operator=(format_error&&) = default;
   ~format_error() FMT_NOEXCEPT FMT_OVERRIDE FMT_MSC_DEFAULT;
 };
+
+/**
+  \rst
+  Constructs a `~fmt::format_arg_store` object that contains references
+  to arguments and can be implicitly converted to `~fmt::format_args`.
+  If ``fmt`` is a compile-time string then `make_args_checked` checks
+  its validity at compile time.
+  \endrst
+ */
+template <typename... Args, typename S, typename Char = char_t<S>>
+FMT_INLINE auto make_args_checked(const S& fmt,
+                                  const remove_reference_t<Args>&... args)
+    -> format_arg_store<buffer_context<Char>, remove_reference_t<Args>...> {
+  static_assert(
+      detail::count<(
+              std::is_base_of<detail::view, remove_reference_t<Args>>::value &&
+              std::is_reference<Args>::value)...>() == 0,
+      "passing views as lvalues is disallowed");
+  detail::check_format_string<Args...>(fmt);
+  return {args...};
+}
 
 FMT_BEGIN_DETAIL_NAMESPACE
 
@@ -1065,7 +1094,7 @@ inline format_decimal_result<Iterator> format_decimal(Iterator out, UInt value,
   // Buffer is large enough to hold all digits (digits10 + 1).
   Char buffer[digits10<UInt>() + 1];
   auto end = format_decimal(buffer, value, size).end;
-  return {out, detail::copy_str<Char>(buffer, end, out)};
+  return {out, detail::copy_str_noinline<Char>(buffer, end, out)};
 }
 
 template <unsigned BASE_BITS, typename Char, typename UInt>
@@ -1113,7 +1142,7 @@ inline It format_uint(It out, UInt value, int num_digits, bool upper = false) {
   // Buffer should be large enough to hold all digits (digits / BASE_BITS + 1).
   char buffer[num_bits<UInt>() / BASE_BITS + 1];
   format_uint<BASE_BITS>(buffer, value, num_digits, upper);
-  return detail::copy_str<Char>(buffer, buffer + num_digits, out);
+  return detail::copy_str_noinline<Char>(buffer, buffer + num_digits, out);
 }
 
 // A converter from UTF-8 to UTF-16.
@@ -1123,13 +1152,11 @@ class utf8_to_utf16 {
 
  public:
   FMT_API explicit utf8_to_utf16(string_view s);
-  operator wstring_view() const { return {&buffer_[0], size()}; }
+  operator basic_string_view<wchar_t>() const { return {&buffer_[0], size()}; }
   size_t size() const { return buffer_.size() - 1; }
   const wchar_t* c_str() const { return &buffer_[0]; }
   std::wstring str() const { return {&buffer_[0], size()}; }
 };
-
-template <typename T = void> struct null {};
 
 namespace dragonbox {
 
@@ -1278,8 +1305,8 @@ constexpr OutputIt write_padded(OutputIt out,
 }
 
 template <typename Char, typename OutputIt>
-OutputIt write_bytes(OutputIt out, string_view bytes,
-                     const basic_format_specs<Char>& specs) {
+FMT_CONSTEXPR OutputIt write_bytes(OutputIt out, string_view bytes,
+                                   const basic_format_specs<Char>& specs) {
   return write_padded(out, specs, bytes.size(),
                       [bytes](reserve_iterator<OutputIt> it) {
                         const char* data = bytes.data();
@@ -1426,19 +1453,32 @@ FMT_CONSTEXPR inline void prefix_append(unsigned& prefix, unsigned value) {
   prefix += (1u + (value > 0xff ? 1 : 0)) << 24;
 }
 
-template <typename Char, typename OutputIt, typename T,
-          FMT_ENABLE_IF(is_integral<T>::value && !std::is_same<T, bool>::value)>
-FMT_CONSTEXPR FMT_INLINE OutputIt
-write_int(OutputIt out, T value, const basic_format_specs<Char>& specs,
-          locale_ref loc) {
+template <typename UInt> struct write_int_arg {
+  UInt abs_value;
+  unsigned prefix;
+};
+
+template <typename T>
+FMT_CONSTEXPR auto make_write_int_arg(T value, sign_t sign)
+    -> write_int_arg<uint32_or_64_or_128_t<T>> {
   auto prefix = 0u;
   auto abs_value = static_cast<uint32_or_64_or_128_t<T>>(value);
   if (is_negative(value)) {
     prefix = 0x01000000 | '-';
     abs_value = 0 - abs_value;
   } else {
-    prefix = data::prefixes[specs.sign];
+    prefix = data::prefixes[sign];
   }
+  return {abs_value, prefix};
+}
+
+template <typename Char, typename OutputIt, typename T>
+FMT_CONSTEXPR FMT_INLINE auto write_int(OutputIt out, write_int_arg<T> arg,
+                                        const basic_format_specs<Char>& specs,
+                                        locale_ref loc) -> OutputIt {
+  static_assert(std::is_same<T, uint32_or_64_or_128_t<T>>::value, "");
+  auto abs_value = arg.abs_value;
+  auto prefix = arg.prefix;
   auto utype = static_cast<unsigned>(specs.type);
   switch (specs.type) {
   case 0:
@@ -1499,7 +1539,7 @@ template <typename Char, typename OutputIt, typename T,
 FMT_CONSTEXPR OutputIt write(OutputIt out, T value,
                              const basic_format_specs<Char>& specs,
                              locale_ref loc) {
-  return write_int(out, value, specs, loc);
+  return write_int(out, make_write_int_arg(value, specs.sign), specs, loc);
 }
 // An inlined version of write used in format string compilation.
 template <typename Char, typename OutputIt, typename T,
@@ -1509,19 +1549,18 @@ template <typename Char, typename OutputIt, typename T,
 FMT_CONSTEXPR FMT_INLINE OutputIt write(OutputIt out, T value,
                                         const basic_format_specs<Char>& specs,
                                         locale_ref loc) {
-  return write_int(out, value, specs, loc);
+  return write_int(out, make_write_int_arg(value, specs.sign), specs, loc);
 }
 
-template <typename OutputIt, typename StrChar, typename Char>
-FMT_CONSTEXPR OutputIt write(OutputIt out, basic_string_view<StrChar> s,
+template <typename Char, typename OutputIt>
+FMT_CONSTEXPR OutputIt write(OutputIt out, basic_string_view<Char> s,
                              const basic_format_specs<Char>& specs) {
   auto data = s.data();
   auto size = s.size();
   if (specs.precision >= 0 && to_unsigned(specs.precision) < size)
     size = code_point_index(s, to_unsigned(specs.precision));
-  auto width = specs.width != 0
-                   ? compute_width(basic_string_view<StrChar>(data, size))
-                   : 0;
+  auto width =
+      specs.width != 0 ? compute_width(basic_string_view<Char>(data, size)) : 0;
   return write_padded(out, specs, size, width,
                       [=](reserve_iterator<OutputIt> it) {
                         return copy_str<Char>(data, data + size, it);
@@ -1611,18 +1650,19 @@ inline OutputIt write_significand(OutputIt out, UInt significand,
   Char buffer[digits10<UInt>() + 2];
   auto end = write_significand(buffer, significand, significand_size,
                                integral_size, decimal_point);
-  return detail::copy_str<Char>(buffer, end, out);
+  return detail::copy_str_noinline<Char>(buffer, end, out);
 }
 
 template <typename OutputIt, typename Char>
 inline OutputIt write_significand(OutputIt out, const char* significand,
                                   int significand_size, int integral_size,
                                   Char decimal_point) {
-  out = detail::copy_str<Char>(significand, significand + integral_size, out);
+  out = detail::copy_str_noinline<Char>(significand,
+                                        significand + integral_size, out);
   if (!decimal_point) return out;
   *out++ = decimal_point;
-  return detail::copy_str<Char>(significand + integral_size,
-                                significand + significand_size, out);
+  return detail::copy_str_noinline<Char>(significand + integral_size,
+                                         significand + significand_size, out);
 }
 
 template <typename OutputIt, typename DecimalFP, typename Char>
@@ -1811,18 +1851,10 @@ OutputIt write(OutputIt out, monostate, basic_format_specs<Char> = {},
   return out;
 }
 
-template <typename Char, typename OutputIt,
-          FMT_ENABLE_IF(!std::is_same<Char, char>::value)>
-OutputIt write(OutputIt out, string_view value) {
-  auto it = reserve(out, value.size());
-  it = copy_str<Char>(value.begin(), value.end(), it);
-  return base_iterator(out, it);
-}
-
 template <typename Char, typename OutputIt>
 FMT_CONSTEXPR OutputIt write(OutputIt out, basic_string_view<Char> value) {
   auto it = reserve(out, value.size());
-  it = copy_str<Char>(value.begin(), value.end(), it);
+  it = copy_str_noinline<Char>(value.begin(), value.end(), it);
   return base_iterator(out, it);
 }
 
@@ -1874,7 +1906,7 @@ FMT_CONSTEXPR OutputIt write(OutputIt out, T value,
                              locale_ref = {}) {
   return specs.type && specs.type != 's'
              ? write(out, value ? 1 : 0, specs, {})
-             : write(out, string_view(value ? "true" : "false"), specs);
+             : write_bytes(out, value ? "true" : "false", specs);
 }
 
 template <typename Char, typename OutputIt>
@@ -2129,6 +2161,67 @@ constexpr auto compile_string_to_view(std_string_view<Char> s)
  */
 #define FMT_STRING(s) FMT_STRING_IMPL(s, fmt::compile_string, )
 
+#if FMT_USE_NONTYPE_TEMPLATE_PARAMETERS
+template <typename Char, size_t N> struct fixed_string {
+  constexpr fixed_string(const Char (&str)[N]) {
+    copy_str<Char, const Char*, Char*>(static_cast<const Char*>(str), str + N,
+                                       data);
+  }
+  Char data[N]{};
+};
+#endif
+
+#if FMT_USE_USER_DEFINED_LITERALS
+template <typename Char> struct udl_formatter {
+  basic_string_view<Char> str;
+
+  template <typename... T>
+  std::basic_string<Char> operator()(T&&... args) const {
+    return vformat(str, fmt::make_args_checked<T...>(str, args...));
+  }
+};
+
+#  if FMT_USE_NONTYPE_TEMPLATE_PARAMETERS
+template <typename T, typename Char, size_t N, fixed_string<Char, N> Str>
+struct statically_named_arg : view {
+  static constexpr auto name = Str.data;
+
+  const T& value;
+  statically_named_arg(const T& v) : value(v) {}
+};
+
+template <typename T, typename Char, size_t N, fixed_string<Char, N> Str>
+struct is_named_arg<statically_named_arg<T, Char, N, Str>> : std::true_type {};
+
+template <typename T, typename Char, size_t N, fixed_string<Char, N> Str>
+struct is_statically_named_arg<statically_named_arg<T, Char, N, Str>>
+    : std::true_type {};
+
+template <typename Char, size_t N, fixed_string<Char, N> Str> struct udl_arg {
+  template <typename T> auto operator=(T&& value) const {
+    return statically_named_arg<T, Char, N, Str>(std::forward<T>(value));
+  }
+};
+#  else
+template <typename Char> struct udl_arg {
+  const Char* str;
+
+  template <typename T> named_arg<Char, T> operator=(T&& value) const {
+    return {str, std::forward<T>(value)};
+  }
+};
+#  endif
+#endif  // FMT_USE_USER_DEFINED_LITERALS
+
+template <typename Locale, typename Char>
+std::basic_string<Char> vformat(
+    const Locale& loc, basic_string_view<Char> format_str,
+    basic_format_args<buffer_context<type_identity_t<Char>>> args) {
+  basic_memory_buffer<Char> buffer;
+  detail::vformat_to(buffer, format_str, args, detail::locale_ref(loc));
+  return {buffer.data(), buffer.size()};
+}
+
 using format_func = void (*)(detail::buffer<char>&, int, const char*);
 
 FMT_API void format_error_code(buffer<char>& out, int error_code,
@@ -2161,7 +2254,7 @@ FMT_API std::system_error vsystem_error(int error_code, string_view format_str,
 template <typename... Args>
 std::system_error system_error(int error_code, string_view message,
                                const Args&... args) {
-  return vsystem_error(error_code, message, make_format_args(args...));
+  return vsystem_error(error_code, message, fmt::make_format_args(args...));
 }
 
 /**
@@ -2480,11 +2573,6 @@ arg_join<It, Sentinel, char> join(It begin, Sentinel end, string_view sep) {
   return {begin, end, sep};
 }
 
-template <typename It, typename Sentinel>
-arg_join<It, Sentinel, wchar_t> join(It begin, Sentinel end, wstring_view sep) {
-  return {begin, end, sep};
-}
-
 /**
   \rst
   Returns an object that formats `range` with elements separated by `sep`.
@@ -2504,12 +2592,6 @@ arg_join<It, Sentinel, wchar_t> join(It begin, Sentinel end, wstring_view sep) {
 template <typename Range>
 arg_join<detail::iterator_t<Range>, detail::sentinel_t<Range>, char> join(
     Range&& range, string_view sep) {
-  return join(std::begin(range), std::end(range), sep);
-}
-
-template <typename Range>
-arg_join<detail::iterator_t<Range>, detail::sentinel_t<Range>, wchar_t> join(
-    Range&& range, wstring_view sep) {
   return join(std::begin(range), std::end(range), sep);
 }
 
@@ -2541,26 +2623,20 @@ inline std::string to_string(T value) {
   return std::string(begin, detail::write<char>(begin, value));
 }
 
-/**
-  Converts *value* to ``std::wstring`` using the default format for type *T*.
- */
-template <typename T> inline std::wstring to_wstring(const T& value) {
-  return format(FMT_STRING(L"{}"), value);
-}
-
 template <typename Char, size_t SIZE>
 std::basic_string<Char> to_string(const basic_memory_buffer<Char, SIZE>& buf) {
   auto size = buf.size();
   detail::assume(size < std::basic_string<Char>().max_size());
   return std::basic_string<Char>(buf.data(), size);
 }
-FMT_MODULE_EXPORT_END
+
+FMT_BEGIN_DETAIL_NAMESPACE
 
 template <typename Char>
-void detail::vformat_to(
-    detail::buffer<Char>& buf, basic_string_view<Char> fmt,
+void vformat_to(
+    buffer<Char>& buf, basic_string_view<Char> fmt,
     basic_format_args<buffer_context<type_identity_t<Char>>> args,
-    detail::locale_ref loc) {
+    locale_ref loc) {
   auto out = buffer_appender<Char>(buf);
   if (fmt.size() == 2 && equal2(fmt.data(), "{}")) {
     auto arg = args.get(0);
@@ -2569,13 +2645,13 @@ void detail::vformat_to(
     return;
   }
 
-  struct format_handler : detail::error_handler {
+  struct format_handler : error_handler {
     basic_format_parse_context<Char> parse_context;
     buffer_context<Char> context;
 
     format_handler(buffer_appender<Char> out, basic_string_view<Char> str,
                    basic_format_args<buffer_context<Char>> args,
-                   detail::locale_ref loc)
+                   locale_ref loc)
         : parse_context(str), context(out, args, loc) {}
 
     void on_text(const Char* begin, const Char* end) {
@@ -2623,10 +2699,10 @@ void detail::vformat_to(
 }
 
 #ifndef FMT_HEADER_ONLY
-extern template void detail::vformat_to(detail::buffer<char>&, string_view,
-                                        basic_format_args<format_context>,
-                                        detail::locale_ref);
-namespace detail {
+
+extern template void vformat_to(detail::buffer<char>&, string_view,
+                                basic_format_args<format_context>,
+                                detail::locale_ref);
 
 extern template FMT_API std::string grouping_impl<char>(locale_ref loc);
 extern template FMT_API std::string grouping_impl<wchar_t>(locale_ref loc);
@@ -2639,8 +2715,7 @@ extern template int format_float<double>(double value, int precision,
 extern template int format_float<long double>(long double value, int precision,
                                               float_specs specs,
                                               buffer<char>& buf);
-int snprintf_float(float value, int precision, float_specs specs,
-                   buffer<char>& buf) = delete;
+void snprintf_float(float, int, float_specs, buffer<char>&) = delete;
 extern template int snprintf_float<double>(double value, int precision,
                                            float_specs specs,
                                            buffer<char>& buf);
@@ -2648,38 +2723,78 @@ extern template int snprintf_float<long double>(long double value,
                                                 int precision,
                                                 float_specs specs,
                                                 buffer<char>& buf);
-}  // namespace detail
+#endif  // FMT_HEADER_ONLY
+
+FMT_END_DETAIL_NAMESPACE
+inline namespace literals {
+/**
+  \rst
+  User-defined literal equivalent of :func:`fmt::arg`.
+
+  **Example**::
+
+    using namespace fmt::literals;
+    fmt::print("Elapsed time: {s:.2f} seconds", "s"_a=1.23);
+  \endrst
+ */
+#if FMT_USE_NONTYPE_TEMPLATE_PARAMETERS
+template <detail::fixed_string Str>
+constexpr auto operator""_a()
+    -> detail::udl_arg<remove_cvref_t<decltype(Str.data[0])>,
+                       sizeof(Str.data) / sizeof(decltype(Str.data[0])), Str> {
+  return {};
+}
+#else
+constexpr auto operator"" _a(const char* s, size_t) -> detail::udl_arg<char> {
+  return {s};
+}
 #endif
-
-FMT_MODULE_EXPORT_BEGIN
-
-template <typename OutputIt, typename Char = char>
-using format_context_t FMT_DEPRECATED_ALIAS =
-    basic_format_context<OutputIt, Char>;
-
-template <typename OutputIt, typename Char = char>
-using format_args_t FMT_DEPRECATED_ALIAS =
-    basic_format_args<basic_format_context<OutputIt, Char>>;
 
 /**
   \rst
-  Constructs a `~fmt::format_arg_store` object that contains references
-  to arguments and can be implicitly converted to `~fmt::format_args`.
-  If ``fmt`` is a compile-time string then `make_args_checked` checks
-  its validity at compile time.
+  User-defined literal equivalent of :func:`fmt::format`.
+
+  **Example**::
+
+    using namespace fmt::literals;
+    std::string message = "The answer is {}"_format(42);
   \endrst
  */
-template <typename... Args, typename S, typename Char = char_t<S>>
-FMT_INLINE auto make_args_checked(const S& fmt,
-                                  const remove_reference_t<Args>&... args)
-    -> format_arg_store<buffer_context<Char>, remove_reference_t<Args>...> {
-  static_assert(
-      detail::count<(
-              std::is_base_of<detail::view, remove_reference_t<Args>>::value &&
-              std::is_reference<Args>::value)...>() == 0,
-      "passing views as lvalues is disallowed");
-  detail::check_format_string<Args...>(fmt);
-  return {args...};
+constexpr auto operator"" _format(const char* s, size_t n)
+    -> detail::udl_formatter<char> {
+  return {{s, n}};
+}
+}  // namespace literals
+
+template <typename Char, FMT_ENABLE_IF(!std::is_same<Char, char>::value)>
+auto vformat(basic_string_view<Char> format_str,
+             basic_format_args<buffer_context<type_identity_t<Char>>> args)
+    -> std::basic_string<Char> {
+  basic_memory_buffer<Char> buffer;
+  detail::vformat_to(buffer, format_str, args);
+  return to_string(buffer);
+}
+
+// Pass char_t as a default template parameter instead of using
+// std::basic_string<char_t<S>> to reduce the symbol size.
+template <typename S, typename... Args, typename Char = char_t<S>,
+          FMT_ENABLE_IF(!std::is_same<Char, char>::value)>
+auto format(const S& format_str, Args&&... args) -> std::basic_string<Char> {
+  const auto& vargs = fmt::make_args_checked<Args...>(format_str, args...);
+  return vformat(to_string_view(format_str), vargs);
+}
+
+template <typename Locale, FMT_ENABLE_IF(detail::is_locale<Locale>::value)>
+inline std::string vformat(const Locale& loc, string_view fmt,
+                           format_args args) {
+  return detail::vformat(loc, fmt, args);
+}
+
+template <typename Locale, typename... T,
+          FMT_ENABLE_IF(detail::is_locale<Locale>::value)>
+inline std::string format(const Locale& loc, format_string<T...> fmt,
+                          T&&... args) {
+  return vformat(loc, fmt, fmt::make_format_args(args...));
 }
 
 template <typename S, typename Char = char_t<S>,
@@ -2690,10 +2805,10 @@ inline void vformat_to(
   return detail::vformat_to(buf, to_string_view(format_str), args);
 }
 
-template <typename S, typename... Args, size_t SIZE = inline_buffer_size,
-          typename Char = enable_if_t<detail::is_string<S>::value, char_t<S>>>
-inline auto format_to(basic_memory_buffer<Char, SIZE>& buf, const S& format_str,
-                      Args&&... args) ->
+template <typename S, typename... Args, typename Char, size_t SIZE,
+          typename Allocator, FMT_ENABLE_IF(detail::is_string<S>::value)>
+inline auto format_to(basic_memory_buffer<Char, SIZE, Allocator>& buf,
+                      const S& format_str, Args&&... args) ->
     typename buffer_context<Char>::iterator {
   const auto& vargs = fmt::make_args_checked<Args...>(format_str, args...);
   detail::vformat_to(buf, to_string_view(format_str), vargs);
@@ -2706,7 +2821,7 @@ template <typename OutputIt, typename S, typename Char = char_t<S>,
 auto vformat_to(OutputIt out, const S& format_str,
                 basic_format_args<buffer_context<type_identity_t<Char>>> args)
     -> OutputIt {
-  decltype(detail::get_buffer<Char>(out)) buf(detail::get_buffer_init(out));
+  auto&& buf = detail::get_buffer<Char>(out);
   detail::vformat_to(buf, to_string_view(format_str), args);
   return detail::get_iterator(buf);
 }
@@ -2718,6 +2833,25 @@ template <typename OutputIt, typename S, typename... Args,
 inline auto format_to(OutputIt out, const S& fmt, Args&&... args) -> OutputIt {
   const auto& vargs = fmt::make_args_checked<Args...>(fmt, args...);
   return vformat_to(out, to_string_view(fmt), vargs);
+}
+
+template <typename OutputIt, typename Locale,
+          FMT_ENABLE_IF(detail::is_output_iterator<OutputIt, char>::value&&
+                            detail::is_locale<Locale>::value)>
+auto vformat_to(const Locale& loc, OutputIt out, string_view fmt,
+                format_args args) -> OutputIt {
+  using detail::get_buffer;
+  auto&& buf = get_buffer<char>(out);
+  detail::vformat_to(buf, string_view(fmt), args, detail::locale_ref(loc));
+  return detail::get_iterator(buf);
+}
+
+template <typename OutputIt, typename Locale, typename... T,
+          FMT_ENABLE_IF(detail::is_output_iterator<OutputIt, char>::value&&
+                            detail::is_locale<Locale>::value)>
+FMT_INLINE auto format_to(OutputIt out, const Locale& loc,
+                          format_string<T...> fmt, T&&... args) -> OutputIt {
+  return vformat_to(loc, out, fmt, fmt::make_format_args(args...));
 }
 
 template <typename OutputIt, typename Char, typename... Args,
@@ -2751,138 +2885,18 @@ inline auto formatted_size(const S& fmt, Args&&... args) -> size_t {
   detail::vformat_to(buf, to_string_view(fmt), vargs);
   return buf.count();
 }
-
-template <typename Char, FMT_ENABLE_IF(!std::is_same<Char, char>::value)>
-auto vformat(basic_string_view<Char> format_str,
-             basic_format_args<buffer_context<type_identity_t<Char>>> args)
-    -> std::basic_string<Char> {
-  basic_memory_buffer<Char> buffer;
-  detail::vformat_to(buffer, format_str, args);
-  return to_string(buffer);
-}
-
-// Pass char_t as a default template parameter instead of using
-// std::basic_string<char_t<S>> to reduce the symbol size.
-template <typename S, typename... Args, typename Char = char_t<S>,
-          FMT_ENABLE_IF(!std::is_same<Char, char>::value)>
-auto format(const S& format_str, Args&&... args) -> std::basic_string<Char> {
-  const auto& vargs = fmt::make_args_checked<Args...>(format_str, args...);
-  return vformat(to_string_view(format_str), vargs);
-}
 FMT_MODULE_EXPORT_END
-
-#if FMT_USE_NONTYPE_TEMPLATE_PARAMETERS
-namespace detail {
-template <typename Char, size_t N> struct fixed_string {
-  constexpr fixed_string(const Char (&str)[N]) {
-    copy_str<Char, const Char*, Char*>(static_cast<const Char*>(str), str + N,
-                                       data);
-  }
-  Char data[N]{};
-};
-}  // namespace detail
-#endif
-
-#if FMT_USE_USER_DEFINED_LITERALS
-namespace detail {
-template <typename Char> struct udl_formatter {
-  basic_string_view<Char> str;
-
-  template <typename... T>
-  std::basic_string<Char> operator()(T&&... args) const {
-    return vformat(str, fmt::make_args_checked<T...>(str, args...));
-  }
-};
-
-#  if FMT_USE_NONTYPE_TEMPLATE_PARAMETERS
-template <typename T, typename Char, size_t N, fixed_string<Char, N> Str>
-struct statically_named_arg : view {
-  static constexpr auto name = Str.data;
-
-  const T& value;
-  statically_named_arg(const T& v) : value(v) {}
-};
-
-template <typename T, typename Char, size_t N, fixed_string<Char, N> Str>
-struct is_named_arg<statically_named_arg<T, Char, N, Str>> : std::true_type {};
-
-template <typename T, typename Char, size_t N, fixed_string<Char, N> Str>
-struct is_statically_named_arg<statically_named_arg<T, Char, N, Str>>
-    : std::true_type {};
-
-template <typename Char, size_t N, fixed_string<Char, N> Str> struct udl_arg {
-  template <typename T> auto operator=(T&& value) const {
-    return statically_named_arg<T, Char, N, Str>(std::forward<T>(value));
-  }
-};
-#  else
-template <typename Char> struct udl_arg {
-  const Char* str;
-
-  template <typename T> named_arg<Char, T> operator=(T&& value) const {
-    return {str, std::forward<T>(value)};
-  }
-};
-#  endif
-}  // namespace detail
-FMT_MODULE_EXPORT_BEGIN
-
-inline namespace literals {
-/**
-  \rst
-  User-defined literal equivalent of :func:`fmt::format`.
-
-  **Example**::
-
-    using namespace fmt::literals;
-    std::string message = "The answer is {}"_format(42);
-  \endrst
- */
-constexpr auto operator"" _format(const char* s, size_t n)
-    -> detail::udl_formatter<char> {
-  return {{s, n}};
-}
-
-/**
-  \rst
-  User-defined literal equivalent of :func:`fmt::arg`.
-
-  **Example**::
-
-    using namespace fmt::literals;
-    fmt::print("Elapsed time: {s:.2f} seconds", "s"_a=1.23);
-  \endrst
- */
-#  if FMT_USE_NONTYPE_TEMPLATE_PARAMETERS
-template <detail::fixed_string Str>
-constexpr detail::udl_arg<remove_cvref_t<decltype(Str.data[0])>,
-                          sizeof(Str.data) / sizeof(decltype(Str.data[0])), Str>
-operator""_a() {
-  return {};
-}
-#  else
-constexpr detail::udl_arg<char> operator"" _a(const char* s, size_t) {
-  return {s};
-}
-constexpr detail::udl_arg<wchar_t> operator"" _a(const wchar_t* s, size_t) {
-  return {s};
-}
-#  endif
-}  // namespace literals
-
-FMT_MODULE_EXPORT_END
-#endif  // FMT_USE_USER_DEFINED_LITERALS
 FMT_END_NAMESPACE
+
+#ifdef FMT_DEPRECATED_WCHAR
+#  include "wchar.h"
+#endif
 
 #ifdef FMT_HEADER_ONLY
 #  define FMT_FUNC inline
 #  include "format-inl.h"
 #else
 #  define FMT_FUNC
-#endif
-
-#ifdef FMT_DEPRECATED_WCHAR
-#  include "wchar.h"
 #endif
 
 #endif  // FMT_FORMAT_H_

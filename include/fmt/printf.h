@@ -23,9 +23,7 @@ class basic_printf_parse_context : public basic_format_parse_context<Char> {
 };
 template <typename OutputIt, typename Char> class basic_printf_context;
 
-FMT_MODULE_EXPORT_END
-
-namespace detail {
+FMT_BEGIN_DETAIL_NAMESPACE
 
 // Checks if a value fits in int - used to avoid warnings about comparing
 // signed and unsigned integers.
@@ -202,7 +200,7 @@ class printf_arg_formatter : public arg_formatter<Char> {
   OutputIt write_null_pointer(bool is_string = false) {
     auto s = this->specs;
     s.type = 0;
-    return write(this->out, string_view(is_string ? "(null)" : "(nil)"), s);
+    return write_bytes(this->out, is_string ? "(null)" : "(nil)", s);
   }
 
  public:
@@ -269,7 +267,8 @@ void vprintf(buffer<Char>& buf, basic_string_view<Char> format,
              basic_format_args<Context> args) {
   Context(buffer_appender<Char>(buf), format, args).format();
 }
-}  // namespace detail
+
+FMT_END_DETAIL_NAMESPACE
 
 // For printing into memory_buffer.
 template <typename Char, typename Context>
@@ -565,8 +564,6 @@ OutputIt basic_printf_context<OutputIt, Char>::format() {
       out, basic_string_view<Char>(start, detail::to_unsigned(it - start)));
 }
 
-FMT_MODULE_EXPORT_BEGIN
-
 template <typename Char>
 using basic_printf_context_t =
     basic_printf_context<detail::buffer_appender<Char>, Char>;
@@ -687,18 +684,6 @@ inline int vfprintf(
   vprintf(buffer, to_string_view(format), args);
   os.write(buffer.data(), static_cast<std::streamsize>(buffer.size()));
   return static_cast<int>(buffer.size());
-}
-
-/** Formats arguments and writes the output to the range. */
-template <typename ArgFormatter, typename Char,
-          typename Context =
-              basic_printf_context<typename ArgFormatter::iterator, Char>>
-typename ArgFormatter::iterator vprintf(
-    detail::buffer<Char>& out, basic_string_view<Char> format_str,
-    basic_format_args<type_identity_t<Context>> args) {
-  typename ArgFormatter::iterator iter(out);
-  Context(iter, format_str, args).template format<ArgFormatter>();
-  return iter;
 }
 
 /**

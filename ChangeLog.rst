@@ -1,9 +1,120 @@
 8.0.0 - TBD
 -----------
 
+* Added compile-time formatting
+  (`#2019 <https://github.com/fmtlib/fmt/pull/2019>`_,
+  `#2044 <https://github.com/fmtlib/fmt/pull/2044>`_). For example:
+
+  .. code:: c++
+
+     #include <fmt/compile.h>
+
+     consteval std::array<char, 10> compile_time_itoa(int value) {
+       auto result = std::array<char, 10>();
+       fmt::format_to(result.data(), FMT_COMPILE("{}"), value);
+       return result;
+     }
+
+  Most of formatting functionality is available at compile time with a notable
+  exception of floating-point numbers and pointers.
+  Thanks `@alexezeder (Alexey Ochapov) <https://github.com/alexezeder>`_.
+
+* Added the ``_cf`` user-defined literal to represent a compiled format string.
+  It can be used instead of the ``FMT_COMPILE`` macro:
+
+  .. code:: c++
+
+     #include <fmt/compile.h>
+
+     using namespace fmt::literals;
+     auto s = fmt::format(FMT_COMPILE("{}"), 42); // 🙁 not modern
+     auto s = fmt::format("{}"_cf, 42);           // 🙂 modern as hell
+
+  It requires compiler support for class types in non-type template parameters
+  (a C++20 feature) which is available in GCC 9.3+.
+  Thanks `@alexezeder (Alexey Ochapov) <https://github.com/alexezeder>`_.
+
 * Optimized handling of format specifiers during format string
   compilation, including but not limited to hexadecimal formatting
   (`#1944 <https://github.com/fmtlib/fmt/issues/1944>`_).
+
+* Made ``std::byte`` and streamable types formattable with ``fmt::join``
+  (`#1981 <https://github.com/fmtlib/fmt/issues/1981>`_,
+  `#2040 <https://github.com/fmtlib/fmt/issues/2040>`_,
+  `#2050 <https://github.com/fmtlib/fmt/pull/2050>`_). For example:
+
+  .. code:: c++
+
+     #include <fmt/format.h>
+     #include <cstddef>
+     #include <vector>
+
+     int main() {
+       auto bytes = std::vector{std::byte(4), std::byte(2)};
+       fmt::print("{}", fmt::join(bytes, ""));
+     }
+
+  prints "42".
+
+  Thanks `@kamibo (Camille Bordignon) <https://github.com/kamibo>`_.
+
+* Formatting floating-point numbers no longer produces trailing zeros by default
+  for consistency with Python's ``str.format`` and ``std::format``. For example:
+
+  .. code:: c++
+
+     #include <fmt/core.h>
+
+     int main() {
+       fmt::print("{0:.3}", 1.1);
+     }
+
+  prints "1.1". Use the ``#`` specifier to keep trailing zeros.
+
+* The experimental fast output stream (``fmt::ostream``) is now truncated by
+  default for consistency with ``fopen``. For example:
+
+  .. code:: c++
+
+     #include <fmt/os.h>
+
+     int main() {
+       fmt::ostream out1 = fmt::output_file("guide");
+       out1.print("Zaphod");
+       out1.close();
+       fmt::ostream out2 = fmt::output_file("guide");
+       out2.print("Ford");
+     }
+
+  writes "Ford" to the file "guide". To preserve the old file content if any
+  pass ``fmt::file::WRONLY | fmt::file::CREATE`` flags to ``fmt::output_file``.
+
+* Fixed handling of enums in ``fmt::to_string``
+  (`#2036 <https://github.com/fmtlib/fmt/issues/2036>`_)
+
+* Fixed handling of empty format strings during format string compilation
+  (`#2042 <https://github.com/fmtlib/fmt/issues/2042>`_):
+
+  .. code:: c++
+
+     auto s = fmt::format(FMT_COMPILE(""));
+
+  Thanks `@alexezeder (Alexey Ochapov) <https://github.com/alexezeder>`_.
+
+* Fixed various warnings and compilation issues
+  (`#2039 <https://github.com/fmtlib/fmt/issues/2039>`_,
+  `#2047 <https://github.com/fmtlib/fmt/issues/2047>`_,
+  `#2053 <https://github.com/fmtlib/fmt/pull/2053>`_,
+  `#2059 <https://github.com/fmtlib/fmt/issues/2059>`_,
+  `#2065 <https://github.com/fmtlib/fmt/pull/2065>`_,
+  `#2068 <https://github.com/fmtlib/fmt/pull/2068>`_).
+  Thanks `@Finkman <https://github.com/Finkman>`_,
+  `@dkavolis (Daumantas Kavolis) <https://github.com/dkavolis>`_.
+
+* Improved documentation
+  (`#2051 <https://github.com/fmtlib/fmt/pull/2051>`_,
+  `#2057 <https://github.com/fmtlib/fmt/issues/2057>`_).
+  Thanks `@imba-tjd (谭九鼎) <https://github.com/imba-tjd>`_.
 
 7.1.3 - 2020-11-24
 ------------------
