@@ -550,7 +550,7 @@ FMT_CONSTEXPR inline size_t compute_width(string_view s) {
     size_t* count;
     FMT_CONSTEXPR void operator()(uint32_t cp, int error) const {
       *count +=
-          1 +
+          detail::to_unsigned(1 +
           (error == 0 && cp >= 0x1100 &&
            (cp <= 0x115f ||  // Hangul Jamo init. consonants
             cp == 0x2329 ||  // LEFT-POINTING ANGLE BRACKET〈
@@ -568,7 +568,7 @@ FMT_CONSTEXPR inline size_t compute_width(string_view s) {
             // Miscellaneous Symbols and Pictographs + Emoticons:
             (cp >= 0x1f300 && cp <= 0x1f64f) ||
             // Supplemental Symbols and Pictographs:
-            (cp >= 0x1f900 && cp <= 0x1f9ff)));
+            (cp >= 0x1f900 && cp <= 0x1f9ff))));
     }
   };
   for_each_codepoint(s, count_code_points{&num_code_points});
@@ -790,6 +790,10 @@ using wmemory_buffer = basic_memory_buffer<wchar_t>;
 template <typename T, size_t SIZE, typename Allocator>
 struct is_contiguous<basic_memory_buffer<T, SIZE, Allocator>> : std::true_type {
 };
+
+namespace detail {
+FMT_API void print(std::FILE*, string_view);
+}
 
 /** A formatting error such as invalid format string. */
 FMT_CLASS_API
@@ -1584,13 +1588,17 @@ FMT_CONSTEXPR OutputIt write(OutputIt out, const Char* s,
 
 template <typename Char, typename OutputIt>
 OutputIt write_nonfinite(OutputIt out, bool isinf,
-                         const basic_format_specs<Char>& specs,
+                         basic_format_specs<Char> specs,
                          const float_specs& fspecs) {
   auto str =
       isinf ? (fspecs.upper ? "INF" : "inf") : (fspecs.upper ? "NAN" : "nan");
   constexpr size_t str_size = 3;
   auto sign = fspecs.sign;
   auto size = str_size + (sign ? 1 : 0);
+  // Replace '0'-padding with space for non-finite values.
+  const bool is_zero_fill =
+      specs.fill.size() == 1 && *specs.fill.data() == static_cast<Char>('0');
+  if (is_zero_fill) specs.fill[0] = static_cast<Char>(' ');
   return write_padded(out, specs, size, [=](reserve_iterator<OutputIt> it) {
     if (sign) *it++ = static_cast<Char>(data::signs[sign]);
     return copy_str<Char>(str, str + str_size, it);

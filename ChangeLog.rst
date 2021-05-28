@@ -3,7 +3,9 @@
 
 * Added compile-time formatting
   (`#2019 <https://github.com/fmtlib/fmt/pull/2019>`_,
-  `#2044 <https://github.com/fmtlib/fmt/pull/2044>`_). For example:
+  `#2044 <https://github.com/fmtlib/fmt/pull/2044>`_,
+  `#2056 <https://github.com/fmtlib/fmt/pull/2056>`_,
+  `#2072 <https://github.com/fmtlib/fmt/pull/2072>`_). For example:
 
   .. code:: c++
 
@@ -71,6 +73,81 @@
 
   prints "1.1". Use the ``#`` specifier to keep trailing zeros.
 
+* The ``'L'`` specifier for locale-specific numeric formatting can now be
+  combined with presentation specifiers as in ``std::format``. For example:
+
+  .. code:: c++
+
+     #include <fmt/core.h>
+     #include <locale>
+
+     int main() {
+       std::locale::global(std::locale("fr_FR.UTF-8"));
+       fmt::print("{0:.2Lf}", 0.42);
+     }
+
+  prints "0,42".
+
+* Fixed handling of the ``'+'`` specifier in localized formatting
+  (`#2133 <https://github.com/fmtlib/fmt/issues/2133>`_).
+
+* Added support for the ``'s'`` format specifier that gives textual
+  representation of ``bool``
+  (`#2109 <https://github.com/fmtlib/fmt/pull/2109>`_). For example:
+
+  .. code:: c++
+
+     #include <fmt/core.h>
+
+     int main() {
+       fmt::print("{:s}", true);
+     }
+
+  prints "true".
+  Thanks `@powercoderlol (Ivan Polyakov) <https://github.com/powercoderlol>`_.
+
+* Made ``fmt::ptr`` work with function pointers
+  (`#2131 <https://github.com/fmtlib/fmt/pull/2131>`_). For example:
+
+  .. code:: c++
+
+     #include <fmt/format.h>
+
+     int main() {
+       fmt::print("my main: {}\n", fmt::ptr(main));
+     }
+
+  Thanks `@mikecrowe (Mike Crowe) <https://github.com/mikecrowe>`_.
+
+* Fixed handling of empty format strings during format string compilation
+  (`#2042 <https://github.com/fmtlib/fmt/issues/2042>`_):
+
+  .. code:: c++
+
+     auto s = fmt::format(FMT_COMPILE(""));
+
+  Thanks `@alexezeder (Alexey Ochapov) <https://github.com/alexezeder>`_.
+
+* Fixed handling of enums in ``fmt::to_string``
+  (`#2036 <https://github.com/fmtlib/fmt/issues/2036>`_).
+
+* Improved width computation
+  (`#2033 <https://github.com/fmtlib/fmt/issues/2033>`_). For example:
+
+  .. code:: c++
+
+     #include <fmt/core.h>
+
+     int main() {
+       fmt::print("{:-<10}{}\n", "你好", "世界");
+       fmt::print("{:-<10}{}\n", "hello", "world");
+     }
+
+  prints
+
+  .. image:: https://user-images.githubusercontent.com/576385/
+             119840373-cea3ca80-beb9-11eb-91e0-54266c48e181.png
+
 * The experimental fast output stream (``fmt::ostream``) is now truncated by
   default for consistency with ``fopen``. For example:
 
@@ -89,32 +166,58 @@
   writes "Ford" to the file "guide". To preserve the old file content if any
   pass ``fmt::file::WRONLY | fmt::file::CREATE`` flags to ``fmt::output_file``.
 
-* Fixed handling of enums in ``fmt::to_string``
-  (`#2036 <https://github.com/fmtlib/fmt/issues/2036>`_)
+* Fixed writing to ``stdout`` when it is redirected to ``NUL`` on Windows
+  (`#2080 <https://github.com/fmtlib/fmt/issues/2080>`_).
 
-* Fixed handling of empty format strings during format string compilation
-  (`#2042 <https://github.com/fmtlib/fmt/issues/2042>`_):
+* Fixed exception propagation from iterators
+  (`#2097 <https://github.com/fmtlib/fmt/issues/2097>`_).
 
-  .. code:: c++
+* Added ``fmt/args.h`` to the install target.
 
-     auto s = fmt::format(FMT_COMPILE(""));
+* Added the ``FMT_MASTER_PROJECT`` CMake option to control build and install
+  targets when {fmt} is included via ``add_subdirectory``
+  (`#2100 <https://github.com/fmtlib/fmt/pull/2100>`_).
+  Thanks `@randomizedthinking <https://github.com/randomizedthinking>`_.
 
-  Thanks `@alexezeder (Alexey Ochapov) <https://github.com/alexezeder>`_.
+* Improved build configuration
+  (`#2122 <https://github.com/fmtlib/fmt/pull/2122>`_).
+  Thanks `@ibaned (Dan Ibanez) <https://github.com/ibaned>`_.
 
 * Fixed various warnings and compilation issues
-  (`#2039 <https://github.com/fmtlib/fmt/issues/2039>`_,
+  (`#2038 <https://github.com/fmtlib/fmt/issues/2038>`_,
+  `#2039 <https://github.com/fmtlib/fmt/issues/2039>`_,
   `#2047 <https://github.com/fmtlib/fmt/issues/2047>`_,
   `#2053 <https://github.com/fmtlib/fmt/pull/2053>`_,
   `#2059 <https://github.com/fmtlib/fmt/issues/2059>`_,
   `#2065 <https://github.com/fmtlib/fmt/pull/2065>`_,
-  `#2068 <https://github.com/fmtlib/fmt/pull/2068>`_).
-  Thanks `@Finkman <https://github.com/Finkman>`_,
-  `@dkavolis (Daumantas Kavolis) <https://github.com/dkavolis>`_.
+  `#2067 <https://github.com/fmtlib/fmt/pull/2067>`_,
+  `#2068 <https://github.com/fmtlib/fmt/pull/2068>`_,
+  `#2073 <https://github.com/fmtlib/fmt/pull/2073>`_,
+  `#2106 <https://github.com/fmtlib/fmt/pull/2106>`_,
+  `#2107 <https://github.com/fmtlib/fmt/pull/2107>`_,
+  `#2117 <https://github.com/fmtlib/fmt/pull/2117>`_,
+  `#2119 <https://github.com/fmtlib/fmt/pull/2119>`_,
+  `#2128 <https://github.com/fmtlib/fmt/pull/2128>`_).
+  Thanks `@yeswalrus (Walter Gray) <https://github.com/yeswalrus>`_,
+  `@Finkman <https://github.com/Finkman>`_,
+  `@HazardyKnusperkeks (Björn Schäpers) <https://github.com/HazardyKnusperkeks>`_,
+  `@dkavolis (Daumantas Kavolis) <https://github.com/dkavolis>`_
+  `@concatime (Issam Maghni) <https://github.com/concatime>`_,
+  `@chronoxor (Ivan Shynkarenka) <https://github.com/chronoxor>`_,
+  `@summivox (Yin Zhong) <https://github.com/summivox>`_,
+  `@yNeo <https://github.com/yNeo>`_.
 
 * Improved documentation
   (`#2051 <https://github.com/fmtlib/fmt/pull/2051>`_,
-  `#2057 <https://github.com/fmtlib/fmt/issues/2057>`_).
-  Thanks `@imba-tjd (谭九鼎) <https://github.com/imba-tjd>`_.
+  `#2057 <https://github.com/fmtlib/fmt/issues/2057>`_,
+  `#2081 <https://github.com/fmtlib/fmt/pull/2081>`_).
+  Thanks `@imba-tjd (谭九鼎) <https://github.com/imba-tjd>`_,
+  `@0x416c69 (AlιAѕѕaѕѕιN) <https://github.com/0x416c69>`_.
+
+* Continuous integration and test improvements
+  (`#2110 <https://github.com/fmtlib/fmt/pull/2110>`_,
+  `#2114 <https://github.com/fmtlib/fmt/pull/2114>`_).
+  Thanks `@alexezeder (Alexey Ochapov) <https://github.com/alexezeder>`_.
 
 7.1.3 - 2020-11-24
 ------------------
@@ -387,8 +490,8 @@
 
   Thanks `@Naios (Denis Blank) <https://github.com/Naios>`_.
 
-* Made the ``#`` specifier emit trailing zeros in addition to the decimal point
-  (`#1797 <https://github.com/fmtlib/fmt/issues/1797>`_). For example
+* Made the ``'#'`` specifier emit trailing zeros in addition to the decimal
+  point (`#1797 <https://github.com/fmtlib/fmt/issues/1797>`_). For example
   (`godbolt <https://godbolt.org/z/bhdcW9>`__):
 
   .. code:: c++
