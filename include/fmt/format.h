@@ -549,8 +549,8 @@ FMT_CONSTEXPR inline size_t compute_width(string_view s) {
   struct count_code_points {
     size_t* count;
     FMT_CONSTEXPR void operator()(uint32_t cp, int error) const {
-      *count +=
-          detail::to_unsigned(1 +
+      *count += detail::to_unsigned(
+          1 +
           (error == 0 && cp >= 0x1100 &&
            (cp <= 0x115f ||  // Hangul Jamo init. consonants
             cp == 0x2329 ||  // LEFT-POINTING ANGLE BRACKET〈
@@ -647,15 +647,7 @@ enum { inline_buffer_size = 500 };
   A dynamically growing memory buffer for trivially copyable/constructible types
   with the first ``SIZE`` elements stored in the object itself.
 
-  You can use one of the following type aliases for common character types:
-
-  +----------------+------------------------------+
-  | Type           | Definition                   |
-  +================+==============================+
-  | memory_buffer  | basic_memory_buffer<char>    |
-  +----------------+------------------------------+
-  | wmemory_buffer | basic_memory_buffer<wchar_t> |
-  +----------------+------------------------------+
+  You can use the ```memory_buffer`` type alias for ``char`` instead.
 
   **Example**::
 
@@ -785,7 +777,6 @@ void basic_memory_buffer<T, SIZE, Allocator>::grow(size_t size) {
 }
 
 using memory_buffer = basic_memory_buffer<char>;
-using wmemory_buffer = basic_memory_buffer<wchar_t>;
 
 template <typename T, size_t SIZE, typename Allocator>
 struct is_contiguous<basic_memory_buffer<T, SIZE, Allocator>> : std::true_type {
@@ -1152,7 +1143,7 @@ inline It format_uint(It out, UInt value, int num_digits, bool upper = false) {
 // A converter from UTF-8 to UTF-16.
 class utf8_to_utf16 {
  private:
-  wmemory_buffer buffer_;
+  basic_memory_buffer<wchar_t> buffer_;
 
  public:
   FMT_API explicit utf8_to_utf16(string_view s);
@@ -2515,18 +2506,21 @@ template <> struct formatter<bytes> {
   }
 };
 
-template <typename It, typename Sentinel, typename Char>
-struct arg_join : detail::view {
+template <typename It, typename Sentinel, typename Char = char>
+struct join_view : detail::view {
   It begin;
   Sentinel end;
   basic_string_view<Char> sep;
 
-  arg_join(It b, Sentinel e, basic_string_view<Char> s)
+  join_view(It b, Sentinel e, basic_string_view<Char> s)
       : begin(b), end(e), sep(s) {}
 };
 
 template <typename It, typename Sentinel, typename Char>
-struct formatter<arg_join<It, Sentinel, Char>, Char> {
+using arg_join FMT_DEPRECATED_ALIAS = join_view<It, Sentinel, Char>;
+
+template <typename It, typename Sentinel, typename Char>
+struct formatter<join_view<It, Sentinel, Char>, Char> {
  private:
   using value_type = typename std::iterator_traits<It>::value_type;
   using context = buffer_context<Char>;
@@ -2543,8 +2537,8 @@ struct formatter<arg_join<It, Sentinel, Char>, Char> {
 
   using formatter_type =
       conditional_t<is_formattable<value_type>::value,
-                    formatter<remove_cvref_t<decltype(
-                                  map(std::declval<const value_type&>()))>,
+                    formatter<remove_cvref_t<decltype(map(
+                                  std::declval<const value_type&>()))>,
                               Char>,
                     detail::fallback_formatter<value_type, Char>>;
 
@@ -2557,7 +2551,7 @@ struct formatter<arg_join<It, Sentinel, Char>, Char> {
   }
 
   template <typename FormatContext>
-  auto format(const arg_join<It, Sentinel, Char>& value, FormatContext& ctx)
+  auto format(const join_view<It, Sentinel, Char>& value, FormatContext& ctx)
       -> decltype(ctx.out()) {
     auto it = value.begin;
     auto out = ctx.out();
@@ -2578,7 +2572,7 @@ struct formatter<arg_join<It, Sentinel, Char>, Char> {
   elements separated by `sep`.
  */
 template <typename It, typename Sentinel>
-arg_join<It, Sentinel, char> join(It begin, Sentinel end, string_view sep) {
+auto join(It begin, Sentinel end, string_view sep) -> join_view<It, Sentinel> {
   return {begin, end, sep};
 }
 
@@ -2599,8 +2593,8 @@ arg_join<It, Sentinel, char> join(It begin, Sentinel end, string_view sep) {
   \endrst
  */
 template <typename Range>
-arg_join<detail::iterator_t<Range>, detail::sentinel_t<Range>, char> join(
-    Range&& range, string_view sep) {
+auto join(Range&& range, string_view sep)
+    -> join_view<detail::iterator_t<Range>, detail::sentinel_t<Range>> {
   return join(std::begin(range), std::end(range), sep);
 }
 
@@ -2642,10 +2636,9 @@ std::basic_string<Char> to_string(const basic_memory_buffer<Char, SIZE>& buf) {
 FMT_BEGIN_DETAIL_NAMESPACE
 
 template <typename Char>
-void vformat_to(
-    buffer<Char>& buf, basic_string_view<Char> fmt,
-    basic_format_args<buffer_context<type_identity_t<Char>>> args,
-    locale_ref loc) {
+void vformat_to(buffer<Char>& buf, basic_string_view<Char> fmt,
+                basic_format_args<buffer_context<type_identity_t<Char>>> args,
+                locale_ref loc) {
   auto out = buffer_appender<Char>(buf);
   if (fmt.size() == 2 && equal2(fmt.data(), "{}")) {
     auto arg = args.get(0);
@@ -2659,8 +2652,7 @@ void vformat_to(
     buffer_context<Char> context;
 
     format_handler(buffer_appender<Char> out, basic_string_view<Char> str,
-                   basic_format_args<buffer_context<Char>> args,
-                   locale_ref loc)
+                   basic_format_args<buffer_context<Char>> args, locale_ref loc)
         : parse_context(str), context(out, args, loc) {}
 
     void on_text(const Char* begin, const Char* end) {
@@ -2897,7 +2889,7 @@ inline auto formatted_size(const S& fmt, Args&&... args) -> size_t {
 FMT_MODULE_EXPORT_END
 FMT_END_NAMESPACE
 
-#ifdef FMT_DEPRECATED_WCHAR
+#ifdef FMT_DEPRECATED_INCLUDE_WCHAR
 #  include "wchar.h"
 #endif
 

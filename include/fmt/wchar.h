@@ -24,6 +24,7 @@ using wstring_view = basic_string_view<wchar_t>;
 using wformat_parse_context = basic_format_parse_context<wchar_t>;
 using wformat_context = buffer_context<wchar_t>;
 using wformat_args = basic_format_args<wformat_context>;
+using wmemory_buffer = basic_memory_buffer<wchar_t>;
 
 #if FMT_GCC_VERSION && FMT_GCC_VERSION < 409
 // Workaround broken conversion on older gcc.
@@ -53,19 +54,21 @@ constexpr detail::udl_arg<wchar_t> operator"" _a(const wchar_t* s, size_t) {
 }  // namespace literals
 
 template <typename It, typename Sentinel>
-arg_join<It, Sentinel, wchar_t> join(It begin, Sentinel end, wstring_view sep) {
+auto join(It begin, Sentinel end, wstring_view sep)
+    -> join_view<It, Sentinel, wchar_t> {
   return {begin, end, sep};
 }
 
 template <typename Range>
-arg_join<detail::iterator_t<Range>, detail::sentinel_t<Range>, wchar_t> join(
-    Range&& range, wstring_view sep) {
+auto join(Range&& range, wstring_view sep)
+    -> join_view<detail::iterator_t<Range>, detail::sentinel_t<Range>,
+                 wchar_t> {
   return join(std::begin(range), std::end(range), sep);
 }
 
 template <typename T>
-arg_join<const T*, const T*, wchar_t> join(std::initializer_list<T> list,
-                                           wstring_view sep) {
+auto join(std::initializer_list<T> list, wstring_view sep)
+    -> join_view<const T*, const T*, wchar_t> {
   return join(std::begin(list), std::end(list), sep);
 }
 

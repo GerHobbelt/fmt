@@ -220,19 +220,13 @@ TEST(module_test, literals) {
 
 TEST(module_test, locale) {
   auto store = fmt::make_format_args(4.2);
-  try {
-    const auto de = std::locale("de_DE");
-    EXPECT_EQ("4,2", fmt::format(de, "{:L}", 4.2));
-    EXPECT_EQ("4,2", fmt::vformat(de, "{:L}", store));
-    std::string s;
-    fmt::vformat_to(de, std::back_inserter(s), "{:L}", store);
-    EXPECT_EQ("4,2", s);
-  
-    const auto previous = std::locale::global(de);
-    EXPECT_EQ("4,2", fmt::format("{:L}", 4.2));
-    std::locale::global(previous);
-  } catch (const std::runtime_error&) {
-  }
+  const auto classic = std::locale::classic();
+  EXPECT_EQ("4.2", fmt::format(classic, "{:L}", 4.2));
+  EXPECT_EQ("4.2", fmt::vformat(classic, "{:L}", store));
+  std::string s;
+  fmt::vformat_to(classic, std::back_inserter(s), "{:L}", store);
+  EXPECT_EQ("4.2", s);
+  EXPECT_EQ("4.2", fmt::format("{:L}", 4.2));
 }
 
 TEST(module_test, string_view) {
@@ -363,19 +357,12 @@ TEST(module_test, time_duration) {
   EXPECT_EQ("42s", fmt::format("{}", std::chrono::seconds{42}));
   using us = std::chrono::duration<double, std::micro>;
   EXPECT_EQ("4.2µs", fmt::format("{:3.1}", us{4.234}));
-  try {
-    const auto de = std::locale("de_DE");
-    EXPECT_EQ("4.2µs", fmt::format(de, "{:L}", us{4.2}));
-  } catch (const std::runtime_error&) {
-  }
+  EXPECT_EQ("4.2µs", fmt::format(std::locale::classic(), "{:L}", us{4.2}));
 }
 
 TEST(module_test, weekday) {
-  try {
-    const auto de = std::locale("de_DE");
-    EXPECT_EQ("Montag", std::format(de, "{:%A}", fmt::weekday(1)));
-  } catch (const std::runtime_error&) {
-  }
+  EXPECT_EQ("Monday",
+            std::format(std::locale::classic(), "{:%A}", fmt::weekday(1)));
 }
 
 TEST(module_test, to_string_view) {
@@ -398,16 +385,14 @@ TEST(module_test, fprintf) {
   EXPECT_EQ("bla", os.str());
 }
 
-TEST(module_test, sprintf) {
-  EXPECT_EQ("42", fmt::sprintf("%d", 42));
-}
+TEST(module_test, sprintf) { EXPECT_EQ("42", fmt::sprintf("%d", 42)); }
 
 TEST(module_test, vprintf) {
   EXPECT_WRITE(stdout, fmt::vprintf("%d", fmt::make_printf_args(42)), "42");
 }
 
 TEST(module_test, vfprintf) {
-  auto args =  fmt::make_printf_args(42);
+  auto args = fmt::make_printf_args(42);
   EXPECT_WRITE(stderr, fmt::vfprintf(stderr, "%d", args), "42");
   std::ostringstream os;
   fmt::vfprintf(os, "%d", args);
@@ -423,7 +408,7 @@ TEST(module_test, color) {
   auto bg_check = bg(fmt::color::dark_slate_gray) | fmt::emphasis::italic;
   auto emphasis_check = fmt::emphasis::underline | fmt::emphasis::bold;
   EXPECT_EQ("\x1B[30m42\x1B[0m",
-    fmt::format(fg(fmt::terminal_color::black), "{}", 42));
+            fmt::format(fg(fmt::terminal_color::black), "{}", 42));
 }
 
 TEST(module_test, cstring_view) {
@@ -452,11 +437,11 @@ TEST(module_test, custom_context) {
   EXPECT_TRUE(!custom_arg);
 }
 
-struct disabled_formatter{};
+struct disabled_formatter {};
 
 TEST(module_test, has_formatter) {
-  EXPECT_FALSE((fmt::has_formatter<disabled_formatter,
-                  fmt::format_context>::value));
+  EXPECT_FALSE(
+      (fmt::has_formatter<disabled_formatter, fmt::format_context>::value));
 }
 
 TEST(module_test, is_formattable) {
