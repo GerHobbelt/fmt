@@ -1,4 +1,4 @@
-// Formatting library for C++ - the core API
+// Formatting library for C++ - the core API for char/UTF-8
 //
 // Copyright (c) 2012 - present, Victor Zverovich
 // All rights reserved.
@@ -87,7 +87,7 @@
 // GCC doesn't allow throw in constexpr until version 6 (bug 67371).
 #ifndef FMT_USE_CONSTEXPR
 #  define FMT_USE_CONSTEXPR                                           \
-    (FMT_HAS_FEATURE(cxx_relaxed_constexpr) || FMT_MSC_VER >= 1920 || \
+    (FMT_HAS_FEATURE(cxx_relaxed_constexpr) || FMT_MSC_VER >= 1910 || \
      (FMT_GCC_VERSION >= 600 && __cplusplus >= 201402L)) &&           \
         !FMT_NVCC && !FMT_ICC_VERSION
 #endif
@@ -253,9 +253,10 @@
 #  endif
 #else
 #  define FMT_CLASS_API
-#  if defined(__GNUC__) || defined(__clang__)
-#    define FMT_API __attribute__((visibility("default")))
-#    define FMT_EXTERN_TEMPLATE_API FMT_API
+#  if defined(FMT_EXPORT) || defined(FMT_SHARED)
+#    if defined(__GNUC__) || defined(__clang__)
+#      define FMT_API __attribute__((visibility("default")))
+#    endif
 #  endif
 #endif
 #ifndef FMT_API
@@ -1140,7 +1141,7 @@ template <typename Context> class value {
   FMT_INLINE value(const named_arg_info<char_type>* args, size_t size)
       : named_args{args, size} {}
 
-  template <typename T> FMT_INLINE value(const T& val) {
+  template <typename T> FMT_CONSTEXPR FMT_INLINE value(const T& val) {
     custom.value = &val;
     // Get the formatter type through the context to allow different contexts
     // have different extension points, e.g. `formatter<T>` for `format` and
@@ -1581,7 +1582,7 @@ template <typename OutputIt, typename Char> class basic_format_context {
   FMT_CONSTEXPR auto arg(basic_string_view<char_type> name) -> format_arg {
     return args_.get(name);
   }
-  auto arg_id(basic_string_view<char_type> name) -> int {
+  FMT_CONSTEXPR auto arg_id(basic_string_view<char_type> name) -> int {
     return args_.get_id(name);
   }
   auto args() const -> const basic_format_args<basic_format_context>& {
@@ -2179,7 +2180,7 @@ FMT_CONSTEXPR auto parse_width(const Char* begin, const Char* end,
       handler.on_dynamic_width(id);
     }
     FMT_CONSTEXPR void on_error(const char* message) {
-      handler.on_error(message);
+      if (message) handler.on_error(message);
     }
   };
 
@@ -2209,7 +2210,7 @@ FMT_CONSTEXPR auto parse_precision(const Char* begin, const Char* end,
       handler.on_dynamic_precision(id);
     }
     FMT_CONSTEXPR void on_error(const char* message) {
-      handler.on_error(message);
+      if (message) handler.on_error(message);
     }
   };
 
@@ -2310,7 +2311,7 @@ FMT_CONSTEXPR auto parse_replacement_field(const Char* begin, const Char* end,
       arg_id = handler.on_arg_id(id);
     }
     FMT_CONSTEXPR void on_error(const char* message) {
-      handler.on_error(message);
+      if (message) handler.on_error(message);
     }
   };
 

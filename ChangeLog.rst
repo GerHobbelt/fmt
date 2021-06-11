@@ -7,7 +7,9 @@
   `#2056 <https://github.com/fmtlib/fmt/pull/2056>`_,
   `#2072 <https://github.com/fmtlib/fmt/pull/2072>`_,
   `#2075 <https://github.com/fmtlib/fmt/pull/2075>`_,
-  `#2129 <https://github.com/fmtlib/fmt/pull/2129>`_).
+  `#2078 <https://github.com/fmtlib/fmt/issues/2078>`_,
+  `#2129 <https://github.com/fmtlib/fmt/pull/2129>`_,
+  `#2326 <https://github.com/fmtlib/fmt/pull/2326>`_).
   For example (`godbolt <https://godbolt.org/z/Mxx9d89jM>`__):
 
   .. code:: c++
@@ -130,13 +132,18 @@
   `#2307 <https://github.com/fmtlib/fmt/pull/2307>`_,
   `#2309 <https://github.com/fmtlib/fmt/pull/2309>`_,
   `#2318 <https://github.com/fmtlib/fmt/pull/2318>`_,
-  `#2324 <https://github.com/fmtlib/fmt/pull/2324>`_).
+  `#2324 <https://github.com/fmtlib/fmt/pull/2324>`_,
+  `#2332 <https://github.com/fmtlib/fmt/pull/2332>`_).
   Thanks `@DanielaE (Daniela Engert) <https://github.com/DanielaE>`_.
 
 * Made symbols private by default reducing shared library size
   (`#2301 <https://github.com/fmtlib/fmt/pull/2301>`_). For example there was
   a ~15% reported reduction on one platform.
   Thanks `@sergiud (Sergiu Deitsch) <https://github.com/sergiud>`_.
+
+* Optimized includes making the result of preprocessing ``fmt/format.h``
+  ~20% smaller with libstdc++/C++20 and slightly improving build times
+  (`#1998 <https://github.com/fmtlib/fmt/issues/1998>`_).
 
 * Added support of ranges with non-const ``begin`` / ``end``
   (`#1953 <https://github.com/fmtlib/fmt/pull/1953>`_).
@@ -261,7 +268,8 @@
 
 * Added support for the ``'s'`` format specifier that gives textual
   representation of ``bool``
-  (`#2109 <https://github.com/fmtlib/fmt/pull/2109>`_). For example:
+  (`#2094 <https://github.com/fmtlib/fmt/issues/2094>`_,
+  `#2109 <https://github.com/fmtlib/fmt/pull/2109>`_). For example:
 
   .. code:: c++
 
@@ -305,7 +313,8 @@
   (`#2036 <https://github.com/fmtlib/fmt/issues/2036>`_).
 
 * Improved width computation
-  (`#2033 <https://github.com/fmtlib/fmt/issues/2033>`_). For example:
+  (`#2033 <https://github.com/fmtlib/fmt/issues/2033>`_,
+  `#2091 <https://github.com/fmtlib/fmt/issues/2091>`_). For example:
 
   .. code:: c++
 
@@ -324,7 +333,8 @@
   on a modern terminal.
 
 * The experimental fast output stream (``fmt::ostream``) is now truncated by
-  default for consistency with ``fopen``. For example:
+  default for consistency with ``fopen``
+  (`#2018 <https://github.com/fmtlib/fmt/issues/2018>`_). For example:
 
   .. code:: c++
 
@@ -383,6 +393,7 @@
   satisfy C++20 ``std::output_iterator`` requirements
   (`#2156 <https://github.com/fmtlib/fmt/issues/2156>`_,
   `#2158 <https://github.com/fmtlib/fmt/pull/2158>`_,
+  `#2195 <https://github.com/fmtlib/fmt/issues/2195>`_,
   `#2204 <https://github.com/fmtlib/fmt/pull/2204>`_).
   Thanks `@randomnetcat (Jason Cobb) <https://github.com/randomnetcat>`_.
 
@@ -412,7 +423,8 @@
 
 * Stopped using deprecated GCC UDL template extension.
 
-* Added ``fmt/args.h`` to the install target.
+* Added ``fmt/args.h`` to the install target
+  (`#2096 <https://github.com/fmtlib/fmt/issues/2096>`_).
 
 * Error messages are now passed to assert when exceptions are disabled
   (`#2145 <https://github.com/fmtlib/fmt/pull/2145>`_).
@@ -420,7 +432,8 @@
 
 * Added the ``FMT_MASTER_PROJECT`` CMake option to control build and install
   targets when {fmt} is included via ``add_subdirectory``
-  (`#2100 <https://github.com/fmtlib/fmt/pull/2100>`_).
+  (`#2098 <https://github.com/fmtlib/fmt/issues/2098>`_,
+  `#2100 <https://github.com/fmtlib/fmt/pull/2100>`_).
   Thanks `@randomizedthinking <https://github.com/randomizedthinking>`_.
 
 * Improved build configuration
@@ -430,13 +443,18 @@
   `@ibaned (Dan Ibanez) <https://github.com/ibaned>`_.
 
 * Fixed various warnings and compilation issues
-  (`#1959 <https://github.com/fmtlib/fmt/pull/1959>`_,
+  (`#1947 <https://github.com/fmtlib/fmt/issues/1947>`_,
+  `#1959 <https://github.com/fmtlib/fmt/pull/1959>`_,
   `#1963 <https://github.com/fmtlib/fmt/pull/1963>`_,
   `#1965 <https://github.com/fmtlib/fmt/pull/1965>`_,
+  `#1966 <https://github.com/fmtlib/fmt/issues/1966>`_,
   `#1974 <https://github.com/fmtlib/fmt/pull/1974>`_,
   `#1975 <https://github.com/fmtlib/fmt/pull/1975>`_,
   `#1990 <https://github.com/fmtlib/fmt/pull/1990>`_,
+  `#2000 <https://github.com/fmtlib/fmt/issues/2000>`_,
   `#2001 <https://github.com/fmtlib/fmt/pull/2001>`_,
+  `#2002 <https://github.com/fmtlib/fmt/issues/2002>`_,
+  `#2004 <https://github.com/fmtlib/fmt/issues/2004>`_,
   `#2006 <https://github.com/fmtlib/fmt/pull/2006>`_,
   `#2009 <https://github.com/fmtlib/fmt/pull/2009>`_,
   `#2010 <https://github.com/fmtlib/fmt/pull/2010>`_,
@@ -449,20 +467,30 @@
   `#2067 <https://github.com/fmtlib/fmt/pull/2067>`_,
   `#2068 <https://github.com/fmtlib/fmt/pull/2068>`_,
   `#2073 <https://github.com/fmtlib/fmt/pull/2073>`_,
+  `#2103 <https://github.com/fmtlib/fmt/issues/2103>`_
+  `#2105 <https://github.com/fmtlib/fmt/issues/2105>`_
   `#2106 <https://github.com/fmtlib/fmt/pull/2106>`_,
   `#2107 <https://github.com/fmtlib/fmt/pull/2107>`_,
+  `#2116 <https://github.com/fmtlib/fmt/issues/2116>`_
   `#2117 <https://github.com/fmtlib/fmt/pull/2117>`_,
+  `#2118 <https://github.com/fmtlib/fmt/issues/2118>`_
   `#2119 <https://github.com/fmtlib/fmt/pull/2119>`_,
+  `#2127 <https://github.com/fmtlib/fmt/issues/2127>`_,
   `#2128 <https://github.com/fmtlib/fmt/pull/2128>`_,
+  `#2140 <https://github.com/fmtlib/fmt/issues/2140>`_,
   `#2142 <https://github.com/fmtlib/fmt/issues/2142>`_,
   `#2143 <https://github.com/fmtlib/fmt/pull/2143>`_,
   `#2144 <https://github.com/fmtlib/fmt/pull/2144>`_,
   `#2147 <https://github.com/fmtlib/fmt/issues/2147>`_,
   `#2148 <https://github.com/fmtlib/fmt/issues/2148>`_,
+  `#2149 <https://github.com/fmtlib/fmt/issues/2149>`_,
   `#2152 <https://github.com/fmtlib/fmt/pull/2152>`_,
   `#2160 <https://github.com/fmtlib/fmt/pull/2160>`_,
+  `#2170 <https://github.com/fmtlib/fmt/issues/2170>`_,
   `#2175 <https://github.com/fmtlib/fmt/issues/2175>`_,
+  `#2176 <https://github.com/fmtlib/fmt/issues/2176>`_,
   `#2177 <https://github.com/fmtlib/fmt/pull/2177>`_,
+  `#2178 <https://github.com/fmtlib/fmt/issues/2178>`_,
   `#2179 <https://github.com/fmtlib/fmt/pull/2179>`_,
   `#2180 <https://github.com/fmtlib/fmt/issues/2180>`_,
   `#2181 <https://github.com/fmtlib/fmt/issues/2181>`_,
@@ -506,7 +534,9 @@
   `#2320 <https://github.com/fmtlib/fmt/issues/2320>`_,
   `#2321 <https://github.com/fmtlib/fmt/pull/2321>`_,
   `#2323 <https://github.com/fmtlib/fmt/pull/2323>`_,
-  `#2329 <https://github.com/fmtlib/fmt/pull/2329>`_).
+  `#2328 <https://github.com/fmtlib/fmt/issues/2328>`_,
+  `#2329 <https://github.com/fmtlib/fmt/pull/2329>`_,
+  `#2333 <https://github.com/fmtlib/fmt/pull/2333>`_).
   Thanks `@darklukee <https://github.com/darklukee>`_,
   `@fagg (Ashton Fagg) <https://github.com/fagg>`_,
   `@killerbot242 (Lieven de Cock) <https://github.com/killerbot242>`_,
@@ -542,16 +572,19 @@
   `@twoixter (Jose Miguel Pérez) <https://github.com/twoixter>`_.
 
 * Improved documentation
-  (`#2051 <https://github.com/fmtlib/fmt/pull/2051>`_,
+  (`#1986 <https://github.com/fmtlib/fmt/issues/1986>`_,
+  `#2051 <https://github.com/fmtlib/fmt/pull/2051>`_,
   `#2057 <https://github.com/fmtlib/fmt/issues/2057>`_,
   `#2081 <https://github.com/fmtlib/fmt/pull/2081>`_,
+  `#2084 <https://github.com/fmtlib/fmt/issues/2084>`_,
   `#2312 <https://github.com/fmtlib/fmt/pull/2312>`_).
   Thanks `@imba-tjd (谭九鼎) <https://github.com/imba-tjd>`_,
   `@0x416c69 (AlιAѕѕaѕѕιN) <https://github.com/0x416c69>`_,
   `@mordante <https://github.com/mordante>`_.
 
 * Continuous integration and test improvements
-  (`#1991 <https://github.com/fmtlib/fmt/pull/1991>`_,
+  (`#1969 <https://github.com/fmtlib/fmt/issues/1969>`_,
+  `#1991 <https://github.com/fmtlib/fmt/pull/1991>`_,
   `#2020 <https://github.com/fmtlib/fmt/pull/2020>`_,
   `#2110 <https://github.com/fmtlib/fmt/pull/2110>`_,
   `#2114 <https://github.com/fmtlib/fmt/pull/2114>`_,
