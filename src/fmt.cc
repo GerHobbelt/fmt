@@ -3,6 +3,7 @@ module;
 #ifndef __cpp_modules
 #  error Module not supported.
 #endif
+#endif
 
 // put all implementation-provided headers into the global module fragment
 // to prevent attachment to this module
