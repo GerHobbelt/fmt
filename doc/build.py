@@ -27,7 +27,7 @@ def create_build_env(venv_dir='virtualenv'):
   pip.install('wheel')
   pip.install('six')
   pip.install('sphinx-doc/sphinx', 'v3.3.0')
-  pip.install('michaeljones/breathe', 'v4.23.0')
+  pip.install('michaeljones/breathe', 'v4.16.0')
 
 def build_docs(version='dev', **kwargs):
   doc_dir = kwargs.get('doc_dir', os.path.dirname(os.path.realpath(__file__)))
@@ -90,7 +90,7 @@ def build_docs(version='dev', **kwargs):
 
   html_dir = os.path.join(work_dir, 'html')
   main_versions = reversed(versions[-3:])
-  check_call([os.path.join('virtualenv', 'bin', 'sphinx-build'),
+  check_call([os.path.join(work_dir, 'virtualenv', 'bin', 'sphinx-build'),
               '-Dbreathe_projects.format=' + os.path.abspath(doxyxml_dir),
               '-Dversion=' + version, '-Drelease=' + version,
               '-Aversion=' + version, '-Aversions=' + ','.join(main_versions),

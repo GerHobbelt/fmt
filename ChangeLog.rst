@@ -1,7 +1,8 @@
 8.0.0 - TBD
 -----------
 
-* Enabled compile-time check by default. For example
+* Enabled compile-time format string check by default.
+  For example (`godbolt <https://godbolt.org/z/sMxcohGjz>`__):
 
   .. code:: c++
 
@@ -14,6 +15,12 @@
   gives a compile-time error on compilers with C++20 ``consteval`` support
   (gcc 10+, clang 11+) because ``d`` is not a valid format specifier for a
   string.
+
+  To pass a runtime string wrap it in ``fmt::runtime``:
+
+  .. code:: c++
+
+     fmt::print(fmt::runtime("{:d}"), "I am not a number");
 
 * Added compile-time formatting
   (`#2019 <https://github.com/fmtlib/fmt/pull/2019>`_,
@@ -69,7 +76,7 @@
     FMTCompileNew/9223372036854775807       5.28 ns         5.26 ns    130711631
     ----------------------------------------------------------------------------
 
-  And even faster than ``std::to_chars`` from libc++ compiled with clang on
+  It is even faster than ``std::to_chars`` from libc++ compiled with clang on
   macOS::
 
     ----------------------------------------------------------------------------
@@ -214,8 +221,8 @@
        fmt::print("{:L}\n", monday); // prints "пн"
      }
 
-* Improved locale handling in chrono formatting (
-  `#2337 <https://github.com/fmtlib/fmt/issues/2337>`_,
+* Improved locale handling in chrono formatting
+  (`#2337 <https://github.com/fmtlib/fmt/issues/2337>`_,
   `#2349 <https://github.com/fmtlib/fmt/pull/2349>`_,
   `#2350 <https://github.com/fmtlib/fmt/pull/2350>`_).
   Thanks `@phprus (Vladislav Shchapov) <https://github.com/phprus>`_.
