@@ -24,6 +24,7 @@
 #include <locale>
 #include <memory>
 #include <ostream>
+#include <sstream>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -599,4 +600,10 @@ TEST(module_test, join_tuple) {
 
 TEST(module_test, join_initializer_list) {
   EXPECT_EQ("1, 2, 3", fmt::format("{}", fmt::join({1, 2, 3}, ", ")));
+}
+
+TEST(module_test, print_ostream) {
+  std::ostringstream os;
+  fmt::print(os, "{}", "42");
+  EXPECT_EQ("42", os.str());
 }

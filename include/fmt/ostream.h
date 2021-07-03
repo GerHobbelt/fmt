@@ -156,7 +156,7 @@ template <typename Char>
 void vprint(std::basic_ostream<Char>& os, basic_string_view<Char> format_str,
             basic_format_args<buffer_context<type_identity_t<Char>>> args) {
   basic_memory_buffer<Char> buffer;
-  detail::vformat_to(buffer, format_str, args);
+  detail::vformat_to(buffer, format_str, args, {});
   detail::write_buffer(os, buffer);
 }
 
