@@ -27,6 +27,8 @@
 #include <string>
 #include <string_view>
 #include <system_error>
+#include <tuple>
+#include <utility>
 
 #if (__has_include(<fcntl.h>) || defined(__APPLE__) || \
      defined(__linux__)) &&                              \
@@ -76,8 +78,8 @@ bool oops_detail_namespace_is_visible;
 namespace fmt {
 bool namespace_detail_invisible() {
 #if defined(FMT_HIDE_MODULE_BUGS) && defined(_MSC_FULL_VER) && \
-    _MSC_FULL_VER <= 192930129
-  // bug in msvc up to 16.11-pre1:
+    _MSC_FULL_VER <= 192930130
+  // bug in msvc up to 16.11-pre2:
   // the namespace is visible even when it is neither
   // implicitly nor explicitly exported
   return true;
@@ -97,8 +99,8 @@ TEST(module_test, detail_namespace) {
 // macros must not be imported from a *named* module  [cpp.import]/5.1
 TEST(module_test, macros) {
 #if defined(FMT_HIDE_MODULE_BUGS) && defined(_MSC_FULL_VER) && \
-    _MSC_FULL_VER <= 192930129
-  // bug in msvc up to 16.11-pre1:
+    _MSC_FULL_VER <= 192930130
+  // bug in msvc up to 16.11-pre2:
   // include-guard macros leak from BMI
   // and even worse: they cannot be #undef-ined
   macro_leaked = false;
@@ -576,4 +578,25 @@ TEST(module_test, compile_format_string) {
   EXPECT_EQ(L"42", fmt::format(L"{:}"_cf, 42));
   EXPECT_EQ("4.2", fmt::format("{arg:3.1f}"_cf, "arg"_a = 4.2));
   EXPECT_EQ(L" 42", fmt::format(L"{arg:>3}"_cf, L"arg"_a = L"42"));
+}
+
+TEST(module_test, range_api) {
+  int arr[] = {1, 2, 3};
+  EXPECT_EQ("[1, 2, 3]", fmt::format("{}", arr));
+}
+
+TEST(module_test, tuple_api) {
+  EXPECT_EQ("(42, \"42\")", fmt::format("{}", std::tuple{42, "42"}));
+  EXPECT_EQ("(42, \"42\")", fmt::format("{}", std::pair{42, "42"}));
+}
+
+TEST(module_test, join_tuple) {
+  EXPECT_EQ("(a, 1, 2)",
+            fmt::format("({})", fmt::join(std::tuple{'a', 1, 2.0f}, ", ")));
+  EXPECT_EQ(L"(a, 1, 2)",
+            fmt::format(L"({})", fmt::join(std::tuple{L'a', 1, 2.0f}, L", ")));
+}
+
+TEST(module_test, join_initializer_list) {
+  EXPECT_EQ("1, 2, 3", fmt::format("{}", fmt::join({1, 2, 3}, ", ")));
 }

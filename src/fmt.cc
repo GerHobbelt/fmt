@@ -90,6 +90,7 @@ export module fmt;
 #include "fmt/os.h"
 #include "fmt/printf.h"
 #include "fmt/xchar.h"
+#include "fmt/ranges.h"
 
 // gcc doesn't yet implement private module fragments
 #if !FMT_GCC_VERSION
