@@ -882,8 +882,10 @@ template <typename T = void> struct basic_data {
   FMT_API static constexpr const char signs[4] = {0, '-', '+', ' '};
   FMT_API static constexpr const unsigned prefixes[4] = {0, 0, 0x1000000u | '+',
                                                          0x1000000u | ' '};
-  FMT_API static constexpr const char left_padding_shifts[5] = {31, 31, 0, 1, 0};
-  FMT_API static constexpr const char right_padding_shifts[5] = {0, 31, 0, 1, 0};
+  FMT_API static constexpr const char left_padding_shifts[5] = {31, 31, 0, 1,
+                                                                0};
+  FMT_API static constexpr const char right_padding_shifts[5] = {0, 31, 0, 1,
+                                                                 0};
 };
 
 #ifdef FMT_SHARED
@@ -1023,7 +1025,7 @@ template <> inline auto decimal_point(locale_ref loc) -> wchar_t {
 
 // Compares two characters for equality.
 template <typename Char> auto equal2(const Char* lhs, const char* rhs) -> bool {
-  return lhs[0] == rhs[0] && lhs[1] == rhs[1];
+  return lhs[0] == Char(rhs[0]) && lhs[1] == Char(rhs[1]);
 }
 inline auto equal2(const char* lhs, const char* rhs) -> bool {
   return memcmp(lhs, rhs, 2) == 0;
@@ -1567,6 +1569,7 @@ FMT_CONSTEXPR auto write(OutputIt out,
                          basic_string_view<type_identity_t<Char>> s,
                          const basic_format_specs<Char>& specs, locale_ref)
     -> OutputIt {
+  check_string_type_spec(specs.type);
   return write(out, s, specs);
 }
 template <typename Char, typename OutputIt>
@@ -2621,9 +2624,10 @@ auto to_string(const basic_memory_buffer<Char, SIZE>& buf)
 FMT_BEGIN_DETAIL_NAMESPACE
 
 template <typename Char>
-void vformat_to(buffer<Char>& buf, basic_string_view<Char> fmt,
-                basic_format_args<buffer_context<type_identity_t<Char>>> args,
-                locale_ref loc) {
+void vformat_to(
+    buffer<Char>& buf, basic_string_view<Char> fmt,
+    basic_format_args<FMT_BUFFER_CONTEXT(type_identity_t<Char>)> args,
+    locale_ref loc) {
   // workaround for msvc bug regarding name-lookup in module
   // link names into function scope
   using detail::arg_formatter;
@@ -2703,10 +2707,6 @@ void vformat_to(buffer<Char>& buf, basic_string_view<Char> fmt,
 }
 
 #ifndef FMT_HEADER_ONLY
-extern template void vformat_to(detail::buffer<char>&, string_view,
-                                basic_format_args<format_context>,
-                                detail::locale_ref);
-
 extern template FMT_API auto thousands_sep_impl<char>(locale_ref)
     -> thousands_sep_result<char>;
 extern template FMT_API auto thousands_sep_impl<wchar_t>(locale_ref)
