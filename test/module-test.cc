@@ -51,7 +51,7 @@ import fmt;
 
 // check for macros leaking from BMI
 static bool macro_leaked =
-#if defined(FMT_CORE_H_) || defined(FMT_FORMAT_H_)
+#if defined(FMT_CORE_H_) || defined(FMT_FORMAT_H_) || !defined(FMT_OS_H_)
     true;
 #else
     false;
@@ -79,8 +79,9 @@ bool oops_detail_namespace_is_visible;
 namespace fmt {
 bool namespace_detail_invisible() {
 #if defined(FMT_HIDE_MODULE_BUGS) && defined(_MSC_FULL_VER) && \
-    _MSC_FULL_VER <= 192930130
-  // bug in msvc up to 16.11-pre2:
+    ((_MSC_VER == 1929 && _MSC_FULL_VER <= 192930132) ||       \
+     (_MSC_VER == 1930 && _MSC_FULL_VER <= 193030401))
+  // bug in msvc up to 16.11-pre3 / 17.0-pre2:
   // the namespace is visible even when it is neither
   // implicitly nor explicitly exported
   return true;
