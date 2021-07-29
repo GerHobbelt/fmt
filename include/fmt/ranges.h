@@ -18,6 +18,7 @@
 #include "format.h"
 
 FMT_BEGIN_NAMESPACE
+FMT_MODULE_EXPORT_BEGIN
 
 template <typename Char, typename Enable = void> struct formatting_range {
 #ifdef FMT_DEPRECATED_BRACED_RANGES
@@ -44,7 +45,7 @@ template <typename Char, typename Enable = void> struct formatting_tuple {
   }
 };
 
-namespace detail {
+FMT_BEGIN_DETAIL_NAMESPACE
 
 template <typename RangeT, typename OutputIterator>
 OutputIterator copy(const RangeT& range, OutputIterator out) {
@@ -278,7 +279,7 @@ OutputIt write_range_entry(OutputIt out, const Arg& v) {
   return write<Char>(out, v);
 }
 
-}  // namespace detail
+FMT_END_DETAIL_NAMESPACE
 
 template <typename T> struct is_tuple_like {
   static FMT_CONSTEXPR_DECL const bool value =
@@ -418,8 +419,6 @@ struct formatter<tuple_join_view<Char, T...>, Char> {
     return out;
   }
 };
-
-FMT_MODULE_EXPORT_BEGIN
 
 /**
   \rst

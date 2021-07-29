@@ -98,7 +98,9 @@ export module fmt;
 #include "fmt/compile.h"
 #include "fmt/format.h"
 #include "fmt/os.h"
+#include "fmt/ostream.h"
 #include "fmt/printf.h"
+#include "fmt/ranges.h"
 #include "fmt/xchar.h"
 
 #if defined(__STDC_VERSION__) && (__STDC_VERSION__ > 201710L)
