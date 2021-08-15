@@ -313,7 +313,7 @@ struct formatter<
         fmt::is_range<T, Char>::value
 // Workaround a bug in MSVC 2017 and earlier.
 #if !FMT_MSC_VER || FMT_MSC_VER >= 1927
-        && (has_formatter<detail::value_type<T>, format_context>::value ||
+        && (is_formattable<detail::value_type<T>, Char>::value ||
             detail::has_fallback_formatter<detail::value_type<T>, Char>::value)
 #endif
         >> {
