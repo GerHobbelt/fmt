@@ -365,7 +365,9 @@ constexpr FMT_INLINE auto is_constant_evaluated() FMT_NOEXCEPT -> bool {
 }
 
 // A function to suppress "conditional expression is constant" warnings.
-template <typename T> constexpr auto const_check(T value) -> T { return value; }
+template <typename T> constexpr FMT_INLINE auto const_check(T value) -> T {
+  return value;
+}
 
 FMT_NORETURN FMT_API void assert_fail(const char* file, int line,
                                       const char* message);
@@ -1126,6 +1128,11 @@ constexpr bool is_arithmetic_type(type t) {
   return t > type::none_type && t <= type::last_numeric_type;
 }
 
+struct unformattable {};
+struct unformattable_char : unformattable {};
+struct unformattable_const : unformattable {};
+struct unformattable_pointer : unformattable {};
+
 template <typename Char> struct string_value {
   const Char* data;
   size_t size;
@@ -1202,6 +1209,10 @@ template <typename Context> class value {
                       typename Context::template formatter_type<value_type>,
                       fallback_formatter<value_type, char_type>>>;
   }
+  value(unformattable);
+  value(unformattable_char);
+  value(unformattable_const);
+  value(unformattable_pointer);
 
  private:
   // Formats an argument of a custom type, such as a user-defined class.
@@ -1226,9 +1237,9 @@ enum { long_short = sizeof(long) == sizeof(int) };
 using long_type = conditional_t<long_short, int, long long>;
 using ulong_type = conditional_t<long_short, unsigned, unsigned long long>;
 
-struct unformattable {};
-
 // Maps formatting arguments to core types.
+// arg_mapper reports errors by returning unformattable instead of using
+// static_assert because it's used in the is_formattable trait.
 template <typename Context> struct arg_mapper {
   using char_type = typename Context::char_type;
 
@@ -1255,12 +1266,15 @@ template <typename Context> struct arg_mapper {
   FMT_CONSTEXPR FMT_INLINE auto map(uint128_t val) -> uint128_t { return val; }
   FMT_CONSTEXPR FMT_INLINE auto map(bool val) -> bool { return val; }
 
-  template <typename T, FMT_ENABLE_IF(is_char<T>::value)>
+  template <typename T, FMT_ENABLE_IF(std::is_same<T, char>::value ||
+                                      std::is_same<T, char_type>::value)>
   FMT_CONSTEXPR FMT_INLINE auto map(T val) -> char_type {
-    static_assert(
-        std::is_same<T, char>::value || std::is_same<T, char_type>::value,
-        "mixing character types is disallowed");
     return val;
+  }
+  template <typename T, FMT_ENABLE_IF(std::is_same<T, wchar_t>::value &&
+                                      !std::is_same<wchar_t, char_type>::value)>
+  FMT_CONSTEXPR FMT_INLINE auto map(T) -> unformattable_char {
+    return {};
   }
 
   FMT_CONSTEXPR FMT_INLINE auto map(float val) -> float { return val; }
@@ -1275,12 +1289,18 @@ template <typename Context> struct arg_mapper {
   FMT_CONSTEXPR FMT_INLINE auto map(const char_type* val) -> const char_type* {
     return val;
   }
-  template <typename T, FMT_ENABLE_IF(is_string<T>::value)>
+  template <typename T,
+            FMT_ENABLE_IF(is_string<T>::value && !std::is_pointer<T>::value &&
+                          std::is_same<char_type, char_t<T>>::value)>
   FMT_CONSTEXPR FMT_INLINE auto map(const T& val)
       -> basic_string_view<char_type> {
-    static_assert(std::is_same<char_type, char_t<T>>::value,
-                  "mixing character types is disallowed");
     return to_string_view(val);
+  }
+  template <typename T,
+            FMT_ENABLE_IF(is_string<T>::value && !std::is_pointer<T>::value &&
+                          !std::is_same<char_type, char_t<T>>::value)>
+  FMT_CONSTEXPR FMT_INLINE auto map(const T&) -> unformattable_char {
+    return {};
   }
   template <typename T,
             FMT_ENABLE_IF(
@@ -1302,21 +1322,21 @@ template <typename Context> struct arg_mapper {
       -> basic_string_view<char_type> {
     return std_string_view<char_type>(val);
   }
-  FMT_CONSTEXPR FMT_INLINE auto map(const signed char* val) -> const char* {
-    static_assert(std::is_same<char_type, char>::value, "invalid string type");
-    return reinterpret_cast<const char*>(val);
+  FMT_CONSTEXPR FMT_INLINE auto map(const signed char* val)
+      -> decltype(this->map("")) {
+    return map(reinterpret_cast<const char*>(val));
   }
-  FMT_CONSTEXPR FMT_INLINE auto map(const unsigned char* val) -> const char* {
-    static_assert(std::is_same<char_type, char>::value, "invalid string type");
-    return reinterpret_cast<const char*>(val);
+  FMT_CONSTEXPR FMT_INLINE auto map(const unsigned char* val)
+      -> decltype(this->map("")) {
+    return map(reinterpret_cast<const char*>(val));
   }
-  FMT_CONSTEXPR FMT_INLINE auto map(signed char* val) -> const char* {
-    const auto* const_val = val;
-    return map(const_val);
+  FMT_CONSTEXPR FMT_INLINE auto map(signed char* val)
+      -> decltype(this->map("")) {
+    return map(reinterpret_cast<const char*>(val));
   }
-  FMT_CONSTEXPR FMT_INLINE auto map(unsigned char* val) -> const char* {
-    const auto* const_val = val;
-    return map(const_val);
+  FMT_CONSTEXPR FMT_INLINE auto map(unsigned char* val)
+      -> decltype(this->map("")) {
+    return map(reinterpret_cast<const char*>(val));
   }
 
   FMT_CONSTEXPR FMT_INLINE auto map(void* val) -> const void* { return val; }
@@ -1329,17 +1349,13 @@ template <typename Context> struct arg_mapper {
 
   // We use SFINAE instead of a const T* parameter to avoid conflicting with
   // the C array overload.
-  template <typename T>
-  FMT_CONSTEXPR auto map(T) -> enable_if_t<std::is_pointer<T>::value, int> {
-    // Formatting of arbitrary pointers is disallowed. If you want to output
-    // a pointer cast it to "void *" or "const void *". In particular, this
-    // forbids formatting of "[const] volatile char *" which is printed as bool
-    // by iostreams.
-    static_assert(!sizeof(T), "formatting of non-void pointers is disallowed");
-    return 0;
+  template <typename T, FMT_ENABLE_IF(std::is_pointer<T>::value)>
+  FMT_CONSTEXPR auto map(T) -> unformattable_pointer {
+    return {};
   }
 
-  template <typename T, std::size_t N>
+  template <typename T, std::size_t N,
+            FMT_ENABLE_IF(!std::is_same<T, wchar_t>::value)>
   FMT_CONSTEXPR FMT_INLINE auto map(const T (&values)[N]) -> const T (&)[N] {
     return values;
   }
@@ -1353,17 +1369,37 @@ template <typename Context> struct arg_mapper {
           static_cast<typename std::underlying_type<T>::type>(val))) {
     return map(static_cast<typename std::underlying_type<T>::type>(val));
   }
+
+  template <typename T, typename U = remove_cvref_t<T>>
+  using formattable =
+      bool_constant<is_const_formattable<U, Context>() ||
+                    !std::is_const<remove_reference_t<T>>::value ||
+                    has_fallback_formatter<U, char_type>::value>;
+
+#if FMT_MSC_VER != 0 && FMT_MSC_VER < 1910
+  // Workaround a bug in MSVC.
+  template <typename T> FMT_CONSTEXPR FMT_INLINE auto do_map(T&& val) -> T& {
+    return val;
+  }
+#else
+  template <typename T, FMT_ENABLE_IF(formattable<T>::value)>
+  FMT_CONSTEXPR FMT_INLINE auto do_map(T&& val) -> T& {
+    return val;
+  }
+  template <typename T, FMT_ENABLE_IF(!formattable<T>::value)>
+  FMT_CONSTEXPR FMT_INLINE auto do_map(T&&) -> unformattable_const {
+    return {};
+  }
+#endif
+
   template <typename T, typename U = remove_cvref_t<T>,
             FMT_ENABLE_IF(!is_string<U>::value && !is_char<U>::value &&
                           !std::is_array<U>::value &&
                           (has_formatter<U, Context>::value ||
                            has_fallback_formatter<U, char_type>::value))>
-  FMT_CONSTEXPR FMT_INLINE auto map(T&& val) -> T& {
-    static_assert(is_const_formattable<U, Context>() ||
-                      !std::is_const<remove_reference_t<T>>() ||
-                      has_fallback_formatter<U, char_type>(),
-                  "cannot format a const argument");
-    return val;
+  FMT_CONSTEXPR FMT_INLINE auto map(T&& val)
+      -> decltype(this->do_map(std::forward<T>(val))) {
+    return do_map(std::forward<T>(val));
   }
 
   template <typename T, FMT_ENABLE_IF(is_named_arg<T>::value)>
@@ -1599,8 +1635,28 @@ template <bool IS_PACKED, typename Context, type, typename T,
           FMT_ENABLE_IF(IS_PACKED)>
 FMT_CONSTEXPR FMT_INLINE auto make_arg(T&& val) -> value<Context> {
   const auto& arg = arg_mapper<Context>().map(std::forward<T>(val));
+
+  constexpr bool formattable_char =
+      !std::is_same<decltype(arg), const unformattable_char&>::value;
+  static_assert(formattable_char, "Mixing character types is disallowed.");
+
+  constexpr bool formattable_const =
+      !std::is_same<decltype(arg), const unformattable_const&>::value;
+  static_assert(formattable_const, "Cannot format a const argument.");
+
+  // Formatting of arbitrary pointers is disallowed. If you want to output
+  // a pointer cast it to "void *" or "const void *". In particular, this
+  // forbids formatting of "[const] volatile char *" which is printed as bool
+  // by iostreams.
+  constexpr bool formattable_pointer =
+      !std::is_same<decltype(arg), const unformattable_pointer&>::value;
+  static_assert(formattable_pointer,
+                "Formatting of non-void pointers is disallowed.");
+
+  constexpr bool formattable =
+      !std::is_same<decltype(arg), const unformattable&>::value;
   static_assert(
-      !std::is_same<decltype(arg), const unformattable&>::value,
+      formattable,
       "Cannot format an argument. To make type T formattable provide a "
       "formatter<T> specialization: https://fmt.dev/latest/api.html#udt");
   return {arg};
@@ -1678,9 +1734,9 @@ using format_context = buffer_context<char>;
 
 template <typename T, typename Char = char>
 using is_formattable = bool_constant<
-    !std::is_same<decltype(detail::arg_mapper<buffer_context<Char>>().map(
-                      std::declval<T>())),
-                  detail::unformattable>::value &&
+    !std::is_base_of<detail::unformattable,
+                     decltype(detail::arg_mapper<buffer_context<Char>>().map(
+                         std::declval<T>()))>::value &&
     !detail::has_fallback_formatter<T, Char>::value>;
 
 /**
@@ -2869,7 +2925,7 @@ template <typename Char, typename... Args> class basic_format_string {
   template <typename S,
             FMT_ENABLE_IF(
                 std::is_convertible<const S&, basic_string_view<Char>>::value)>
-  FMT_CONSTEVAL basic_format_string(const S& s) : str_(s) {
+  FMT_CONSTEVAL FMT_INLINE basic_format_string(const S& s) : str_(s) {
     static_assert(
         detail::count<
             (std::is_base_of<detail::view, remove_reference_t<Args>>::value &&
