@@ -2956,7 +2956,16 @@ template <typename S> auto runtime(const S& s) -> basic_string_view<char_t<S>> {
 #else
 template <typename... Args>
 using format_string = basic_format_string<char, type_identity_t<Args>...>;
-/** Creates a runtime format string. */
+/**
+  \rst
+  Creates a runtime format string.
+
+  **Example**::
+
+    // Check format string at runtime instead of compile-time.
+    fmt::print(fmt::runtime("{:d}"), "I am not a number");
+  \endrst
+ */
 template <typename S> auto runtime(const S& s) -> basic_runtime<char_t<S>> {
   return {{s}};
 }
@@ -2994,7 +3003,7 @@ auto vformat_to(OutputIt out, string_view fmt, format_args args) -> OutputIt {
  \rst
  Formats ``args`` according to specifications in ``fmt``, writes the result to
  the output iterator ``out`` and returns the iterator past the end of the output
- range.
+ range. `format_to` does not append a terminating null character.
 
  **Example**::
 
@@ -3032,6 +3041,7 @@ auto vformat_to_n(OutputIt out, size_t n, string_view fmt, format_args args)
   Formats ``args`` according to specifications in ``fmt``, writes up to ``n``
   characters of the result to the output iterator ``out`` and returns the total
   (not truncated) output size and the iterator past the end of the output range.
+  `format_to_n` does not append a terminating null character.
   \endrst
  */
 template <typename OutputIt, typename... T,
