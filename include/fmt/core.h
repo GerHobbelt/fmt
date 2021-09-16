@@ -94,7 +94,8 @@
 #  define FMT_CONSTEXPR_DECL
 #endif
 
-#if __cplusplus >= 202002L || \
+#if ((__cplusplus >= 202002L) && \
+     (!defined(_GLIBCXX_RELEASE) || _GLIBCXX_RELEASE > 9)) || \
     (__cplusplus >= 201709L && FMT_GCC_VERSION >= 1002)
 #  define FMT_CONSTEXPR20 constexpr
 #else
@@ -569,12 +570,14 @@ FMT_INLINE void check_format_string(const S&) {
 template <typename..., typename S, FMT_ENABLE_IF(is_compile_string<S>::value)>
 void check_format_string(S);
 
+FMT_NORETURN FMT_API void throw_format_error(const char* message);
+
 struct error_handler {
   constexpr error_handler() = default;
   constexpr error_handler(const error_handler&) = default;
 
   // This function is intentionally not constexpr to give a compile-time error.
-  FMT_NORETURN FMT_API void on_error(const char* message);
+  void on_error(const char* message) { throw_format_error(message); }
 };
 FMT_END_DETAIL_NAMESPACE
 
@@ -684,19 +687,19 @@ class appender;
 FMT_BEGIN_DETAIL_NAMESPACE
 
 template <typename Context, typename T>
-constexpr auto is_const_formattable_impl(T*)
+constexpr auto has_const_formatter_impl(T*)
     -> decltype(typename Context::template formatter_type<T>().format(
                     std::declval<const T&>(), std::declval<Context&>()),
                 true) {
   return true;
 }
 template <typename Context>
-constexpr auto is_const_formattable_impl(...) -> bool {
+constexpr auto has_const_formatter_impl(...) -> bool {
   return false;
 }
 template <typename T, typename Context>
-constexpr auto is_const_formattable() -> bool {
-  return is_const_formattable_impl<Context>(static_cast<T*>(nullptr));
+constexpr auto has_const_formatter() -> bool {
+  return has_const_formatter_impl<Context>(static_cast<T*>(nullptr));
 }
 
 // Extracts a reference to the container from back_insert_iterator.
@@ -1186,7 +1189,7 @@ template <typename Context> class value {
     auto f = Formatter();
     parse_ctx.advance_to(f.parse(parse_ctx));
     using qualified_type =
-        conditional_t<is_const_formattable<T, Context>(), const T, T>;
+        conditional_t<has_const_formatter<T, Context>(), const T, T>;
     ctx.advance_to(f.format(*static_cast<qualified_type*>(arg), ctx));
   }
 };
@@ -1335,7 +1338,7 @@ template <typename Context> struct arg_mapper {
 
   template <typename T, typename U = remove_cvref_t<T>>
   struct formattable
-      : bool_constant<is_const_formattable<U, Context>() ||
+      : bool_constant<has_const_formatter<U, Context>() ||
                       !std::is_const<remove_reference_t<T>>::value ||
                       has_fallback_formatter<U, char_type>::value> {};
 
@@ -1922,8 +1925,6 @@ using sign_t = sign::type;
 
 FMT_BEGIN_DETAIL_NAMESPACE
 
-void throw_format_error(const char* message);
-
 // Workaround an array initialization issue in gcc 4.8.
 template <typename Char> struct fill_t {
  private:
@@ -1949,11 +1950,33 @@ template <typename Char> struct fill_t {
 };
 FMT_END_DETAIL_NAMESPACE
 
+enum class presentation_type : unsigned char {
+  none,
+  // Integer types should go first,
+  dec,             // 'd'
+  oct,             // 'o'
+  hex_lower,       // 'x'
+  hex_upper,       // 'X'
+  bin_lower,       // 'b'
+  bin_upper,       // 'B'
+  hexfloat_lower,  // 'a'
+  hexfloat_upper,  // 'A'
+  exp_lower,       // 'e'
+  exp_upper,       // 'E'
+  fixed_lower,     // 'f'
+  fixed_upper,     // 'F'
+  general_lower,   // 'g'
+  general_upper,   // 'G'
+  chr,             // 'c'
+  string,          // 's'
+  pointer          // 'p'
+};
+
 // Format specifiers for built-in and string types.
 template <typename Char> struct basic_format_specs {
   int width;
   int precision;
-  char type;
+  presentation_type type;
   align_t align : 4;
   sign_t sign : 3;
   bool alt : 1;  // Alternate form ('#').
@@ -1963,7 +1986,7 @@ template <typename Char> struct basic_format_specs {
   constexpr basic_format_specs()
       : width(0),
         precision(-1),
-        type(0),
+        type(presentation_type::none),
         align(align::none),
         sign(sign::none),
         alt(false),
@@ -2043,9 +2066,7 @@ template <typename Char> class specs_setter {
   }
   FMT_CONSTEXPR void end_precision() {}
 
-  FMT_CONSTEXPR void on_type(Char type) {
-    specs_.type = static_cast<char>(type);
-  }
+  FMT_CONSTEXPR void on_type(presentation_type type) { specs_.type = type; }
 };
 
 // Format spec handler that saves references to arguments representing dynamic
@@ -2327,6 +2348,48 @@ FMT_CONSTEXPR auto parse_precision(const Char* begin, const Char* end,
   return begin;
 }
 
+template <typename Char>
+FMT_CONSTEXPR auto parse_presentation_type(Char type) -> presentation_type {
+  switch (to_ascii(type)) {
+  case 'd':
+    return presentation_type::dec;
+  case 'o':
+    return presentation_type::oct;
+  case 'x':
+    return presentation_type::hex_lower;
+  case 'X':
+    return presentation_type::hex_upper;
+  case 'b':
+    return presentation_type::bin_lower;
+  case 'B':
+    return presentation_type::bin_upper;
+  case 'a':
+    return presentation_type::hexfloat_lower;
+  case 'A':
+    return presentation_type::hexfloat_upper;
+  case 'e':
+    return presentation_type::exp_lower;
+  case 'E':
+    return presentation_type::exp_upper;
+  case 'f':
+    return presentation_type::fixed_lower;
+  case 'F':
+    return presentation_type::fixed_upper;
+  case 'g':
+    return presentation_type::general_lower;
+  case 'G':
+    return presentation_type::general_upper;
+  case 'c':
+    return presentation_type::chr;
+  case 's':
+    return presentation_type::string;
+  case 'p':
+    return presentation_type::pointer;
+  default:
+    return presentation_type::none;
+  }
+}
+
 // Parses standard format specifiers and sends notifications about parsed
 // components to handler.
 template <typename Char, typename SpecHandler>
@@ -2336,7 +2399,10 @@ FMT_CONSTEXPR FMT_INLINE auto parse_format_specs(const Char* begin,
     -> const Char* {
   if (begin + 1 < end && begin[1] == '}' && is_ascii_letter(*begin) &&
       *begin != 'L') {
-    handler.on_type(*begin++);
+    presentation_type type = parse_presentation_type(*begin++);
+    if (type == presentation_type::none)
+      handler.on_error("invalid type specifier");
+    handler.on_type(type);
     return begin;
   }
 
@@ -2390,7 +2456,12 @@ FMT_CONSTEXPR FMT_INLINE auto parse_format_specs(const Char* begin,
   }
 
   // Parse type.
-  if (begin != end && *begin != '}') handler.on_type(*begin++);
+  if (begin != end && *begin != '}') {
+    presentation_type type = parse_presentation_type(*begin++);
+    if (type == presentation_type::none)
+      handler.on_error("invalid type specifier");
+    handler.on_type(type);
+  }
   return begin;
 }
 
@@ -2532,28 +2603,18 @@ class compile_parse_context
 };
 
 template <typename ErrorHandler>
-FMT_CONSTEXPR void check_int_type_spec(char spec, ErrorHandler&& eh) {
-  switch (spec) {
-  case 0:
-  case 'd':
-  case 'x':
-  case 'X':
-  case 'b':
-  case 'B':
-  case 'o':
-  case 'c':
-    break;
-  default:
+FMT_CONSTEXPR void check_int_type_spec(presentation_type type,
+                                       ErrorHandler&& eh) {
+  if (type > presentation_type::bin_upper && type != presentation_type::chr)
     eh.on_error("invalid type specifier");
-    break;
-  }
 }
 
 // Checks char specs and returns true if the type spec is char (and not int).
 template <typename Char, typename ErrorHandler = error_handler>
 FMT_CONSTEXPR auto check_char_specs(const basic_format_specs<Char>& specs,
                                     ErrorHandler&& eh = {}) -> bool {
-  if (specs.type && specs.type != 'c') {
+  if (specs.type != presentation_type::none &&
+      specs.type != presentation_type::chr) {
     check_int_type_spec(specs.type, eh);
     return false;
   }
@@ -2589,33 +2650,33 @@ FMT_CONSTEXPR auto parse_float_type_spec(const basic_format_specs<Char>& specs,
   result.showpoint = specs.alt;
   result.locale = specs.localized;
   switch (specs.type) {
-  case 0:
+  case presentation_type::none:
     result.format = float_format::general;
     break;
-  case 'G':
+  case presentation_type::general_upper:
     result.upper = true;
     FMT_FALLTHROUGH;
-  case 'g':
+  case presentation_type::general_lower:
     result.format = float_format::general;
     break;
-  case 'E':
+  case presentation_type::exp_upper:
     result.upper = true;
     FMT_FALLTHROUGH;
-  case 'e':
+  case presentation_type::exp_lower:
     result.format = float_format::exp;
     result.showpoint |= specs.precision != 0;
     break;
-  case 'F':
+  case presentation_type::fixed_upper:
     result.upper = true;
     FMT_FALLTHROUGH;
-  case 'f':
+  case presentation_type::fixed_lower:
     result.format = float_format::fixed;
     result.showpoint |= specs.precision != 0;
     break;
-  case 'A':
+  case presentation_type::hexfloat_upper:
     result.upper = true;
     FMT_FALLTHROUGH;
-  case 'a':
+  case presentation_type::hexfloat_lower:
     result.format = float_format::hex;
     break;
   default:
@@ -2625,22 +2686,27 @@ FMT_CONSTEXPR auto parse_float_type_spec(const basic_format_specs<Char>& specs,
   return result;
 }
 
-template <typename Char, typename ErrorHandler = error_handler>
-FMT_CONSTEXPR auto check_cstring_type_spec(Char spec, ErrorHandler&& eh = {})
-    -> bool {
-  if (spec == 0 || spec == 's') return true;
-  if (spec != 'p') eh.on_error("invalid type specifier");
+template <typename ErrorHandler = error_handler>
+FMT_CONSTEXPR auto check_cstring_type_spec(presentation_type type,
+                                           ErrorHandler&& eh = {}) -> bool {
+  if (type == presentation_type::none || type == presentation_type::string)
+    return true;
+  if (type != presentation_type::pointer) eh.on_error("invalid type specifier");
   return false;
 }
 
-template <typename Char, typename ErrorHandler = error_handler>
-FMT_CONSTEXPR void check_string_type_spec(Char spec, ErrorHandler&& eh = {}) {
-  if (spec != 0 && spec != 's') eh.on_error("invalid type specifier");
+template <typename ErrorHandler = error_handler>
+FMT_CONSTEXPR void check_string_type_spec(presentation_type type,
+                                          ErrorHandler&& eh = {}) {
+  if (type != presentation_type::none && type != presentation_type::string)
+    eh.on_error("invalid type specifier");
 }
 
-template <typename Char, typename ErrorHandler>
-FMT_CONSTEXPR void check_pointer_type_spec(Char spec, ErrorHandler&& eh) {
-  if (spec != 0 && spec != 'p') eh.on_error("invalid type specifier");
+template <typename ErrorHandler>
+FMT_CONSTEXPR void check_pointer_type_spec(presentation_type type,
+                                           ErrorHandler&& eh) {
+  if (type != presentation_type::none && type != presentation_type::pointer)
+    eh.on_error("invalid type specifier");
 }
 
 // A parse_format_specs handler that checks if specifiers are consistent with
@@ -2818,7 +2884,10 @@ struct formatter<T, Char,
       FMT_ASSERT(false, "invalid argument type");
       break;
     case detail::type::bool_type:
-      if (!specs_.type || specs_.type == 's') break;
+      if (specs_.type == presentation_type::none ||
+          specs_.type == presentation_type::string) {
+        break;
+      }
       FMT_FALLTHROUGH;
     case detail::type::int_type:
     case detail::type::uint_type:
