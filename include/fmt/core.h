@@ -94,7 +94,7 @@
 #  define FMT_CONSTEXPR_DECL
 #endif
 
-#if ((__cplusplus >= 202002L) && \
+#if ((__cplusplus >= 202002L) &&                              \
      (!defined(_GLIBCXX_RELEASE) || _GLIBCXX_RELEASE > 9)) || \
     (__cplusplus >= 201709L && FMT_GCC_VERSION >= 1002)
 #  define FMT_CONSTEXPR20 constexpr
@@ -877,6 +877,46 @@ class iterator_buffer final : public Traits, public buffer<T> {
     return out_;
   }
   auto count() const -> size_t { return Traits::count() + this->size(); }
+};
+
+template <typename T>
+class iterator_buffer<T*, T, fixed_buffer_traits> final : public fixed_buffer_traits, public buffer<T> {
+ private:
+  T* out_;
+  enum { buffer_size = 256 };
+  T data_[buffer_size];
+
+ protected:
+  void grow(size_t) override {
+    if (this->size() == this->capacity()) flush();
+  }
+
+  void flush() {
+    size_t n = this->limit(this->size());
+    if (this->data() == out_) {
+      out_ += n;
+      this->set(data_, buffer_size);
+    }
+    this->clear();
+  }
+
+ public:
+  explicit iterator_buffer(T* out, size_t n = buffer_size)
+      : fixed_buffer_traits(n), buffer<T>(out, 0, n), out_(out) {}
+  iterator_buffer(iterator_buffer&& other)
+      : fixed_buffer_traits(other), buffer<T>(std::move(other)), out_(other.out_) {
+    if (this->data() != out_) {
+      this->set(data_, buffer_size);
+      this->clear();
+    }
+  }
+  ~iterator_buffer() { flush(); }
+
+  auto out() -> T* {
+    flush();
+    return out_;
+  }
+  auto count() const -> size_t { return fixed_buffer_traits::count() + this->size(); }
 };
 
 template <typename T> class iterator_buffer<T*, T> final : public buffer<T> {
@@ -2140,8 +2180,8 @@ constexpr auto to_ascii(Char value) ->
 template <typename Char>
 FMT_CONSTEXPR auto code_point_length(const Char* begin) -> int {
   if (const_check(sizeof(Char) != 1)) return 1;
-  constexpr char lengths[] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-                              0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 3, 3, 4, 0};
+  auto lengths =
+      "\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\0\0\0\0\0\0\0\0\2\2\2\2\3\3\4";
   int len = lengths[static_cast<unsigned char>(*begin) >> 3];
 
   // Compute the pointer to the next character early so that the next
