@@ -197,7 +197,7 @@ TEST(ranges_test, enum_range) {
   EXPECT_EQ(fmt::format("{}", v), "[0]");
 }
 
-#if !FMT_MSC_VER || FMT_MSC_VER >= 1927
+#if !FMT_MSC_VER
 struct unformattable {};
 
 TEST(ranges_test, unformattable_range) {

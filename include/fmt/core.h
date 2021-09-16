@@ -32,12 +32,6 @@
 #  define FMT_GCC_PRAGMA(arg)
 #endif
 
-#if __cplusplus >= 201103L || defined(__GXX_EXPERIMENTAL_CXX0X__)
-#  define FMT_HAS_GXX_CXX11 FMT_GCC_VERSION
-#else
-#  define FMT_HAS_GXX_CXX11 0
-#endif
-
 #if defined(__INTEL_COMPILER)
 #  define FMT_ICC_VERSION __INTEL_COMPILER
 #else
@@ -123,15 +117,6 @@
 #  define FMT_CONSTEXPR_CHAR_TRAITS
 #endif
 
-#ifndef FMT_OVERRIDE
-#  if FMT_HAS_FEATURE(cxx_override_control) || \
-      (FMT_GCC_VERSION >= 408 && FMT_HAS_GXX_CXX11) || FMT_MSC_VER >= 1900
-#    define FMT_OVERRIDE override
-#  else
-#    define FMT_OVERRIDE
-#  endif
-#endif
-
 // Check if exceptions are disabled.
 #ifndef FMT_EXCEPTIONS
 #  if (defined(__GNUC__) && !defined(__EXCEPTIONS)) || \
@@ -148,7 +133,7 @@
 #endif
 
 #if FMT_USE_NOEXCEPT || FMT_HAS_FEATURE(cxx_noexcept) || \
-    (FMT_GCC_VERSION >= 408 && FMT_HAS_GXX_CXX11) || FMT_MSC_VER >= 1900
+    FMT_GCC_VERSION >= 408 || FMT_MSC_VER >= 1900
 #  define FMT_DETECTED_NOEXCEPT noexcept
 #  define FMT_HAS_CXX11_NOEXCEPT 1
 #else
@@ -217,31 +202,13 @@
 #  endif
 #endif
 
-#ifndef FMT_USE_INLINE_NAMESPACES
-#  if FMT_HAS_FEATURE(cxx_inline_namespaces) || FMT_GCC_VERSION >= 404 || \
-      (FMT_MSC_VER >= 1900 && (!defined(_MANAGED) || !_MANAGED))
-#    define FMT_USE_INLINE_NAMESPACES 1
-#  else
-#    define FMT_USE_INLINE_NAMESPACES 0
-#  endif
-#endif
-
 #ifndef FMT_BEGIN_NAMESPACE
-#  if FMT_USE_INLINE_NAMESPACES
-#    define FMT_INLINE_NAMESPACE inline namespace
-#    define FMT_END_NAMESPACE \
-      }                       \
-      }
-#  else
-#    define FMT_INLINE_NAMESPACE namespace
-#    define FMT_END_NAMESPACE \
-      }                       \
-      using namespace v8;     \
-      }
-#  endif
 #  define FMT_BEGIN_NAMESPACE \
     namespace fmt {           \
-    FMT_INLINE_NAMESPACE v8 {
+    inline namespace v8 {
+#  define FMT_END_NAMESPACE \
+    }                       \
+    }
 #endif
 
 #ifndef FMT_MODULE_EXPORT
@@ -269,12 +236,6 @@
 #endif
 #ifndef FMT_API
 #  define FMT_API
-#endif
-
-#if FMT_GCC_VERSION
-#  define FMT_GCC_VISIBILITY_HIDDEN __attribute__((visibility("hidden")))
-#else
-#  define FMT_GCC_VISIBILITY_HIDDEN
 #endif
 
 // libc++ supports string_view in pre-c++17.
@@ -758,11 +719,10 @@ FMT_CONSTEXPR auto copy_str(InputIt begin, InputIt end, OutputIt out)
 }
 
 template <typename Char, typename T, typename U,
-FMT_ENABLE_IF(std::is_same<remove_const_t<T>, U>::value && is_char<U>::value)>
-FMT_CONSTEXPR auto copy_str(T* begin, T* end, U* out)
-    -> U* {
-  if (is_constant_evaluated())
-    return copy_str<Char, T*, U*>(begin, end, out);
+          FMT_ENABLE_IF(
+              std::is_same<remove_const_t<T>, U>::value&& is_char<U>::value)>
+FMT_CONSTEXPR auto copy_str(T* begin, T* end, U* out) -> U* {
+  if (is_constant_evaluated()) return copy_str<Char, T*, U*>(begin, end, out);
   auto size = to_unsigned(end - begin);
   memcpy(out, begin, size * sizeof(U));
   return out + size;
@@ -892,7 +852,7 @@ class iterator_buffer final : public Traits, public buffer<T> {
   T data_[buffer_size];
 
  protected:
-  void grow(size_t) final FMT_OVERRIDE {
+  void grow(size_t) override {
     if (this->size() == buffer_size) flush();
   }
 
@@ -918,7 +878,7 @@ class iterator_buffer final : public Traits, public buffer<T> {
 
 template <typename T> class iterator_buffer<T*, T> final : public buffer<T> {
  protected:
-  void grow(size_t) final FMT_OVERRIDE {}
+  void grow(size_t) override {}
 
  public:
   explicit iterator_buffer(T* out, size_t = 0) : buffer<T>(out, 0, ~size_t()) {}
@@ -936,7 +896,7 @@ class iterator_buffer<std::back_insert_iterator<Container>,
   Container& container_;
 
  protected:
-  void grow(size_t capacity) final FMT_OVERRIDE {
+  void grow(size_t capacity) override {
     container_.resize(capacity);
     this->set(&container_[0], capacity);
   }
@@ -959,7 +919,7 @@ template <typename T = char> class counting_buffer final : public buffer<T> {
   size_t count_ = 0;
 
  protected:
-  void grow(size_t) final FMT_OVERRIDE {
+  void grow(size_t) override {
     if (this->size() != buffer_size) return;
     count_ += this->size();
     this->clear();
@@ -2477,7 +2437,7 @@ FMT_CONSTEXPR auto parse_replacement_field(const Char* begin, const Char* end,
 template <bool IS_CONSTEXPR, typename Char, typename Handler>
 FMT_CONSTEXPR FMT_INLINE void parse_format_string(
     basic_string_view<Char> format_str, Handler&& handler) {
-  // this is most likely a name-lookup defect in msvc's modules implementation
+  // Workaround a name-lookup bug in MSVC's modules implementation.
   using detail::find;
 
   auto begin = format_str.data();
@@ -2741,28 +2701,21 @@ constexpr auto get_arg_index_by_name(basic_string_view<Char> name) -> int {
   if constexpr (detail::is_statically_named_arg<T>()) {
     if (name == T::name) return N;
   }
-  if constexpr (sizeof...(Args) > 0) {
+  if constexpr (sizeof...(Args) > 0)
     return get_arg_index_by_name<N + 1, Args...>(name);
-  } else {
-    (void)name;  // Workaround an MSVC bug about "unused" parameter.
-    return invalid_arg_index;
-  }
+  (void)name;  // Workaround an MSVC bug about "unused" parameter.
+  return invalid_arg_index;
 }
 #endif
 
 template <typename... Args, typename Char>
 FMT_CONSTEXPR auto get_arg_index_by_name(basic_string_view<Char> name) -> int {
 #if FMT_USE_NONTYPE_TEMPLATE_PARAMETERS
-  if constexpr (sizeof...(Args) > 0) {
+  if constexpr (sizeof...(Args) > 0)
     return get_arg_index_by_name<0, Args...>(name);
-  } else {
-    (void)name;
-    return invalid_arg_index;
-  }
-#else
+#endif
   (void)name;
   return invalid_arg_index;
-#endif
 }
 
 template <typename Char, typename ErrorHandler, typename... Args>
@@ -2998,7 +2951,7 @@ template <typename OutputIt,
 auto vformat_to(OutputIt out, string_view fmt, format_args args) -> OutputIt {
   using detail::get_buffer;
   auto&& buf = get_buffer<char>(out);
-  detail::vformat_to(buf, string_view(fmt), args, {});
+  detail::vformat_to(buf, fmt, args, {});
   return detail::get_iterator(buf);
 }
 
@@ -3032,9 +2985,8 @@ template <typename OutputIt, typename... T,
           FMT_ENABLE_IF(detail::is_output_iterator<OutputIt, char>::value)>
 auto vformat_to_n(OutputIt out, size_t n, string_view fmt, format_args args)
     -> format_to_n_result<OutputIt> {
-  using buffer =
-      detail::iterator_buffer<OutputIt, char, detail::fixed_buffer_traits>;
-  auto buf = buffer(out, n);
+  using traits = detail::fixed_buffer_traits;
+  auto buf = detail::iterator_buffer<OutputIt, char, traits>(out, n);
   detail::vformat_to(buf, fmt, args, {});
   return {buf.out(), buf.count()};
 }
