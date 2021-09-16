@@ -23,6 +23,7 @@ template <> struct formatter<test> : formatter<int> {
 
 #include <sstream>
 
+#include "fmt/compile.h"
 #include "fmt/ostream.h"
 #include "fmt/ranges.h"
 #include "gmock/gmock.h"
@@ -257,7 +258,8 @@ std::ostream& operator<<(std::ostream& os, streamable_and_convertible_to_bool) {
 }
 
 TEST(ostream_test, format_convertible_to_bool) {
-  EXPECT_EQ("foo", fmt::format("{}", streamable_and_convertible_to_bool()));
+  // operator<< is intentionally not used because of potential ODR violations.
+  EXPECT_EQ(fmt::format("{}", streamable_and_convertible_to_bool()), "true");
 }
 
 struct copyfmt_test {};
@@ -279,4 +281,16 @@ TEST(ostream_test, to_string) {
 TEST(ostream_test, range) {
   auto strs = std::vector<test_string>{test_string("foo"), test_string("bar")};
   EXPECT_EQ("[foo, bar]", fmt::format("{}", strs));
+}
+
+struct abstract {
+  virtual ~abstract() = default;
+  virtual void f() = 0;
+  friend std::ostream& operator<<(std::ostream& os, const abstract&) {
+    return os;
+  }
+};
+
+void format_abstract_compiles(const abstract& a) {
+  fmt::format(FMT_COMPILE("{}"), a);
 }
