@@ -95,10 +95,17 @@ FMT_END_NAMESPACE
 #      define FMT_THROW(x) throw x
 #    endif
 #  else
-#    define FMT_THROW(x)               \
-      do {                             \
-        FMT_ASSERT(false, (x).what()); \
-      } while (false)
+#    ifdef _DEBUG
+#      define FMT_THROW(x)              \
+       do {                             \
+         ::printf("%s\n", x.what());    \
+       } while (false)
+#    else
+#      define FMT_THROW(x)              \
+       do {                             \
+         static_cast<void>(x);          \
+       } while (false)
+#    endif
 #  endif
 #endif
 
@@ -788,6 +795,7 @@ FMT_CONSTEXPR20 void basic_memory_buffer<T, SIZE, Allocator>::grow(
   const size_t max_size = std::allocator_traits<Allocator>::max_size(alloc_);
   size_t old_capacity = this->capacity();
   size_t new_capacity = old_capacity + old_capacity / 2;
+  size += size / 2;
   if (size > new_capacity)
     new_capacity = size;
   else if (new_capacity > max_size)
@@ -1573,6 +1581,9 @@ FMT_CONSTEXPR FMT_INLINE auto write_int(OutputIt out, write_int_arg<T> arg,
   auto abs_value = arg.abs_value;
   auto prefix = arg.prefix;
   switch (specs.type) {
+  default:
+    throw_format_error("invalid type specifier");
+    FMT_FALLTHROUGH;
   case presentation_type::none:
   case presentation_type::dec: {
     if (specs.localized &&
@@ -1621,8 +1632,6 @@ FMT_CONSTEXPR FMT_INLINE auto write_int(OutputIt out, write_int_arg<T> arg,
   }
   case presentation_type::chr:
     return write_char(out, static_cast<Char>(abs_value), specs);
-  default:
-    throw_format_error("invalid type specifier");
   }
   return out;
 }
