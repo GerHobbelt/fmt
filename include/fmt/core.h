@@ -2018,6 +2018,7 @@ enum class presentation_type : unsigned char {
   chr,             // 'c'
   string,          // 's'
   pointer,         // 'p'
+  fixed_lower_alt, // 'v'
   any              // 'y'
 };
 
@@ -2438,6 +2439,8 @@ FMT_CONSTEXPR auto parse_presentation_type(Char type) -> presentation_type {
     return presentation_type::string;
   case 'p':
     return presentation_type::pointer;
+  case 'v':
+    return presentation_type::fixed_lower_alt;
   case 'y':
     return presentation_type::any;
   default:
@@ -2725,6 +2728,7 @@ FMT_CONSTEXPR auto parse_float_type_spec(const basic_format_specs<Char>& specs,
     result.upper = true;
     FMT_FALLTHROUGH;
   case presentation_type::fixed_lower:
+  case presentation_type::fixed_lower_alt:
   case presentation_type::any:
     result.format = float_format::fixed;
     result.showpoint |= specs.precision != 0;

@@ -40,6 +40,7 @@
 #include <stdexcept>     // std::runtime_error
 #include <system_error>  // std::system_error
 #include <utility>       // std::swap
+#include <cfloat>        // DBL_DIG
 
 #ifdef __cpp_lib_bit_cast
 #include <bit>           // std::bitcast
@@ -1971,6 +1972,26 @@ FMT_CONSTEXPR20 auto write(OutputIt out, T value,
   if (const_check(!is_supported_floating_point(value))) return out;
   float_specs fspecs = parse_float_type_spec(specs);
   fspecs.sign = specs.sign;
+
+  if (specs.type == presentation_type::fixed_lower_alt) {
+    static const double prevPowerOfTen[17] = { 1e-1, 1, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9, 1e10, 1e11, 1e12, 1e13, 1e14, 1e15 };
+    if (specs.precision < 0) {
+      specs.precision = 6;
+    }
+    if (specs.precision > DBL_DIG || value >= prevPowerOfTen[DBL_DIG - specs.precision + 1]) {
+      specs.precision = DBL_DIG;
+      fspecs.format = float_format::general;
+      fspecs.showpoint = specs.alt;
+    }
+    else {
+      if constexpr (std::is_same<T, double>()) {
+        if (fabs(value) < prevPowerOfTen[DBL_DIG - specs.precision]) {
+          value = std::nextafter(value, value >= 0.0 ? 1e15 : -1e15);
+        }
+      }
+    }
+  }
+
   if (detail::signbit(value)) {  // value < 0 is false for NaN so use signbit.
     fspecs.sign = sign::minus;
     value = -value;
