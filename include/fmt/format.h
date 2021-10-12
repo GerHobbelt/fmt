@@ -2009,12 +2009,11 @@ FMT_CONSTEXPR20 auto write(OutputIt out, T value,
     if (specs.precision < 0) {
       specs.precision = 6;
     }
-    if (specs.precision > DBL_DIG || value >= prevPowerOfTen[DBL_DIG - specs.precision + 1]) {
+    if (specs.precision > DBL_DIG || fabs(value) >= prevPowerOfTen[DBL_DIG - specs.precision + 1]) {
       specs.precision = DBL_DIG;
       fspecs.format = float_format::general;
       fspecs.showpoint = specs.alt;
-    }
-    else {
+    } else {
       if constexpr (std::is_same<T, double>()) {
         if (fabs(value) < prevPowerOfTen[DBL_DIG - specs.precision]) {
           value = std::nextafter(value, value >= 0.0 ? 1e15 : -1e15);
