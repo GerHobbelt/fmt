@@ -261,6 +261,12 @@ inline auto ctzll(uint64_t x) -> int {
 FMT_END_NAMESPACE
 #endif
 
+#ifdef FMT_HEADER_ONLY
+#  define FMT_HEADER_ONLY_CONSTEXPR20 FMT_CONSTEXPR20
+#else
+#  define FMT_HEADER_ONLY_CONSTEXPR20
+#endif
+
 FMT_BEGIN_NAMESPACE
 namespace detail {
 // An equivalent of `*reinterpret_cast<Dest*>(&source)` that doesn't have
@@ -1268,12 +1274,9 @@ FMT_CONSTEXPR auto write_exponent(int exp, It it) -> It {
 }
 
 template <typename T>
-#ifdef FMT_HEADER_ONLY
-FMT_CONSTEXPR20
-#endif
-    auto
-    format_float(T value, int precision, float_specs specs, buffer<char>& buf)
-        -> int;
+FMT_HEADER_ONLY_CONSTEXPR20 auto format_float(T value, int precision,
+                                              float_specs specs,
+                                              buffer<char>& buf) -> int;
 
 // Formats a floating-point number with snprintf.
 template <typename T>
@@ -1698,11 +1701,10 @@ inline auto write_significand(OutputIt out, UInt significand,
                               int significand_size) -> OutputIt {
   return format_decimal<Char>(out, significand, significand_size).end;
 }
-template <typename Char, typename OutputIt, typename T>
-inline auto write_significand(OutputIt out, T significand, int significand_size,
-                              int exponent,
-                              const digit_grouping<Char>& grouping)
-    -> OutputIt {
+template <typename Char, typename OutputIt, typename T, typename Grouping>
+FMT_CONSTEXPR20 auto write_significand(OutputIt out, T significand,
+                                       int significand_size, int exponent,
+                                       const Grouping& grouping) -> OutputIt {
   if (!grouping.separator()) {
     out = write_significand<Char>(out, significand, significand_size);
     return detail::fill_n(out, exponent, static_cast<Char>('0'));
@@ -1754,11 +1756,11 @@ FMT_CONSTEXPR auto write_significand(OutputIt out, const char* significand,
                                          significand + significand_size, out);
 }
 
-template <typename OutputIt, typename Char, typename T>
-inline auto write_significand(OutputIt out, T significand, int significand_size,
-                              int integral_size, Char decimal_point,
-                              const digit_grouping<Char>& grouping)
-    -> OutputIt {
+template <typename OutputIt, typename Char, typename T, typename Grouping>
+FMT_CONSTEXPR20 auto write_significand(OutputIt out, T significand,
+                                       int significand_size, int integral_size,
+                                       Char decimal_point,
+                                       const Grouping& grouping) -> OutputIt {
   if (!grouping.separator()) {
     return write_significand(out, significand, significand_size, integral_size,
                              decimal_point);
@@ -1772,14 +1774,15 @@ inline auto write_significand(OutputIt out, T significand, int significand_size,
                                          buffer.end(), out);
 }
 
-template <typename OutputIt, typename DecimalFP, typename Char>
-FMT_CONSTEXPR20 auto write_float(OutputIt out, const DecimalFP& fp,
-                                 const basic_format_specs<Char>& specs,
-                                 float_specs fspecs, locale_ref loc)
+template <typename OutputIt, typename DecimalFP, typename Char,
+          typename Grouping = digit_grouping<Char>>
+FMT_CONSTEXPR20 auto do_write_float(OutputIt out, const DecimalFP& fp,
+                                    const basic_format_specs<Char>& specs,
+                                    float_specs fspecs, locale_ref loc)
     -> OutputIt {
   auto significand = fp.significand;
   int significand_size = get_significand_size(fp);
-  constexpr const Char zero = static_cast<Char>('0');
+  constexpr Char zero = static_cast<Char>('0');
   auto sign = fspecs.sign;
   size_t size = to_unsigned(significand_size) + (sign ? 1 : 0);
   using iterator = reserve_iterator<OutputIt>;
@@ -1838,7 +1841,7 @@ FMT_CONSTEXPR20 auto write_float(OutputIt out, const DecimalFP& fp,
       if (num_zeros <= 0 && fspecs.format != float_format::fixed) num_zeros = 1;
       if (num_zeros > 0) size += to_unsigned(num_zeros) + 1;
     }
-    auto grouping = digit_grouping<Char>(loc, fspecs.locale);
+    auto grouping = Grouping(loc, fspecs.locale);
     size += to_unsigned(grouping.count_separators(significand_size));
     return write_padded<align::right>(out, specs, size, [&](iterator it) {
       if (sign) *it++ = detail::sign<Char>(sign);
@@ -1852,7 +1855,7 @@ FMT_CONSTEXPR20 auto write_float(OutputIt out, const DecimalFP& fp,
     // 1234e-2 -> 12.34[0+]
     int num_zeros = fspecs.showpoint ? fspecs.precision - significand_size : 0;
     size += 1 + to_unsigned(num_zeros > 0 ? num_zeros : 0);
-    auto grouping = digit_grouping<Char>(loc, fspecs.locale);
+    auto grouping = Grouping(loc, fspecs.locale);
     size += to_unsigned(grouping.count_separators(significand_size));
     return write_padded<align::right>(out, specs, size, [&](iterator it) {
       if (sign) *it++ = detail::sign<Char>(sign);
@@ -1879,41 +1882,70 @@ FMT_CONSTEXPR20 auto write_float(OutputIt out, const DecimalFP& fp,
   });
 }
 
-#ifdef __cpp_lib_bit_cast
-template <typename T, FMT_ENABLE_IF(is_fast_float<T>::value)>
-constexpr bool is_infinite_fast_float(T value) {
-  using floaty =
-      std::conditional_t<std::is_same<T, long double>::value, double, T>;
-  using uint = typename dragonbox::float_info<floaty>::carrier_uint;
-  constexpr auto significand_bits =
-      dragonbox::float_info<floaty>::significand_bits;
-  auto bits = std::bit_cast<uint>(value);
-  return (bits & exponent_mask<floaty>()) &&
-         !(bits & ((uint(1) << significand_bits) - 1));
-}
+template <typename Char> class fallback_digit_grouping {
+ public:
+  constexpr fallback_digit_grouping(locale_ref, bool) {}
 
-template <typename T, FMT_ENABLE_IF(is_fast_float<T>::value)>
-constexpr bool is_finite_fast_float(T value) {
-  using floaty =
-      std::conditional_t<std::is_same<T, long double>::value, double, T>;
-  using uint = typename dragonbox::float_info<floaty>::carrier_uint;
-  auto bits = std::bit_cast<uint>(value);
-  return (bits & exponent_mask<floaty>()) != exponent_mask<floaty>();
+  constexpr Char separator() const { return Char(); }
+
+  constexpr int count_separators(int) const { return 0; }
+
+  template <typename Out, typename C>
+  constexpr Out apply(Out out, basic_string_view<C>) const {
+    return out;
+  }
+};
+
+template <typename OutputIt, typename DecimalFP, typename Char>
+FMT_CONSTEXPR20 auto write_float(OutputIt out, const DecimalFP& fp,
+                                 const basic_format_specs<Char>& specs,
+                                 float_specs fspecs, locale_ref loc)
+    -> OutputIt {
+  if (is_constant_evaluated()) {
+    return do_write_float<OutputIt, DecimalFP, Char,
+                          fallback_digit_grouping<Char>>(out, fp, specs, fspecs,
+                                                         loc);
+  } else {
+    return do_write_float(out, fp, specs, fspecs, loc);
+  }
 }
-#endif
 
 template <typename T, FMT_ENABLE_IF(std::is_floating_point<T>::value)>
-FMT_INLINE FMT_CONSTEXPR bool float_signbit(T value) {
+FMT_CONSTEXPR20 bool isinf(T value) {
+  if (is_constant_evaluated()) {
+#if defined(__cpp_if_constexpr)
+    if constexpr (std::numeric_limits<double>::is_iec559) {
+      auto bits = detail::bit_cast<uint64_t>(static_cast<double>(value));
+      constexpr auto significand_bits =
+          dragonbox::float_info<double>::significand_bits;
+      return (bits & exponent_mask<double>()) &&
+             !(bits & ((uint64_t(1) << significand_bits) - 1));
+    }
+#endif
+  }
+  return std::isinf(value);
+}
+
+template <typename T, FMT_ENABLE_IF(std::is_floating_point<T>::value)>
+FMT_CONSTEXPR20 bool isfinite(T value) {
+  if (is_constant_evaluated()) {
+#if defined(__cpp_if_constexpr)
+    if constexpr (std::numeric_limits<double>::is_iec559) {
+      auto bits = detail::bit_cast<uint64_t>(static_cast<double>(value));
+      return (bits & exponent_mask<double>()) != exponent_mask<double>();
+    }
+#endif
+  }
+  return std::isfinite(value);
+}
+
+template <typename T, FMT_ENABLE_IF(std::is_floating_point<T>::value)>
+FMT_INLINE FMT_CONSTEXPR bool signbit(T value) {
   if (is_constant_evaluated()) {
 #ifdef __cpp_if_constexpr
-    if constexpr (is_fast_float<T>::value) {
-      using floaty =
-          conditional_t<std::is_same<T, long double>::value, double, T>;
-      using uint = typename dragonbox::float_info<floaty>::carrier_uint;
-      auto bits = bit_cast<uint>(value);
-      return (bits & (uint(1) << (num_bits<uint>() - 1))) != 0;
-    } else {
-      FMT_ASSERT(false, "floating point type is not supported");
+    if constexpr (std::numeric_limits<double>::is_iec559) {
+      auto bits = detail::bit_cast<uint64_t>(static_cast<double>(value));
+      return (bits & (uint64_t(1) << (num_bits<uint64_t>() - 1))) != 0;
     }
 #endif
   }
@@ -1928,26 +1960,15 @@ FMT_CONSTEXPR20 auto write(OutputIt out, T value,
   if (const_check(!is_supported_floating_point(value))) return out;
   float_specs fspecs = parse_float_type_spec(specs);
   fspecs.sign = specs.sign;
-  if (float_signbit(value)) {
+  if (detail::signbit(value)) {  // value < 0 is false for NaN so use signbit.
     fspecs.sign = sign::minus;
     value = -value;
   } else if (fspecs.sign == sign::minus) {
     fspecs.sign = sign::none;
   }
 
-#if defined(__cpp_lib_bit_cast) && defined(__cpp_if_constexpr)
-  if (is_constant_evaluated()) {
-    if constexpr (is_fast_float<T>::value) {
-      if (!is_finite_fast_float(value))
-        return write_nonfinite(out, is_infinite_fast_float(value), specs,
-                               fspecs);
-    }
-  } else
-#endif
-  {
-    if (!std::isfinite(value))
-      return write_nonfinite(out, std::isinf(value), specs, fspecs);
-  }
+  if (!detail::isfinite(value))
+    return write_nonfinite(out, detail::isinf(value), specs, fspecs);
 
   if (specs.align == align::numeric && fspecs.sign) {
     auto it = reserve(out, 1);
@@ -1974,7 +1995,7 @@ FMT_CONSTEXPR20 auto write(OutputIt out, T value,
       ++precision;
   }
   if (const_check(std::is_same<T, float>())) fspecs.binary32 = true;
-  fspecs.use_grisu = is_fast_float<T>();
+  if (!is_fast_float<T>()) fspecs.fallback = true;
   int exp = format_float(promote_float(value), precision, fspecs, buffer);
   fspecs.precision = precision;
   auto fp = big_decimal_fp{buffer.data(), static_cast<int>(buffer.size()), exp};
@@ -1995,7 +2016,7 @@ FMT_CONSTEXPR20 auto write(OutputIt out, T value) -> OutputIt {
   auto bits = bit_cast<uint>(value);
 
   auto fspecs = float_specs();
-  if (float_signbit(value)) {
+  if (detail::signbit(value)) {
     fspecs.sign = sign::minus;
     value = -value;
   }
@@ -2667,6 +2688,17 @@ template <> struct formatter<bytes> {
 // group_digits_view is not derived from view because it copies the argument.
 template <typename T> struct group_digits_view { T value; };
 
+/**
+  \rst
+  Returns a view that formats an integer value using ',' as a locale-independent
+  thousands separator.
+
+  **Example**::
+
+    fmt::print("{}", fmt::group_digits(12345));
+    // Output: "12,345"
+  \endrst
+ */
 template <typename T> auto group_digits(T value) -> group_digits_view<T> {
   return {value};
 }
@@ -2761,8 +2793,8 @@ struct formatter<join_view<It, Sentinel, Char>, Char> {
 };
 
 /**
-  Returns an object that formats the iterator range `[begin, end)` with
-  elements separated by `sep`.
+  Returns a view that formats the iterator range `[begin, end)` with elements
+  separated by `sep`.
  */
 template <typename It, typename Sentinel>
 auto join(It begin, Sentinel end, string_view sep) -> join_view<It, Sentinel> {
@@ -2771,7 +2803,7 @@ auto join(It begin, Sentinel end, string_view sep) -> join_view<It, Sentinel> {
 
 /**
   \rst
-  Returns an object that formats `range` with elements separated by `sep`.
+  Returns a view that formats `range` with elements separated by `sep`.
 
   **Example**::
 

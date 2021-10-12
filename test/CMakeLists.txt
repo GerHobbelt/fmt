@@ -86,6 +86,7 @@ add_fmt_test(ostream-test)
 add_fmt_test(compile-test)
 add_fmt_test(compile-fp-test HEADER_ONLY)
 if (MSVC)
+  # Without this option, MSVC returns 199711L for the __cplusplus macro.
   target_compile_options(compile-fp-test PRIVATE /Zc:__cplusplus)
 endif()
 add_fmt_test(printf-test)
