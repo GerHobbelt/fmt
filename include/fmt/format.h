@@ -1730,7 +1730,7 @@ inline auto write_significand(Char* out, UInt significand, int significand_size,
   out += significand_size + 1;
   Char* end = out;
   int floating_size = significand_size - integral_size;
-  for(int i = floating_size / 2; i > 0; --i) {
+  for (int i = floating_size / 2; i > 0; --i) {
     out -= 2;
     copy2(out, digits2(significand % 100));
     significand /= 100;
@@ -1978,12 +1978,11 @@ FMT_CONSTEXPR20 auto write(OutputIt out, T value,
     if (specs.precision < 0) {
       specs.precision = 6;
     }
-    if (specs.precision > DBL_DIG || value >= prevPowerOfTen[DBL_DIG - specs.precision + 1]) {
+    if (specs.precision > DBL_DIG || fabs(value) >= prevPowerOfTen[DBL_DIG - specs.precision + 1]) {
       specs.precision = DBL_DIG;
       fspecs.format = float_format::general;
       fspecs.showpoint = specs.alt;
-    }
-    else {
+    } else {
       if constexpr (std::is_same<T, double>()) {
         if (fabs(value) < prevPowerOfTen[DBL_DIG - specs.precision]) {
           value = std::nextafter(value, value >= 0.0 ? 1e15 : -1e15);
