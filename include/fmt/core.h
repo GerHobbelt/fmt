@@ -18,7 +18,7 @@
 // The fmt library version in the form major * 10000 + minor * 100 + patch.
 #define FMT_VERSION 80001
 
-#ifdef __clang__
+#if defined (__clang__ ) && !defined(__ibmxl__)
 #  define FMT_CLANG_VERSION (__clang_major__ * 100 + __clang_minor__)
 #else
 #  define FMT_CLANG_VERSION 0
@@ -1285,8 +1285,14 @@ template <typename Context> struct arg_mapper {
   FMT_CONSTEXPR FMT_INLINE auto map(T val) -> char_type {
     return val;
   }
-  template <typename T, FMT_ENABLE_IF(std::is_same<T, wchar_t>::value &&
-                                      !std::is_same<wchar_t, char_type>::value)>
+  template <typename T, enable_if_t<(std::is_same<T, wchar_t>::value ||
+#ifdef __cpp_char8_t
+                                     std::is_same<T, char8_t>::value ||
+#endif
+                                     std::is_same<T, char16_t>::value ||
+                                     std::is_same<T, char32_t>::value) &&
+                                        !std::is_same<T, char_type>::value,
+                                    int> = 0>
   FMT_CONSTEXPR FMT_INLINE auto map(T) -> unformattable_char {
     return {};
   }
