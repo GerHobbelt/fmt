@@ -7,6 +7,9 @@
 
 #include "fmt/chrono.h"
 
+#include <ctime>
+#include <vector>
+
 #include "gtest-extra.h"  // EXPECT_THROW_MSG
 #include "util.h"         // get_locale
 
@@ -38,6 +41,26 @@ auto make_second(int s) -> std::tm {
   return time;
 }
 
+std::string system_strftime(const std::string& format, const std::tm* timeptr,
+                            size_t maxsize = 1024) {
+  std::vector<char> output(maxsize);
+  auto size =
+      std::strftime(output.data(), output.size(), format.c_str(), timeptr);
+  return std::string(output.data(), size);
+}
+
+FMT_CONSTEXPR std::tm make_tm(int year, int mon, int mday, int hour, int min,
+                              int sec) {
+  auto tm = std::tm();
+  tm.tm_sec = sec;
+  tm.tm_min = min;
+  tm.tm_hour = hour;
+  tm.tm_mday = mday;
+  tm.tm_mon = mon - 1;
+  tm.tm_year = year - 1900;
+  return tm;
+}
+
 TEST(chrono_test, format_tm) {
   auto tm = std::tm();
   tm.tm_year = 116;
@@ -48,9 +71,118 @@ TEST(chrono_test, format_tm) {
   tm.tm_sec = 33;
   EXPECT_EQ(fmt::format("The date is {:%Y-%m-%d %H:%M:%S}.", tm),
             "The date is 2016-04-25 11:22:33.");
+  EXPECT_EQ(fmt::format("{:%Y}", tm), "2016");
+  EXPECT_EQ(fmt::format("{:%C}", tm), "20");
+  EXPECT_EQ(fmt::format("{:%C%y}", tm), fmt::format("{:%Y}", tm));
+  EXPECT_EQ(fmt::format("{:%e}", tm), "25");
+  EXPECT_EQ(fmt::format("{:%D}", tm), "04/25/16");
   EXPECT_EQ(fmt::format("{:%F}", tm), "2016-04-25");
   EXPECT_EQ(fmt::format("{:%T}", tm), "11:22:33");
+
+  // Short year
+  tm.tm_year = 999 - 1900;
+  tm.tm_mon = 0;   // for %G
+  tm.tm_mday = 2;  // for %G
+  tm.tm_wday = 3;  // for %G
+  tm.tm_yday = 1;  // for %G
+  EXPECT_EQ(fmt::format("{:%Y}", tm), "0999");
+  EXPECT_EQ(fmt::format("{:%C%y}", tm), "0999");
+  EXPECT_EQ(fmt::format("{:%G}", tm), "0999");
+
+  tm.tm_year = 27 - 1900;
+  EXPECT_EQ(fmt::format("{:%Y}", tm), "0027");
+  EXPECT_EQ(fmt::format("{:%C%y}", tm), "0027");
+
+  // for week on the year
+  // https://www.cl.cam.ac.uk/~mgk25/iso-time.html
+  std::vector<std::tm> tm_list = {
+      make_tm(1975, 12, 29, 12, 14, 16),  // W01
+      make_tm(1977, 1, 2, 12, 14, 16),    // W53
+      make_tm(1999, 12, 27, 12, 14, 16),  // W52
+      make_tm(1999, 12, 31, 12, 14, 16),  // W52
+      make_tm(2000, 1, 1, 12, 14, 16),    // W52
+      make_tm(2000, 1, 2, 12, 14, 16),    // W52
+      make_tm(2000, 1, 3, 12, 14, 16)     // W1
+  };
+  const std::string iso_week_spec = "%Y-%m-%d: %G %g %V";
+  for (auto ctm : tm_list) {
+    // Calculate tm_yday, tm_wday, etc.
+    std::time_t t = std::mktime(&ctm);
+    tm = *std::localtime(&t);
+
+    auto fmt_spec = fmt::format("{{:{}}}", iso_week_spec);
+    EXPECT_EQ(system_strftime(iso_week_spec, &tm),
+              fmt::format(fmt::runtime(fmt_spec), tm));
+  }
+
+  // Every day from 1970-01-01
+  std::time_t time_now = std::time(nullptr);
+  for (std::time_t t = 6 * 3600; t < time_now; t += 86400) {
+    tm = *std::localtime(&t);
+
+    auto fmt_spec = fmt::format("{{:{}}}", iso_week_spec);
+    EXPECT_EQ(system_strftime(iso_week_spec, &tm),
+              fmt::format(fmt::runtime(fmt_spec), tm));
+  }
 }
+
+// MSVC:
+//  minkernel\crts\ucrt\src\appcrt\time\wcsftime.cpp(971) : Assertion failed:
+//  timeptr->tm_year >= -1900 && timeptr->tm_year <= 8099
+#ifndef _WIN32
+TEST(chrono_test, format_tm_future) {
+  auto tm = std::tm();
+  tm.tm_year = 10445;  // 10000+ years
+  tm.tm_mon = 3;
+  tm.tm_mday = 25;
+  tm.tm_hour = 11;
+  tm.tm_min = 22;
+  tm.tm_sec = 33;
+  EXPECT_EQ(fmt::format("The date is {:%Y-%m-%d %H:%M:%S}.", tm),
+            "The date is 12345-04-25 11:22:33.");
+  EXPECT_EQ(fmt::format("{:%Y}", tm), "12345");
+  EXPECT_EQ(fmt::format("{:%C}", tm), "123");
+  EXPECT_EQ(fmt::format("{:%C%y}", tm), fmt::format("{:%Y}", tm));
+  EXPECT_EQ(fmt::format("{:%D}", tm), "04/25/45");
+  EXPECT_EQ(fmt::format("{:%F}", tm), "12345-04-25");
+  EXPECT_EQ(fmt::format("{:%T}", tm), "11:22:33");
+}
+
+TEST(chrono_test, format_tm_past) {
+  auto tm = std::tm();
+  tm.tm_year = -2001;
+  tm.tm_mon = 3;
+  tm.tm_mday = 25;
+  tm.tm_hour = 11;
+  tm.tm_min = 22;
+  tm.tm_sec = 33;
+  EXPECT_EQ(fmt::format("The date is {:%Y-%m-%d %H:%M:%S}.", tm),
+            "The date is -101-04-25 11:22:33.");
+  EXPECT_EQ(fmt::format("{:%Y}", tm), "-101");
+
+  // macOS  %C - "-1"
+  // Linux  %C - "-2"
+  // fmt    %C - "-1"
+  EXPECT_EQ(fmt::format("{:%C}", tm), "-1");
+  EXPECT_EQ(fmt::format("{:%C%y}", tm), fmt::format("{:%Y}", tm));
+
+  // macOS  %D - "04/25/01" (%y)
+  // Linux  %D - "04/25/99" (%y)
+  // fmt    %D - "04/25/01" (%y)
+  EXPECT_EQ(fmt::format("{:%D}", tm), "04/25/01");
+
+  EXPECT_EQ(fmt::format("{:%F}", tm), "-101-04-25");
+  EXPECT_EQ(fmt::format("{:%T}", tm), "11:22:33");
+
+  tm.tm_year = -1901;  // -1
+  EXPECT_EQ(fmt::format("{:%Y}", tm), "-001");
+  EXPECT_EQ(fmt::format("{:%C%y}", tm), fmt::format("{:%Y}", tm));
+
+  tm.tm_year = -1911;  // -11
+  EXPECT_EQ(fmt::format("{:%Y}", tm), "-011");
+  EXPECT_EQ(fmt::format("{:%C%y}", tm), fmt::format("{:%Y}", tm));
+}
+#endif
 
 TEST(chrono_test, grow_buffer) {
   auto s = std::string("{:");
@@ -90,22 +222,39 @@ TEST(chrono_test, gmtime) {
   EXPECT_TRUE(equal(tm, fmt::gmtime(t)));
 }
 
-template <typename TimePoint> auto strftime(TimePoint tp) -> std::string {
+template <typename TimePoint> auto strftime_full(TimePoint tp) -> std::string {
   auto t = std::chrono::system_clock::to_time_t(tp);
   auto tm = *std::localtime(&t);
-  char output[256] = {};
-  std::strftime(output, sizeof(output), "%Y-%m-%d %H:%M:%S", &tm);
-  return output;
+  return system_strftime("%Y-%m-%d %H:%M:%S", &tm);
 }
 
 TEST(chrono_test, time_point) {
   auto t1 = std::chrono::system_clock::now();
-  EXPECT_EQ(strftime(t1), fmt::format("{:%Y-%m-%d %H:%M:%S}", t1));
-  EXPECT_EQ(strftime(t1), fmt::format("{}", t1));
+  EXPECT_EQ(strftime_full(t1), fmt::format("{:%Y-%m-%d %H:%M:%S}", t1));
+  EXPECT_EQ(strftime_full(t1), fmt::format("{}", t1));
   using time_point =
       std::chrono::time_point<std::chrono::system_clock, std::chrono::seconds>;
   auto t2 = time_point(std::chrono::seconds(42));
-  EXPECT_EQ(strftime(t2), fmt::format("{:%Y-%m-%d %H:%M:%S}", t2));
+  EXPECT_EQ(strftime_full(t2), fmt::format("{:%Y-%m-%d %H:%M:%S}", t2));
+
+  std::vector<std::string> spec_list = {
+      "%%",  "%n",  "%t",  "%Y",  "%EY", "%y",  "%Oy", "%Ey", "%C",  "%EC",
+      "%G",  "%g",  "%b",  "%h",  "%B",  "%m",  "%Om", "%U",  "%OU", "%W",
+      "%OW", "%V",  "%OV", "%j",  "%d",  "%Od", "%e",  "%Oe", "%a",  "%A",
+      "%w",  "%Ow", "%u",  "%Ou", "%H",  "%OH", "%I",  "%OI", "%M",  "%OM",
+      "%S",  "%OS", "%c",  "%Ec", "%x",  "%Ex", "%X",  "%EX", "%D",  "%F",
+      "%r",  "%R",  "%T",  "%p",  "%z",  "%Z"};
+  spec_list.push_back("%Y-%m-%d %H:%M:%S");
+  for (const auto& spec : spec_list) {
+    auto t = std::chrono::system_clock::to_time_t(t1);
+    auto tm = *std::localtime(&t);
+
+    auto sys_output = system_strftime(spec, &tm);
+
+    auto fmt_spec = fmt::format("{{:{}}}", spec);
+    EXPECT_EQ(sys_output, fmt::format(fmt::runtime(fmt_spec), t1));
+    EXPECT_EQ(sys_output, fmt::format(fmt::runtime(fmt_spec), tm));
+  }
 }
 
 #ifndef FMT_STATIC_THOUSANDS_SEPARATOR
