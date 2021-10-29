@@ -1585,6 +1585,7 @@ FMT_CONSTEXPR FMT_INLINE auto write_int(OutputIt out, write_int_arg<T> arg,
   default:
     throw_format_error("invalid type specifier");
     FMT_FALLTHROUGH;
+  case presentation_type::any:
   case presentation_type::none:
   case presentation_type::dec: {
     if (specs.localized &&
@@ -2014,7 +2015,11 @@ FMT_CONSTEXPR20 auto write(OutputIt out, T value,
       fspecs.format = float_format::general;
       fspecs.showpoint = specs.alt;
     } else {
+#ifdef __cpp_if_constexpr
       if constexpr (std::is_same<T, double>()) {
+#else
+      if (std::is_same<T, double>()) {
+#endif
         if (fabs(value) < prevPowerOfTen[DBL_DIG - specs.precision]) {
           value = std::nextafter(value, value >= 0.0 ? 1e15 : -1e15);
         }
