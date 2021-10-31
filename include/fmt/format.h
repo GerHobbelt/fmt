@@ -2021,7 +2021,7 @@ FMT_CONSTEXPR20 auto write(OutputIt out, T value,
       if (std::is_same<T, double>()) {
 #endif
         if (fabs(value) < prevPowerOfTen[DBL_DIG - specs.precision]) {
-          value = std::nextafter(value, value >= 0.0 ? 1e15 : -1e15);
+          value = static_cast<T>( std::nextafter(value, value >= 0.0 ? 1e15 : -1e15) );
         }
       }
     }
