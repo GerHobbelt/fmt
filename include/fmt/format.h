@@ -2606,6 +2606,7 @@ FMT_FORMAT_AS(unsigned long, unsigned long long);
 FMT_FORMAT_AS(Char*, const Char*);
 FMT_FORMAT_AS(std::basic_string<Char>, basic_string_view<Char>);
 FMT_FORMAT_AS(std::nullptr_t, const void*);
+FMT_FORMAT_AS(detail::byte, unsigned char);
 FMT_FORMAT_AS(detail::std_string_view<Char>, basic_string_view<Char>);
 
 template <typename Char>
@@ -3048,14 +3049,12 @@ constexpr auto operator"" _a(const char* s, size_t) -> detail::udl_arg<char> {
 #  endif
 
 /**
-  \rst
-  User-defined literal equivalent of :func:`fmt::format`.
+  DEPRECATED! User-defined literal equivalent of fmt::format.
 
   **Example**::
 
     using namespace fmt::literals;
     std::string message = "The answer is {}"_format(42);
-  \endrst
  */
 constexpr auto operator"" _format(const char* s, size_t n)
     -> detail::udl_formatter<char> {

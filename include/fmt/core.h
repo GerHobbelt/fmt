@@ -8,7 +8,8 @@
 #ifndef FMT_CORE_H_
 #define FMT_CORE_H_
 
-#include <cstdio>  // std::FILE
+#include <cstddef>  // std::byte
+#include <cstdio>   // std::FILE
 #include <cstring>
 #include <iterator>
 #include <limits>
@@ -367,6 +368,12 @@ FMT_NORETURN FMT_API void assert_fail(const char* file, int line,
 #  endif
 #endif
 
+#ifdef __cpp_lib_byte
+using byte = std::byte;
+#else
+enum class byte : unsigned char {};
+#endif
+
 #if defined(FMT_USE_STRING_VIEW)
 template <typename Char> using std_string_view = std::basic_string_view<Char>;
 #elif defined(FMT_USE_EXPERIMENTAL_STRING_VIEW)
@@ -560,7 +567,7 @@ constexpr auto to_string_view(const S& s)
 FMT_BEGIN_DETAIL_NAMESPACE
 
 void to_string_view(...);
-using fmt::v8::to_string_view;
+using fmt::to_string_view;
 
 // Specifies whether S is a string type convertible to fmt::basic_string_view.
 // It should be a constexpr function but MSVC 2017 fails to compile it in
@@ -1357,20 +1364,21 @@ template <typename Context> struct arg_mapper {
       -> basic_string_view<char_type> {
     return std_string_view<char_type>(val);
   }
-  FMT_CONSTEXPR FMT_INLINE auto map(const signed char* val)
-      -> decltype(this->map("")) {
+
+  using cstring_result = conditional_t<std::is_same<char_type, char>::value,
+                                       const char*, unformattable_pointer>;
+
+  FMT_CONSTEXPR FMT_INLINE auto map(const signed char* val) -> cstring_result {
     return map(reinterpret_cast<const char*>(val));
   }
   FMT_CONSTEXPR FMT_INLINE auto map(const unsigned char* val)
-      -> decltype(this->map("")) {
+      -> cstring_result {
     return map(reinterpret_cast<const char*>(val));
   }
-  FMT_CONSTEXPR FMT_INLINE auto map(signed char* val)
-      -> decltype(this->map("")) {
+  FMT_CONSTEXPR FMT_INLINE auto map(signed char* val) -> cstring_result {
     return map(reinterpret_cast<const char*>(val));
   }
-  FMT_CONSTEXPR FMT_INLINE auto map(unsigned char* val)
-      -> decltype(this->map("")) {
+  FMT_CONSTEXPR FMT_INLINE auto map(unsigned char* val) -> cstring_result {
     return map(reinterpret_cast<const char*>(val));
   }
 
@@ -1403,6 +1411,8 @@ template <typename Context> struct arg_mapper {
 
   template <typename T,
             FMT_ENABLE_IF(std::is_enum<T>::value &&
+                          (std::is_convertible<T, int>::value ||
+                           std::is_same<T, detail::byte>::value) &&
                           !has_formatter<T, Context>::value &&
                           !has_fallback_formatter<T, char_type>::value)>
   FMT_CONSTEXPR FMT_INLINE auto map(const T& val)
