@@ -8,7 +8,8 @@
 #ifndef FMT_CORE_H_
 #define FMT_CORE_H_
 
-#include <cstdio>  // std::FILE
+#include <cstddef>  // std::byte
+#include <cstdio>   // std::FILE
 #include <cstring>
 #include <iterator>
 #include <limits>
@@ -18,7 +19,7 @@
 // The fmt library version in the form major * 10000 + minor * 100 + patch.
 #define FMT_VERSION 80001
 
-#if defined (__clang__ ) && !defined(__ibmxl__)
+#if defined(__clang__) && !defined(__ibmxl__)
 #  define FMT_CLANG_VERSION (__clang_major__ * 100 + __clang_minor__)
 #else
 #  define FMT_CLANG_VERSION 0
@@ -82,11 +83,17 @@
 #  define FMT_HAS_CPP_ATTRIBUTE(x) 0
 #endif
 
+#ifdef _MSVC_LANG
+#  define FMT_CPLUSPLUS _MSVC_LANG
+#else
+#  define FMT_CPLUSPLUS __cplusplus
+#endif
+
 #define FMT_HAS_CPP14_ATTRIBUTE(attribute) \
-  (__cplusplus >= 201402L && FMT_HAS_CPP_ATTRIBUTE(attribute))
+  (FMT_CPLUSPLUS >= 201402L && FMT_HAS_CPP_ATTRIBUTE(attribute))
 
 #define FMT_HAS_CPP17_ATTRIBUTE(attribute) \
-  (__cplusplus >= 201703L && FMT_HAS_CPP_ATTRIBUTE(attribute))
+  (FMT_CPLUSPLUS >= 201703L && FMT_HAS_CPP_ATTRIBUTE(attribute))
 
 // Check if relaxed C++14 constexpr is supported.
 // GCC doesn't allow throw in constexpr until version 6 (bug 67371).
@@ -180,11 +187,18 @@
 #  else
 #    define FMT_FALLTHROUGH
 #  endif
-#elif FMT_HAS_CPP17_ATTRIBUTE(fallthrough) || \
-    (defined(_MSVC_LANG) && _MSVC_LANG >= 201703L)
+#elif FMT_HAS_CPP17_ATTRIBUTE(fallthrough)
 #  define FMT_FALLTHROUGH [[fallthrough]]
 #else
 #  define FMT_FALLTHROUGH
+#endif
+
+#ifndef FMT_NODISCARD
+#  if FMT_HAS_CPP17_ATTRIBUTE(nodiscard)
+#    define FMT_NODISCARD [[nodiscard]]
+#  else
+#    define FMT_NODISCARD
+#  endif
 #endif
 
 #ifndef FMT_USE_FLOAT
@@ -259,8 +273,9 @@
 #ifndef FMT_CONSTEVAL
 #  if ((FMT_GCC_VERSION >= 1000 || FMT_CLANG_VERSION >= 1101) &&      \
        __cplusplus > 201703L && !defined(__apple_build_version__)) || \
-      (defined(__cpp_consteval) && (!FMT_MSC_VER || _MSC_FULL_VER >= 193030704))
-  // consteval is broken in MSVC before VS2022 and Apple clang 13.
+      (defined(__cpp_consteval) &&                                    \
+       (!FMT_MSC_VER || _MSC_FULL_VER >= 193030704))
+// consteval is broken in MSVC before VS2022 and Apple clang 13.
 #    define FMT_CONSTEVAL consteval
 #    define FMT_HAS_CONSTEVAL
 #  else
@@ -351,6 +366,12 @@ FMT_NORETURN FMT_API void assert_fail(const char* file, int line,
            ? (void)0                                                          \
            : ::fmt::detail::assert_fail(__FILE__, __LINE__, (message)))
 #  endif
+#endif
+
+#ifdef __cpp_lib_byte
+using byte = std::byte;
+#else
+enum class byte : unsigned char {};
 #endif
 
 #if defined(FMT_USE_STRING_VIEW)
@@ -546,7 +567,7 @@ constexpr auto to_string_view(const S& s)
 FMT_BEGIN_DETAIL_NAMESPACE
 
 void to_string_view(...);
-using fmt::v8::to_string_view;
+using fmt::to_string_view;
 
 // Specifies whether S is a string type convertible to fmt::basic_string_view.
 // It should be a constexpr function but MSVC 2017 fails to compile it in
@@ -858,7 +879,7 @@ class iterator_buffer final : public Traits, public buffer<T> {
   T data_[buffer_size];
 
  protected:
-  void grow(size_t) override {
+  FMT_CONSTEXPR20 void grow(size_t) override {
     if (this->size() == buffer_size) flush();
   }
 
@@ -892,7 +913,7 @@ class iterator_buffer<T*, T, fixed_buffer_traits> final
   T data_[buffer_size];
 
  protected:
-  void grow(size_t) override {
+  FMT_CONSTEXPR20 void grow(size_t) override {
     if (this->size() == this->capacity()) flush();
   }
 
@@ -930,7 +951,7 @@ class iterator_buffer<T*, T, fixed_buffer_traits> final
 
 template <typename T> class iterator_buffer<T*, T> final : public buffer<T> {
  protected:
-  void grow(size_t) override {}
+  FMT_CONSTEXPR20 void grow(size_t) override {}
 
  public:
   explicit iterator_buffer(T* out, size_t = 0) : buffer<T>(out, 0, ~size_t()) {}
@@ -948,7 +969,7 @@ class iterator_buffer<std::back_insert_iterator<Container>,
   Container& container_;
 
  protected:
-  void grow(size_t capacity) override {
+  FMT_CONSTEXPR20 void grow(size_t capacity) override {
     container_.resize(capacity);
     this->set(&container_[0], capacity);
   }
@@ -971,7 +992,7 @@ template <typename T = char> class counting_buffer final : public buffer<T> {
   size_t count_ = 0;
 
  protected:
-  void grow(size_t) override {
+  FMT_CONSTEXPR20 void grow(size_t) override {
     if (this->size() != buffer_size) return;
     count_ += this->size();
     this->clear();
@@ -1086,6 +1107,11 @@ template <bool B1, bool B2, bool... Tail> constexpr auto count() -> size_t {
 
 template <typename... Args> constexpr auto count_named_args() -> size_t {
   return count<is_named_arg<Args>::value...>();
+}
+
+template <typename... Args>
+constexpr auto count_statically_named_args() -> size_t {
+  return count<is_statically_named_arg<Args>::value...>();
 }
 
 enum class type {
@@ -1343,20 +1369,21 @@ template <typename Context> struct arg_mapper {
       -> basic_string_view<char_type> {
     return std_string_view<char_type>(val);
   }
-  FMT_CONSTEXPR FMT_INLINE auto map(const signed char* val)
-      -> decltype(this->map("")) {
+
+  using cstring_result = conditional_t<std::is_same<char_type, char>::value,
+                                       const char*, unformattable_pointer>;
+
+  FMT_CONSTEXPR FMT_INLINE auto map(const signed char* val) -> cstring_result {
     return map(reinterpret_cast<const char*>(val));
   }
   FMT_CONSTEXPR FMT_INLINE auto map(const unsigned char* val)
-      -> decltype(this->map("")) {
+      -> cstring_result {
     return map(reinterpret_cast<const char*>(val));
   }
-  FMT_CONSTEXPR FMT_INLINE auto map(signed char* val)
-      -> decltype(this->map("")) {
+  FMT_CONSTEXPR FMT_INLINE auto map(signed char* val) -> cstring_result {
     return map(reinterpret_cast<const char*>(val));
   }
-  FMT_CONSTEXPR FMT_INLINE auto map(unsigned char* val)
-      -> decltype(this->map("")) {
+  FMT_CONSTEXPR FMT_INLINE auto map(unsigned char* val) -> cstring_result {
     return map(reinterpret_cast<const char*>(val));
   }
 
@@ -1370,8 +1397,14 @@ template <typename Context> struct arg_mapper {
 
   // We use SFINAE instead of a const T* parameter to avoid conflicting with
   // the C array overload.
-  template <typename T, FMT_ENABLE_IF(std::is_pointer<T>::value)>
-  FMT_CONSTEXPR auto map(T) -> unformattable_pointer {
+  template <
+      typename T,
+      FMT_ENABLE_IF(
+          std::is_member_pointer<T>::value ||
+          std::is_function<typename std::remove_pointer<T>::type>::value ||
+          (std::is_convertible<const T&, const void*>::value &&
+           !std::is_convertible<const T&, const char_type*>::value))>
+  FMT_CONSTEXPR auto map(const T&) -> unformattable_pointer {
     return {};
   }
 
@@ -1382,13 +1415,18 @@ template <typename Context> struct arg_mapper {
   }
 
   template <typename T,
-            FMT_ENABLE_IF(std::is_enum<T>::value &&
-                          !has_formatter<T, Context>::value &&
-                          !has_fallback_formatter<T, char_type>::value)>
+            FMT_ENABLE_IF(
+                std::is_enum<T>::value&& std::is_convertible<T, int>::value &&
+                !has_formatter<T, Context>::value &&
+                !has_fallback_formatter<T, char_type>::value)>
   FMT_CONSTEXPR FMT_INLINE auto map(const T& val)
       -> decltype(std::declval<arg_mapper>().map(
           static_cast<typename std::underlying_type<T>::type>(val))) {
     return map(static_cast<typename std::underlying_type<T>::type>(val));
+  }
+
+  FMT_CONSTEXPR FMT_INLINE auto map(detail::byte val) -> unsigned {
+    return map(static_cast<unsigned char>(val));
   }
 
   template <typename T, typename U = remove_cvref_t<T>>
@@ -1462,14 +1500,11 @@ class appender : public std::back_insert_iterator<detail::buffer<char>> {
   using _Unchecked_type = appender;  // Mark iterator as checked.
 
   auto operator++() -> appender& {
-    base::operator++();
     return *this;
   }
 
   auto operator++(int) -> appender {
-    auto tmp = *this;
-    ++*this;
-    return tmp;
+    return *this;
   }
 };
 
@@ -2462,7 +2497,7 @@ FMT_CONSTEXPR FMT_INLINE auto parse_format_specs(const Char* begin,
                                                  const Char* end,
                                                  SpecHandler&& handler)
     -> const Char* {
-  if (begin + 1 < end && begin[1] == '}' && is_ascii_letter(*begin) &&
+  if (1 < end - begin && begin[1] == '}' && is_ascii_letter(*begin) &&
       *begin != 'L') {
     presentation_type type = parse_presentation_type(*begin++);
     if (type == presentation_type::none)
@@ -3027,7 +3062,8 @@ template <typename Char, typename... Args> class basic_format_string {
              std::is_reference<Args>::value)...>() == 0,
         "passing views as lvalues is disallowed");
 #ifdef FMT_HAS_CONSTEVAL
-    if constexpr (detail::count_named_args<Args...>() == 0) {
+    if constexpr (detail::count_named_args<Args...>() ==
+                  detail::count_statically_named_args<Args...>()) {
       using checker = detail::format_string_checker<Char, detail::error_handler,
                                                     remove_cvref_t<Args>...>;
       detail::parse_format_string<true>(str_, checker(s, {}));
@@ -3079,7 +3115,8 @@ FMT_API auto vformat(string_view fmt, format_args args) -> std::string;
   \endrst
 */
 template <typename... T>
-FMT_INLINE auto format(format_string<T...> fmt, T&&... args) -> std::string {
+FMT_NODISCARD FMT_INLINE auto format(format_string<T...> fmt, T&&... args)
+    -> std::string {
   return vformat(fmt, fmt::make_format_args(args...));
 }
 
@@ -3146,7 +3183,8 @@ FMT_INLINE auto format_to_n(OutputIt out, size_t n, format_string<T...> fmt,
 
 /** Returns the number of chars in the output of ``format(fmt, args...)``. */
 template <typename... T>
-FMT_INLINE auto formatted_size(format_string<T...> fmt, T&&... args) -> size_t {
+FMT_NODISCARD FMT_INLINE auto formatted_size(format_string<T...> fmt,
+                                             T&&... args) -> size_t {
   auto buf = detail::counting_buffer<>();
   detail::vformat_to(buf, string_view(fmt), fmt::make_format_args(args...), {});
   return buf.count();
