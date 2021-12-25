@@ -16,6 +16,13 @@
 #include <string>
 #include <type_traits>
 
+#undef FMT_STATIC_THOUSANDS_SEPARATOR
+#define FMT_STATIC_THOUSANDS_SEPARATOR 0
+#undef FMT_EXCEPTIONS
+#define FMT_EXCEPTIONS 0
+#undef FMT_LOCALE
+#define FMT_LOCALE
+
 // The fmt library version in the form major * 10000 + minor * 100 + patch.
 #define FMT_VERSION 80001
 
@@ -2750,6 +2757,7 @@ FMT_CONSTEXPR auto parse_float_type_spec(const basic_format_specs<Char>& specs,
     result.upper = true;
     FMT_FALLTHROUGH;
   case presentation_type::general_lower:
+  case presentation_type::any:
     result.format = float_format::general;
     break;
   case presentation_type::exp_upper:
@@ -2763,7 +2771,6 @@ FMT_CONSTEXPR auto parse_float_type_spec(const basic_format_specs<Char>& specs,
     result.upper = true;
     FMT_FALLTHROUGH;
   case presentation_type::fixed_lower:
-  case presentation_type::any:
     result.format = float_format::fixed;
     result.showpoint |= specs.precision != 0;
     break;
@@ -2775,8 +2782,7 @@ FMT_CONSTEXPR auto parse_float_type_spec(const basic_format_specs<Char>& specs,
     break;
   default:
     eh.on_error("invalid type specifier");
-    result.format = float_format::fixed;
-    result.showpoint |= specs.precision != 0;
+    result.format = float_format::general;
     break;
   }
   return result;

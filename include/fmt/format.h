@@ -796,7 +796,6 @@ FMT_CONSTEXPR20 void basic_memory_buffer<T, SIZE, Allocator>::grow(
   const size_t max_size = std::allocator_traits<Allocator>::max_size(alloc_);
   size_t old_capacity = this->capacity();
   size_t new_capacity = old_capacity + old_capacity / 2;
-  size += size / 2;
   if (size > new_capacity)
     new_capacity = size;
   else if (new_capacity > max_size)
@@ -2005,12 +2004,15 @@ FMT_CONSTEXPR20 auto write(OutputIt out, T value,
   float_specs fspecs = parse_float_type_spec(specs);
   fspecs.sign = specs.sign;
 
-  if (specs.type == presentation_type::fixed_lower_alt) {
-    static const double prevPowerOfTen[17] = { 1e-1, 1, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9, 1e10, 1e11, 1e12, 1e13, 1e14, 1e15 };
+  if (specs.type == presentation_type::fixed_lower) {
+    static const double prevPowerOfTen[17] = {1e-1, 1,    1e1,  1e2,  1e3, 1e4,
+                                              1e5,  1e6,  1e7,  1e8,  1e9, 1e10,
+                                              1e11, 1e12, 1e13, 1e14, 1e15};
     if (specs.precision < 0) {
       specs.precision = 6;
     }
-    if (specs.precision > DBL_DIG || fabs(value) >= prevPowerOfTen[DBL_DIG - specs.precision + 1]) {
+    if (specs.precision > DBL_DIG ||
+        fabs(value) >= prevPowerOfTen[DBL_DIG - specs.precision + 1]) {
       specs.precision = DBL_DIG;
       fspecs.format = float_format::general;
       fspecs.showpoint = specs.alt;
