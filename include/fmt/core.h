@@ -24,7 +24,7 @@
 #define FMT_LOCALE
 
 // The fmt library version in the form major * 10000 + minor * 100 + patch.
-#define FMT_VERSION 80001
+#define FMT_VERSION 80100
 
 #if defined(__clang__) && !defined(__ibmxl__)
 #  define FMT_CLANG_VERSION (__clang_major__ * 100 + __clang_minor__)
@@ -482,19 +482,19 @@ template <typename Char> class basic_string_view {
                                                       size_(s.size()) {}
 
   /** Returns a pointer to the string data. */
-  constexpr auto data() const -> const Char* { return data_; }
+  constexpr auto data() const FMT_NOEXCEPT -> const Char* { return data_; }
 
   /** Returns the string size. */
-  constexpr auto size() const -> size_t { return size_; }
+  constexpr auto size() const FMT_NOEXCEPT -> size_t { return size_; }
 
-  constexpr auto begin() const -> iterator { return data_; }
-  constexpr auto end() const -> iterator { return data_ + size_; }
+  constexpr auto begin() const FMT_NOEXCEPT -> iterator { return data_; }
+  constexpr auto end() const FMT_NOEXCEPT -> iterator { return data_ + size_; }
 
-  constexpr auto operator[](size_t pos) const -> const Char& {
+  constexpr auto operator[](size_t pos) const FMT_NOEXCEPT -> const Char& {
     return data_[pos];
   }
 
-  FMT_CONSTEXPR void remove_prefix(size_t n) {
+  FMT_CONSTEXPR void remove_prefix(size_t n) FMT_NOEXCEPT {
     data_ += n;
     size_ -= n;
   }
@@ -1380,16 +1380,20 @@ template <typename Context> struct arg_mapper {
   using cstring_result = conditional_t<std::is_same<char_type, char>::value,
                                        const char*, unformattable_pointer>;
 
+  // DEPRECATED!
   FMT_CONSTEXPR FMT_INLINE auto map(const signed char* val) -> cstring_result {
     return map(reinterpret_cast<const char*>(val));
   }
+  // DEPRECATED!
   FMT_CONSTEXPR FMT_INLINE auto map(const unsigned char* val)
       -> cstring_result {
     return map(reinterpret_cast<const char*>(val));
   }
+  // DEPRECATED!
   FMT_CONSTEXPR FMT_INLINE auto map(signed char* val) -> cstring_result {
     return map(reinterpret_cast<const char*>(val));
   }
+  // DEPRECATED!
   FMT_CONSTEXPR FMT_INLINE auto map(unsigned char* val) -> cstring_result {
     return map(reinterpret_cast<const char*>(val));
   }
@@ -1503,16 +1507,12 @@ class appender : public std::back_insert_iterator<detail::buffer<char>> {
 
  public:
   using std::back_insert_iterator<detail::buffer<char>>::back_insert_iterator;
-  appender(base it) : base(it) {}
+  appender(base it) FMT_NOEXCEPT : base(it) {}
   using _Unchecked_type = appender;  // Mark iterator as checked.
 
-  auto operator++() -> appender& {
-    return *this;
-  }
+  auto operator++() FMT_NOEXCEPT -> appender& { return *this; }
 
-  auto operator++(int) -> appender {
-    return *this;
-  }
+  auto operator++(int) FMT_NOEXCEPT -> appender { return *this; }
 };
 
 // A formatting argument. It is a trivially copyable/constructible type to
