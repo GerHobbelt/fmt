@@ -55,7 +55,12 @@ TEST(ranges_test, format_vector2) {
 
 TEST(ranges_test, format_map) {
   auto m = std::map<std::string, int>{{"one", 1}, {"two", 2}};
-  EXPECT_EQ(fmt::format("{}", m), "[(\"one\", 1), (\"two\", 2)]");
+  EXPECT_EQ(fmt::format("{}", m), "{\"one\": 1, \"two\": 2}");
+}
+
+TEST(ranges_test, format_set) {
+  EXPECT_EQ(fmt::format("{}", std::set<std::string>{"one", "two"}),
+            "{\"one\", \"two\"}");
 }
 
 TEST(ranges_test, format_pair) {
