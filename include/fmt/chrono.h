@@ -1663,7 +1663,8 @@ struct chrono_formatter {
     out = format_decimal<char_type>(out, n, num_digits).end;
   }
 
-  template <class Duration> void write_fractional_seconds(Duration d) {
+  template <typename Duration> void write_fractional_seconds(Duration d) {
+    FMT_ASSERT(!std::is_floating_point<typename Duration::rep>::value, "");
     constexpr auto num_fractional_digits =
         count_fractional_digits(Duration::period::num, Duration::period::den);
 
@@ -1674,12 +1675,9 @@ struct chrono_formatter {
     if (std::ratio_less<typename subsecond_precision::period,
                         std::chrono::seconds::period>::value) {
       *out++ = '.';
-      // Don't convert long double to integer seconds to avoid overflow.
-      using sec = conditional_t<
-          std::is_same<typename Duration::rep, long double>::value,
-          std::chrono::duration<long double>, std::chrono::seconds>;
-      auto fractional = detail::abs(d) - std::chrono::duration_cast<sec>(d);
-      const auto subseconds =
+      auto fractional =
+          detail::abs(d) - std::chrono::duration_cast<std::chrono::seconds>(d);
+      auto subseconds =
           std::chrono::treat_as_floating_point<
               typename subsecond_precision::rep>::value
               ? fractional.count()
@@ -1770,8 +1768,22 @@ struct chrono_formatter {
     if (handle_nan_inf()) return;
 
     if (ns == numeric_system::standard) {
-      write(second(), 2);
-      write_fractional_seconds(std::chrono::duration<rep, Period>{val});
+      if (std::is_floating_point<rep>::value) {
+        auto num_fractional_digits =
+            count_fractional_digits(Period::num, Period::den);
+        auto buf = memory_buffer();
+        format_to(std::back_inserter(buf), runtime("{:.{}f}"),
+                  std::fmod(val * static_cast<rep>(Period::num) /
+                                static_cast<rep>(Period::den),
+                            60),
+                  num_fractional_digits);
+        if (negative) *out++ = '-';
+        if (buf.size() < 2 || buf[1] == '.') *out++ = '0';
+        out = std::copy(buf.begin(), buf.end(), out);
+      } else {
+        write(second(), 2);
+        write_fractional_seconds(std::chrono::duration<rep, Period>(val));
+      }
       return;
     }
     auto time = tm();
