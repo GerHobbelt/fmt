@@ -24,7 +24,7 @@
 #define FMT_LOCALE
 
 // The fmt library version in the form major * 10000 + minor * 100 + patch.
-#define FMT_VERSION 80100
+#define FMT_VERSION 80101
 
 #if defined(__clang__) && !defined(__ibmxl__)
 #  define FMT_CLANG_VERSION (__clang_major__ * 100 + __clang_minor__)
@@ -622,7 +622,7 @@ struct error_handler {
   constexpr error_handler(const error_handler&) = default;
 
   // This function is intentionally not constexpr to give a compile-time error.
-  void on_error(const char* message) { throw_format_error(message); }
+  FMT_NORETURN FMT_API void on_error(const char* message);
 };
 FMT_END_DETAIL_NAMESPACE
 
