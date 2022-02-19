@@ -1,33 +1,33 @@
 /*
- Formatting library for C++
+  Formatting library for C++
 
- Copyright (c) 2012 - present, Victor Zverovich
+  Copyright (c) 2012 - present, Victor Zverovich
 
- Permission is hereby granted, free of charge, to any person obtaining
- a copy of this software and associated documentation files (the
- "Software"), to deal in the Software without restriction, including
- without limitation the rights to use, copy, modify, merge, publish,
- distribute, sublicense, and/or sell copies of the Software, and to
- permit persons to whom the Software is furnished to do so, subject to
- the following conditions:
+  Permission is hereby granted, free of charge, to any person obtaining
+  a copy of this software and associated documentation files (the
+  "Software"), to deal in the Software without restriction, including
+  without limitation the rights to use, copy, modify, merge, publish,
+  distribute, sublicense, and/or sell copies of the Software, and to
+  permit persons to whom the Software is furnished to do so, subject to
+  the following conditions:
 
- The above copyright notice and this permission notice shall be
- included in all copies or substantial portions of the Software.
+  The above copyright notice and this permission notice shall be
+  included in all copies or substantial portions of the Software.
 
- THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
- LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
- OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
- WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+  EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+  MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+  NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+  LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+  OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+  WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
- --- Optional exception to the license ---
+  --- Optional exception to the license ---
 
- As an exception, if, as a result of your compiling your source code, portions
- of this Software are embedded into a machine-executable object form of such
- source code, you may redistribute such embedded portions in such object form
- without including the above copyright and permission notices.
+  As an exception, if, as a result of your compiling your source code, portions
+  of this Software are embedded into a machine-executable object form of such
+  source code, you may redistribute such embedded portions in such object form
+  without including the above copyright and permission notices.
  */
 
 #ifndef FMT_FORMAT_H_
@@ -41,7 +41,6 @@
 #include <memory>        // std::uninitialized_copy
 #include <stdexcept>     // std::runtime_error
 #include <system_error>  // std::system_error
-#include <utility>       // std::swap
 #include <cfloat>        // DBL_DIG
 
 #ifdef __cpp_lib_bit_cast
@@ -296,9 +295,8 @@ template <typename Streambuf> class formatbuf : public Streambuf {
 };
 
 // Implementation of std::bit_cast for pre-C++20.
-template <typename To, typename From>
+template <typename To, typename From, FMT_ENABLE_IF(sizeof(To) == sizeof(From))>
 FMT_CONSTEXPR20 auto bit_cast(const From& from) -> To {
-  static_assert(sizeof(To) == sizeof(From), "size mismatch");
 #ifdef __cpp_lib_bit_cast
   if (is_constant_evaluated()) return std::bit_cast<To>(from);
 #endif
@@ -322,60 +320,64 @@ inline auto is_big_endian() -> bool {
 #endif
 }
 
-// A fallback implementation of uintptr_t for systems that lack it.
-struct fallback_uintptr {
-  unsigned char value[sizeof(void*)];
-
-  fallback_uintptr() = default;
-  explicit fallback_uintptr(const void* p) {
-    *this = bit_cast<fallback_uintptr>(p);
-    if (const_check(is_big_endian())) {
-      for (size_t i = 0, j = sizeof(void*) - 1; i < j; ++i, --j)
-        std::swap(value[i], value[j]);
-    }
-  }
-};
-#ifdef UINTPTR_MAX
-using uintptr_t = ::uintptr_t;
-inline auto to_uintptr(const void* p) -> uintptr_t {
-  return bit_cast<uintptr_t>(p);
-}
-#else
-using uintptr_t = fallback_uintptr;
-inline auto to_uintptr(const void* p) -> fallback_uintptr {
-  return fallback_uintptr(p);
-}
-#endif
-
-class uint128_t {
+class uint128_fallback {
  private:
   uint64_t lo_, hi_;
-  constexpr uint128_t(uint64_t hi, uint64_t lo) : lo_(lo), hi_(hi) {}
+  constexpr uint128_fallback(uint64_t hi, uint64_t lo) : lo_(lo), hi_(hi) {}
 
  public:
-  constexpr uint128_t(uint64_t value = 0) : lo_(value), hi_(0) {}
-  explicit operator int() const { return static_cast<int>(lo_); }
-  explicit operator uint64_t() const { return lo_; }
-  friend auto operator==(const uint128_t& lhs, const uint128_t& rhs) -> bool {
+  constexpr uint128_fallback(uint64_t value = 0) : lo_(value), hi_(0) {}
+
+  template <typename T, FMT_ENABLE_IF(std::is_integral<T>::value)>
+  constexpr explicit operator T() const {
+    return static_cast<T>(lo_);
+  }
+
+  friend auto operator==(const uint128_fallback& lhs,
+                         const uint128_fallback& rhs) -> bool {
     return lhs.hi_ == rhs.hi_ && lhs.lo_ == rhs.lo_;
   }
-  friend auto operator&(const uint128_t& lhs, const uint128_t& rhs)
-      -> uint128_t {
+  friend auto operator!=(const uint128_fallback& lhs,
+                         const uint128_fallback& rhs) -> bool {
+    return !(lhs == rhs);
+  }
+  friend auto operator|(const uint128_fallback& lhs,
+                        const uint128_fallback& rhs) -> uint128_fallback {
+    return {lhs.hi_ | rhs.hi_, lhs.lo_ | rhs.lo_};
+  }
+  friend auto operator&(const uint128_fallback& lhs,
+                        const uint128_fallback& rhs) -> uint128_fallback {
     return {lhs.hi_ & rhs.hi_, lhs.lo_ & rhs.lo_};
   }
-  friend auto operator-(const uint128_t& lhs, uint64_t rhs) -> uint128_t {
+  friend auto operator-(const uint128_fallback& lhs, uint64_t rhs)
+      -> uint128_fallback {
     FMT_ASSERT(lhs.lo_ >= rhs, "");
     return {lhs.hi_, lhs.lo_ - rhs};
   }
-  auto operator>>(int shift) const -> uint128_t {
+  FMT_CONSTEXPR auto operator>>(int shift) const -> uint128_fallback {
     if (shift == 64) return {0, hi_};
     return {hi_ >> shift, (hi_ << (64 - shift)) | (lo_ >> shift)};
   }
-  auto operator<<(int shift) const -> uint128_t {
+  FMT_CONSTEXPR auto operator<<(int shift) const -> uint128_fallback {
     if (shift == 64) return {lo_, 0};
     return {hi_ << shift | (lo_ >> (64 - shift)), (lo_ << shift)};
   }
+  FMT_CONSTEXPR auto operator>>=(int shift) -> uint128_fallback& {
+    return *this = *this >> shift;
+  }
+  FMT_CONSTEXPR void operator+=(uint64_t n) {
+    lo_ += n;
+    if (lo_ < n) ++hi_;
+  }
 };
+
+using uint128_t = conditional_t<FMT_USE_INT128, uint128_opt, uint128_fallback>;
+
+#ifdef UINTPTR_MAX
+using uintptr_t = ::uintptr_t;
+#else
+using uintptr_t = uint128_t;
+#endif
 
 // Returns the largest possible value for type T. Same as
 // std::numeric_limits<T>::max() but shorter and not affected by the max macro.
@@ -388,9 +390,24 @@ template <typename T> constexpr auto num_bits() -> int {
 // std::numeric_limits<T>::digits may return 0 for 128-bit ints.
 template <> constexpr auto num_bits<int128_opt>() -> int { return 128; }
 template <> constexpr auto num_bits<uint128_t>() -> int { return 128; }
-template <> constexpr auto num_bits<fallback_uintptr>() -> int {
-  return static_cast<int>(sizeof(void*) *
-                          std::numeric_limits<unsigned char>::digits);
+
+// A heterogeneous bit_cast used for converting 96-bit long double to uint128_t
+// and 128-bit pointers to uint128_fallback.
+template <typename To, typename From, FMT_ENABLE_IF(sizeof(To) > sizeof(From))>
+inline auto bit_cast(const From& from) -> To {
+  constexpr auto size = static_cast<int>(sizeof(From) / sizeof(unsigned));
+  struct data_t {
+    unsigned value[size];
+  } data = bit_cast<data_t>(from);
+  auto result = To();
+  if (const_check(is_big_endian())) {
+    for (int i = 0; i < size; ++i)
+      result = (result << num_bits<unsigned>()) | data.value[i];
+  } else {
+    for (int i = size - 1; i >= 0; --i)
+      result = (result << num_bits<unsigned>()) | data.value[i];
+  }
+  return result;
 }
 
 FMT_INLINE void assume(bool condition) {
@@ -1043,8 +1060,6 @@ FMT_CONSTEXPR auto count_digits(UInt n) -> int {
   }(n);
 }
 
-template <> auto count_digits<4>(detail::fallback_uintptr n) -> int;
-
 #ifdef FMT_BUILTIN_CLZ
 // It is a separate function rather than a part of count_digits to workaround
 // the lack of static constexpr in constexpr functions.
@@ -1179,33 +1194,11 @@ FMT_CONSTEXPR auto format_uint(Char* buffer, UInt value, int num_digits,
   Char* end = buffer;
   do {
     const char* digits = upper ? "0123456789ABCDEF" : "0123456789abcdef";
-    unsigned digit = (value & ((1 << BASE_BITS) - 1));
+    unsigned digit = static_cast<unsigned>(value & ((1 << BASE_BITS) - 1));
     *--buffer = static_cast<Char>(BASE_BITS < 4 ? static_cast<char>('0' + digit)
                                                 : digits[digit]);
   } while ((value >>= BASE_BITS) != 0);
   return end;
-}
-
-template <unsigned BASE_BITS, typename Char>
-auto format_uint(Char* buffer, detail::fallback_uintptr n, int num_digits,
-                 bool = false) -> Char* {
-  auto char_digits = std::numeric_limits<unsigned char>::digits / 4;
-  int start = (num_digits + char_digits - 1) / char_digits - 1;
-  if (int start_digits = num_digits % char_digits) {
-    unsigned value = n.value[start--];
-    buffer = format_uint<BASE_BITS>(buffer, value, start_digits);
-  }
-  for (; start >= 0; --start) {
-    unsigned value = n.value[start];
-    buffer += char_digits;
-    auto p = buffer;
-    for (int i = 0; i < char_digits; ++i) {
-      unsigned digit = (value & ((1 << BASE_BITS) - 1));
-      *--p = static_cast<Char>("0123456789abcdef"[digit]);
-      value >>= BASE_BITS;
-    }
-  }
-  return buffer;
 }
 
 template <unsigned BASE_BITS, typename Char, typename It, typename UInt>
@@ -1289,7 +1282,7 @@ template <> struct float_info<double> {
 template <typename T>
 struct float_info<T, enable_if_t<std::is_same<T, long double>::value &&
                                  std::numeric_limits<T>::digits == 64>> {
-  using carrier_uint = detail::uint128_opt;
+  using carrier_uint = detail::uint128_t;
   static const int significand_bits = 64;
   static const int exponent_bits = 15;
 };
@@ -1927,7 +1920,7 @@ FMT_CONSTEXPR auto write(OutputIt out, const Char* s,
     -> OutputIt {
   return check_cstring_type_spec(specs.type)
              ? write(out, basic_string_view<Char>(s), specs, {})
-             : write_ptr<Char>(out, to_uintptr(s), &specs);
+             : write_ptr<Char>(out, bit_cast<uintptr_t>(s), &specs);
 }
 
 template <typename Char, typename OutputIt>
@@ -2298,6 +2291,8 @@ FMT_CONSTEXPR20 auto write(OutputIt out, T value,
       throw_format_error("number is too big");
     else
       ++precision;
+  } else if (fspecs.format != float_format::fixed && precision == 0) {
+    precision = 1;
   }
   if (const_check(std::is_same<T, float>())) fspecs.binary32 = true;
   if (!std::numeric_limits<T>::is_iec559 || std::numeric_limits<T>::digits > 64)
@@ -2395,8 +2390,7 @@ template <
             type::custom_type,
     FMT_ENABLE_IF(check)>
 FMT_CONSTEXPR auto write(OutputIt out, T value) -> OutputIt {
-  return write<Char>(
-      out, static_cast<typename std::underlying_type<T>::type>(value));
+  return write<Char>(out, static_cast<underlying_t<T>>(value));
 }
 
 template <typename Char, typename OutputIt, typename T,
@@ -2434,7 +2428,7 @@ auto write(OutputIt out, const T* value,
            const basic_format_specs<Char>& specs = {}, locale_ref = {})
     -> OutputIt {
   check_pointer_type_spec(specs.type, error_handler());
-  return write_ptr<Char>(out, to_uintptr(value), &specs);
+  return write_ptr<Char>(out, bit_cast<uintptr_t>(value), &specs);
 }
 
 // A write overload that handles implicit conversions.
@@ -2929,9 +2923,15 @@ template <typename T> auto ptr(const std::shared_ptr<T>& p) -> const void* {
   \endrst
  */
 template <typename Enum>
-constexpr auto underlying(Enum e) noexcept ->
-    typename std::underlying_type<Enum>::type {
-  return static_cast<typename std::underlying_type<Enum>::type>(e);
+constexpr auto underlying(Enum e) noexcept -> underlying_t<Enum> {
+  return static_cast<underlying_t<Enum>>(e);
+}
+
+namespace enums {
+template <typename Enum, FMT_ENABLE_IF(std::is_enum<Enum>::value)>
+constexpr auto format_as(Enum e) noexcept -> underlying_t<Enum> {
+  return static_cast<underlying_t<Enum>>(e);
+}
 }
 
 #ifdef __cpp_lib_byte

@@ -40,16 +40,16 @@ using testing::StrictMock;
 enum { buffer_size = 256 };
 
 TEST(uint128_test, ctor) {
-  using fmt::detail::uint128_t;
-  auto n = uint128_t();
+  using fmt::detail::uint128_fallback;
+  auto n = uint128_fallback();
   EXPECT_EQ(n, 0);
-  n = uint128_t(42);
+  n = uint128_fallback(42);
   EXPECT_EQ(n, 42);
   EXPECT_EQ(static_cast<uint64_t>(n), 42);
 }
 
 TEST(uint128_test, shift) {
-  auto n = fmt::detail::uint128_t(42);
+  auto n = fmt::detail::uint128_fallback(42);
   n = n << 64;
   EXPECT_EQ(static_cast<uint64_t>(n), 0);
   n = n >> 64;
@@ -62,7 +62,7 @@ TEST(uint128_test, shift) {
 }
 
 TEST(uint128_test, minus) {
-  auto n = fmt::detail::uint128_t(42);
+  auto n = fmt::detail::uint128_fallback(42);
   EXPECT_EQ(n - 2, 40);
 }
 
@@ -948,6 +948,11 @@ TEST(format_test, precision) {
   EXPECT_THAT(outputs,
               testing::Contains(fmt::format("{:.838A}", -2.14001164E+38)));
 
+  if (std::numeric_limits<long double>::digits == 64) {
+    auto ld = (std::numeric_limits<long double>::min)();
+    EXPECT_EQ(fmt::format("{:.0}", ld), "3e-4932");
+  }
+
   EXPECT_EQ("123.", fmt::format("{:#.0f}", 123.0));
   EXPECT_EQ("1.23", fmt::format("{:.02f}", 1.234));
   EXPECT_EQ("0.001", fmt::format("{:.1g}", 0.001));
@@ -1442,10 +1447,28 @@ TEST(format_test, format_pointer) {
   EXPECT_EQ("0x0", fmt::format("{}", nullptr));
 }
 
+TEST(format_test, write_uintptr_fallback) {
+  // Test that formatting a pointer by converting it to uint128_fallback works.
+  // This is needed to support systems without uintptr_t.
+  auto s = std::string();
+  fmt::detail::write_ptr<char>(
+      std::back_inserter(s),
+      fmt::detail::bit_cast<fmt::detail::uint128_fallback>(
+          reinterpret_cast<void*>(0xface)),
+      nullptr);
+  EXPECT_EQ(s, "0xface");
+}
+
 enum class color { red, green, blue };
+
+namespace test_ns {
+enum class color { red, green, blue };
+using fmt::enums::format_as;
+}  // namespace test_ns
 
 TEST(format_test, format_enum_class) {
   EXPECT_EQ(fmt::format("{}", fmt::underlying(color::red)), "0");
+  EXPECT_EQ(fmt::format("{}", test_ns::color::red), "0");
 }
 
 TEST(format_test, format_string) {
