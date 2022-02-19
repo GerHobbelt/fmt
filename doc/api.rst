@@ -321,6 +321,8 @@ Utilities
 .. doxygenfunction:: fmt::ptr(const std::unique_ptr<T> &p) -> const void*
 .. doxygenfunction:: fmt::ptr(const std::shared_ptr<T> &p) -> const void*
 
+.. doxygenfunction:: fmt::underlying(Enum e) -> typename std::underlying_type<Enum>::type
+
 .. doxygenfunction:: fmt::to_string(const T &value) -> std::string
 
 .. doxygenfunction:: fmt::to_string_view(const Char *s) -> basic_string_view<Char>
@@ -504,6 +506,8 @@ user-defined types that have an overloaded insertion operator (``operator<<``)::
       return os << d.year_ << '-' << d.month_ << '-' << d.day_;
     }
   };
+
+  template <> struct fmt::formatter<date> : ostream_formatter<date> {};
 
   std::string s = fmt::format("The date is {}", date(2012, 12, 9));
   // s == "The date is 2012-12-9"

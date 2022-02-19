@@ -325,7 +325,7 @@ template <typename Allocator, size_t MaxSize>
 class max_size_allocator : public Allocator {
  public:
   using typename Allocator::value_type;
-  size_t max_size() const FMT_NOEXCEPT { return MaxSize; }
+  size_t max_size() const noexcept { return MaxSize; }
   value_type* allocate(size_t n) {
     if (n > max_size()) {
       throw std::length_error("size > max_size");
@@ -1060,7 +1060,7 @@ TEST(format_test, format_short) {
 template <typename T>
 void check_unknown_types(const T& value, const char* types, const char*) {
   char format_str[buffer_size];
-  const char* special = ".0123456789L}";
+  const char* special = ".0123456789L?}";
   for (int i = CHAR_MIN; i <= CHAR_MAX; ++i) {
     char c = static_cast<char>(i);
     if (std::strchr(types, c) || std::strchr(special, c) || !c) continue;
@@ -1363,6 +1363,9 @@ TEST(format_test, format_char) {
         << format_str;
   }
   EXPECT_EQ(fmt::format("{:02X}", n), fmt::format("{:02X}", 'x'));
+
+  EXPECT_EQ("\n", fmt::format("{}", '\n'));
+  EXPECT_EQ("'\\n'", fmt::format("{:?}", '\n'));
 }
 
 TEST(format_test, format_volatile_char) {
@@ -1409,14 +1412,25 @@ TEST(format_test, format_pointer) {
   EXPECT_EQ("0x0", fmt::format("{}", nullptr));
 }
 
+enum class color { red, green, blue };
+
+TEST(format_test, format_enum_class) {
+  EXPECT_EQ(fmt::format("{}", fmt::underlying(color::red)), "0");
+}
+
 TEST(format_test, format_string) {
-  EXPECT_EQ("test", fmt::format("{0}", std::string("test")));
+  EXPECT_EQ(fmt::format("{0}", std::string("test")), "test");
+  EXPECT_EQ(fmt::format("{0}", std::string("test")), "test");
+  EXPECT_EQ(fmt::format("{:?}", std::string("test")), "\"test\"");
+  EXPECT_EQ(fmt::format("{:*^10?}", std::string("test")), "**\"test\"**");
+  EXPECT_EQ(fmt::format("{:?}", std::string("\test")), "\"\\test\"");
   EXPECT_THROW((void)fmt::format(fmt::runtime("{:x}"), std::string("test")),
                fmt::format_error);
 }
 
 TEST(format_test, format_string_view) {
   EXPECT_EQ("test", fmt::format("{}", string_view("test")));
+  EXPECT_EQ("\"t\\nst\"", fmt::format("{:?}", string_view("t\nst")));
   EXPECT_EQ("", fmt::format("{}", string_view()));
 }
 
