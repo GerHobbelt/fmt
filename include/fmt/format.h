@@ -842,8 +842,8 @@ class FMT_API format_error : public std::runtime_error {
   \endrst
  */
 template <typename... Args, typename S, typename Char = char_t<S>>
-FMT_INLINE auto make_args_checked(const S& fmt,
-                                  const remove_reference_t<Args>&... args)
+FMT_DEPRECATED FMT_INLINE auto make_args_checked(
+    const S& fmt, const remove_reference_t<Args>&... args)
     -> format_arg_store<buffer_context<Char>, remove_reference_t<Args>...> {
   static_assert(
       detail::count<(
@@ -999,7 +999,7 @@ FMT_CONSTEXPR20 inline auto count_digits(uint64_t n) -> int {
 template <int BITS, typename UInt>
 FMT_CONSTEXPR auto count_digits(UInt n) -> int {
 #ifdef FMT_BUILTIN_CLZ
-  if (num_bits<UInt>() == 32)
+  if (!is_constant_evaluated() && num_bits<UInt>() == 32)
     return (FMT_BUILTIN_CLZ(static_cast<uint32_t>(n) | 1) ^ 31) / BITS + 1;
 #endif
   // Lambda avoids unreachable code warnings from NVHPC.
@@ -1206,7 +1206,7 @@ class utf8_to_utf16 {
 namespace dragonbox {
 
 // Type-specific information that Dragonbox uses.
-template <class T> struct float_info;
+template <typename T, typename Enable = void> struct float_info;
 
 template <> struct float_info<float> {
   using carrier_uint = uint32_t;
@@ -1252,6 +1252,15 @@ template <> struct float_info<double> {
   static const int shorter_interval_tie_lower_threshold = -77;
   static const int shorter_interval_tie_upper_threshold = -77;
   static const int max_trailing_zeros = 16;
+};
+
+// 80-bit extended precision long double.
+template <typename T>
+struct float_info<T, enable_if_t<std::is_same<T, long double>::value &&
+                                 std::numeric_limits<T>::digits == 64>> {
+  using carrier_uint = detail::uint128_t;
+  static const int significand_bits = 64;
+  static const int exponent_bits = 15;
 };
 
 template <typename T> struct decimal_fp {
@@ -1303,11 +1312,14 @@ template <typename T>
 auto snprintf_float(T value, int precision, float_specs specs,
                     buffer<char>& buf) -> int;
 
-template <typename T> constexpr auto promote_float(T value) -> T {
-  return value;
-}
-constexpr auto promote_float(float value) -> double {
-  return static_cast<double>(value);
+template <typename T>
+using convert_float_result =
+    conditional_t<std::is_same<T, float>::value || sizeof(T) == sizeof(double),
+                  double, T>;
+
+template <typename T>
+constexpr auto convert_float(T value) -> convert_float_result<T> {
+  return static_cast<convert_float_result<T>>(value);
 }
 
 template <typename OutputIt, typename Char>
@@ -2243,7 +2255,7 @@ FMT_CONSTEXPR20 auto write(OutputIt out, T value,
   memory_buffer buffer;
   if (fspecs.format == float_format::hex) {
     if (fspecs.sign) buffer.push_back(detail::sign<char>(fspecs.sign));
-    snprintf_float(promote_float(value), specs.precision, fspecs, buffer);
+    snprintf_float(convert_float(value), specs.precision, fspecs, buffer);
     return write_bytes<align::right>(out, {buffer.data(), buffer.size()},
                                      specs);
   }
@@ -2258,7 +2270,7 @@ FMT_CONSTEXPR20 auto write(OutputIt out, T value,
   }
   if (const_check(std::is_same<T, float>())) fspecs.binary32 = true;
   if (!is_fast_float<T>()) fspecs.fallback = true;
-  int exp = format_float(promote_float(value), precision, fspecs, buffer);
+  int exp = format_float(convert_float(value), precision, fspecs, buffer);
   fspecs.precision = precision;
   auto fp = big_decimal_fp{buffer.data(), static_cast<int>(buffer.size()), exp};
   return write_float(out, fp, specs, fspecs, loc);
@@ -2597,7 +2609,7 @@ template <typename Char> struct udl_formatter {
 
   template <typename... T>
   auto operator()(T&&... args) const -> std::basic_string<Char> {
-    return vformat(str, fmt::make_args_checked<T...>(str, args...));
+    return vformat(str, fmt::make_format_args<buffer_context<Char>>(args...));
   }
 };
 

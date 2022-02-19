@@ -113,8 +113,7 @@ binary footprint, for example (https://godbolt.org/z/oba4Mc):
 
     template <typename S, typename... Args>
     void log(const char* file, int line, const S& format, Args&&... args) {
-      vlog(file, line, format,
-          fmt::make_args_checked<Args...>(format, args...));
+      vlog(file, line, format, fmt::make_format_args(args...));
     }
 
     #define MY_LOG(format, ...) \
@@ -124,8 +123,6 @@ binary footprint, for example (https://godbolt.org/z/oba4Mc):
 
 Note that ``vlog`` is not parameterized on argument types which improves compile
 times and reduces binary code size compared to a fully parameterized version.
-
-.. doxygenfunction:: fmt::make_args_checked(const S&, const remove_reference_t<Args>&...)
 
 .. doxygenfunction:: fmt::make_format_args(const Args&...)
 
@@ -493,7 +490,9 @@ System APIs
 ========================
 
 ``fmt/ostream.h`` provides ``std::ostream`` support including formatting of
-user-defined types that have an overloaded insertion operator (``operator<<``)::
+user-defined types that have an overloaded insertion operator (``operator<<``).
+In order to make a type formattable via ``std::ostream`` you should provide a
+``formatter`` specialization inherited from ``ostream_formatter``::
 
   #include <fmt/ostream.h>
 
@@ -507,13 +506,10 @@ user-defined types that have an overloaded insertion operator (``operator<<``)::
     }
   };
 
-  template <> struct fmt::formatter<date> : ostream_formatter<date> {};
+  template <> struct fmt::formatter<date> : ostream_formatter {};
 
   std::string s = fmt::format("The date is {}", date(2012, 12, 9));
   // s == "The date is 2012-12-9"
-
-{fmt} only supports insertion operators that are defined in the same namespaces
-as the types they format and can be found with the argument-dependent lookup.
 
 .. doxygenfunction:: print(std::basic_ostream<Char> &os, const S &format_str, Args&&... args)
 
