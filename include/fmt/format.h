@@ -347,6 +347,36 @@ inline auto to_uintptr(const void* p) -> fallback_uintptr {
 }
 #endif
 
+class uint128_t {
+ private:
+  uint64_t lo_, hi_;
+  constexpr uint128_t(uint64_t hi, uint64_t lo) : lo_(lo), hi_(hi) {}
+
+ public:
+  constexpr uint128_t(uint64_t value = 0) : lo_(value), hi_(0) {}
+  explicit operator int() const { return static_cast<int>(lo_); }
+  explicit operator uint64_t() const { return lo_; }
+  friend auto operator==(const uint128_t& lhs, const uint128_t& rhs) -> bool {
+    return lhs.hi_ == rhs.hi_ && lhs.lo_ == rhs.lo_;
+  }
+  friend auto operator&(const uint128_t& lhs, const uint128_t& rhs)
+      -> uint128_t {
+    return {lhs.hi_ & rhs.hi_, lhs.lo_ & rhs.lo_};
+  }
+  friend auto operator-(const uint128_t& lhs, uint64_t rhs) -> uint128_t {
+    FMT_ASSERT(lhs.lo_ >= rhs, "");
+    return {lhs.hi_, lhs.lo_ - rhs};
+  }
+  auto operator>>(int shift) const -> uint128_t {
+    if (shift == 64) return {0, hi_};
+    return {hi_ >> shift, (hi_ << (64 - shift)) | (lo_ >> shift)};
+  }
+  auto operator<<(int shift) const -> uint128_t {
+    if (shift == 64) return {lo_, 0};
+    return {hi_ << shift | (lo_ >> (64 - shift)), (lo_ << shift)};
+  }
+};
+
 // Returns the largest possible value for type T. Same as
 // std::numeric_limits<T>::max() but shorter and not affected by the max macro.
 template <typename T> constexpr auto max_value() -> T {
@@ -356,7 +386,7 @@ template <typename T> constexpr auto num_bits() -> int {
   return std::numeric_limits<T>::digits;
 }
 // std::numeric_limits<T>::digits may return 0 for 128-bit ints.
-template <> constexpr auto num_bits<int128_t>() -> int { return 128; }
+template <> constexpr auto num_bits<int128_opt>() -> int { return 128; }
 template <> constexpr auto num_bits<uint128_t>() -> int { return 128; }
 template <> constexpr auto num_bits<fallback_uintptr>() -> int {
   return static_cast<int>(sizeof(void*) *
@@ -884,13 +914,13 @@ constexpr auto compile_string_to_view(detail::std_string_view<Char> s)
 FMT_BEGIN_DETAIL_NAMESPACE
 
 template <typename T> struct is_integral : std::is_integral<T> {};
-template <> struct is_integral<int128_t> : std::true_type {};
+template <> struct is_integral<int128_opt> : std::true_type {};
 template <> struct is_integral<uint128_t> : std::true_type {};
 
 template <typename T>
 using is_signed =
     std::integral_constant<bool, std::numeric_limits<T>::is_signed ||
-                                     std::is_same<T, int128_t>::value>;
+                                     std::is_same<T, int128_opt>::value>;
 
 // Returns true if value is negative, false otherwise.
 // Same as `value < 0` but doesn't produce warnings if T is an unsigned type.
@@ -916,9 +946,10 @@ template <typename T>
 using uint32_or_64_or_128_t =
     conditional_t<num_bits<T>() <= 32 && !FMT_REDUCE_INT_INSTANTIATIONS,
                   uint32_t,
-                  conditional_t<num_bits<T>() <= 64, uint64_t, uint128_t>>;
+                  conditional_t<num_bits<T>() <= 64, uint64_t, uint128_opt>>;
 template <typename T>
-using uint64_or_128_t = conditional_t<num_bits<T>() <= 64, uint64_t, uint128_t>;
+using uint64_or_128_t =
+    conditional_t<num_bits<T>() <= 64, uint64_t, uint128_opt>;
 
 #define FMT_POWERS_OF_10(factor)                                             \
   factor * 10, (factor)*100, (factor)*1000, (factor)*10000, (factor)*100000, \
@@ -958,7 +989,7 @@ template <typename T> FMT_CONSTEXPR auto count_digits_fallback(T n) -> int {
   }
 }
 #if FMT_USE_INT128
-FMT_CONSTEXPR inline auto count_digits(uint128_t n) -> int {
+FMT_CONSTEXPR inline auto count_digits(uint128_opt n) -> int {
   return count_digits_fallback(n);
 }
 #endif
@@ -1052,7 +1083,7 @@ FMT_CONSTEXPR20 inline auto count_digits(uint32_t n) -> int {
 template <typename Int> constexpr auto digits10() noexcept -> int {
   return std::numeric_limits<Int>::digits10;
 }
-template <> constexpr auto digits10<int128_t>() noexcept -> int { return 38; }
+template <> constexpr auto digits10<int128_opt>() noexcept -> int { return 38; }
 template <> constexpr auto digits10<uint128_t>() noexcept -> int { return 38; }
 
 template <typename Char> struct thousands_sep_result {
@@ -1258,7 +1289,7 @@ template <> struct float_info<double> {
 template <typename T>
 struct float_info<T, enable_if_t<std::is_same<T, long double>::value &&
                                  std::numeric_limits<T>::digits == 64>> {
-  using carrier_uint = detail::uint128_t;
+  using carrier_uint = detail::uint128_opt;
   static const int significand_bits = 64;
   static const int exponent_bits = 15;
 };
@@ -2269,7 +2300,8 @@ FMT_CONSTEXPR20 auto write(OutputIt out, T value,
       ++precision;
   }
   if (const_check(std::is_same<T, float>())) fspecs.binary32 = true;
-  if (!is_fast_float<T>()) fspecs.fallback = true;
+  if (!std::numeric_limits<T>::is_iec559 || std::numeric_limits<T>::digits > 64)
+    fspecs.fallback = true;
   int exp = format_float(convert_float(value), precision, fspecs, buffer);
   fspecs.precision = precision;
   auto fp = big_decimal_fp{buffer.data(), static_cast<int>(buffer.size()), exp};
@@ -2796,27 +2828,6 @@ formatter<T, Char,
   }
   return detail::write<Char>(ctx.out(), val, specs_, ctx.locale());
 }
-
-#define FMT_FORMAT_AS(Type, Base)                                        \
-  template <typename Char>                                               \
-  struct formatter<Type, Char> : formatter<Base, Char> {                 \
-    template <typename FormatContext>                                    \
-    auto format(Type const& val, FormatContext& ctx) const               \
-        -> decltype(ctx.out()) {                                         \
-      return formatter<Base, Char>::format(static_cast<Base>(val), ctx); \
-    }                                                                    \
-  }
-
-FMT_FORMAT_AS(signed char, int);
-FMT_FORMAT_AS(unsigned char, unsigned);
-FMT_FORMAT_AS(short, int);
-FMT_FORMAT_AS(unsigned short, unsigned);
-FMT_FORMAT_AS(long, long long);
-FMT_FORMAT_AS(unsigned long, unsigned long long);
-FMT_FORMAT_AS(Char*, const Char*);
-FMT_FORMAT_AS(std::basic_string<Char>, basic_string_view<Char>);
-FMT_FORMAT_AS(std::nullptr_t, const void*);
-FMT_FORMAT_AS(detail::std_string_view<Char>, basic_string_view<Char>);
 
 template <typename Char>
 struct formatter<void*, Char> : formatter<const void*, Char> {

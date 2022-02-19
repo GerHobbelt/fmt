@@ -387,8 +387,8 @@ template <typename T> struct std_string_view {};
 #elif defined(__SIZEOF_INT128__) && !FMT_NVCC && \
     !(FMT_CLANG_VERSION && FMT_MSC_VER)
 #  define FMT_USE_INT128 1
-using int128_t = __int128_t;
-using uint128_t = __uint128_t;
+using int128_opt = __int128_t;  // An optional 128-bit integer.
+using uint128_opt = __uint128_t;
 template <typename T> inline auto convert_for_visit(T value) -> T {
   return value;
 }
@@ -396,8 +396,8 @@ template <typename T> inline auto convert_for_visit(T value) -> T {
 #  define FMT_USE_INT128 0
 #endif
 #if !FMT_USE_INT128
-enum class int128_t {};
-enum class uint128_t {};
+enum class int128_opt {};
+enum class uint128_opt {};
 // Reduce template instantiations.
 template <typename T> inline auto convert_for_visit(T) -> monostate {
   return {};
@@ -1147,8 +1147,8 @@ FMT_TYPE_CONSTANT(int, int_type);
 FMT_TYPE_CONSTANT(unsigned, uint_type);
 FMT_TYPE_CONSTANT(long long, long_long_type);
 FMT_TYPE_CONSTANT(unsigned long long, ulong_long_type);
-FMT_TYPE_CONSTANT(int128_t, int128_type);
-FMT_TYPE_CONSTANT(uint128_t, uint128_type);
+FMT_TYPE_CONSTANT(int128_opt, int128_type);
+FMT_TYPE_CONSTANT(uint128_opt, uint128_type);
 FMT_TYPE_CONSTANT(bool, bool_type);
 FMT_TYPE_CONSTANT(Char, char_type);
 FMT_TYPE_CONSTANT(float, float_type);
@@ -1198,8 +1198,8 @@ template <typename Context> class value {
     unsigned uint_value;
     long long long_long_value;
     unsigned long long ulong_long_value;
-    int128_t int128_value;
-    uint128_t uint128_value;
+    int128_opt int128_value;
+    uint128_opt uint128_value;
     bool bool_value;
     char_type char_value;
     float float_value;
@@ -1216,8 +1216,8 @@ template <typename Context> class value {
   constexpr FMT_INLINE value(unsigned val) : uint_value(val) {}
   constexpr FMT_INLINE value(long long val) : long_long_value(val) {}
   constexpr FMT_INLINE value(unsigned long long val) : ulong_long_value(val) {}
-  FMT_INLINE value(int128_t val) : int128_value(val) {}
-  FMT_INLINE value(uint128_t val) : uint128_value(val) {}
+  FMT_INLINE value(int128_opt val) : int128_value(val) {}
+  FMT_INLINE value(uint128_opt val) : uint128_value(val) {}
   constexpr FMT_INLINE value(float val) : float_value(val) {}
   constexpr FMT_INLINE value(double val) : double_value(val) {}
   FMT_INLINE value(long double val) : long_double_value(val) {}
@@ -1300,8 +1300,12 @@ template <typename Context> struct arg_mapper {
       -> unsigned long long {
     return val;
   }
-  FMT_CONSTEXPR FMT_INLINE auto map(int128_t val) -> int128_t { return val; }
-  FMT_CONSTEXPR FMT_INLINE auto map(uint128_t val) -> uint128_t { return val; }
+  FMT_CONSTEXPR FMT_INLINE auto map(int128_opt val) -> int128_opt {
+    return val;
+  }
+  FMT_CONSTEXPR FMT_INLINE auto map(uint128_opt val) -> uint128_opt {
+    return val;
+  }
   FMT_CONSTEXPR FMT_INLINE auto map(bool val) -> bool { return val; }
 
   template <typename T, FMT_ENABLE_IF(std::is_same<T, char>::value ||
@@ -1438,7 +1442,8 @@ template <typename Context> struct arg_mapper {
                       !std::is_const<remove_reference_t<T>>::value ||
                       has_fallback_formatter<U, char_type>::value> {};
 
-#if (FMT_MSC_VER != 0 && FMT_MSC_VER < 1910) || FMT_ICC_VERSION != 0
+#if (FMT_MSC_VER != 0 && FMT_MSC_VER < 1910) || FMT_ICC_VERSION != 0 || \
+    FMT_NVCC != 0
   // Workaround a bug in MSVC and Intel (Issue 2746).
   template <typename T> FMT_CONSTEXPR FMT_INLINE auto do_map(T&& val) -> T& {
     return val;
@@ -2835,7 +2840,8 @@ template <typename Handler> class specs_checker : public Handler {
   FMT_CONSTEXPR void on_sign(sign_t s) {
     require_numeric_argument();
     if (is_integral_type(arg_type_) && arg_type_ != type::int_type &&
-        arg_type_ != type::long_long_type && arg_type_ != type::char_type) {
+        arg_type_ != type::long_long_type && arg_type_ != type::int128_type &&
+        arg_type_ != type::char_type) {
       this->on_error("format specifier requires signed argument");
     }
     Handler::on_sign(s);
@@ -3042,6 +3048,27 @@ struct formatter<T, Char,
   FMT_CONSTEXPR auto format(const T& val, FormatContext& ctx) const
       -> decltype(ctx.out());
 };
+
+#define FMT_FORMAT_AS(Type, Base)                                        \
+  template <typename Char>                                               \
+  struct formatter<Type, Char> : formatter<Base, Char> {                 \
+    template <typename FormatContext>                                    \
+    auto format(Type const& val, FormatContext& ctx) const               \
+        -> decltype(ctx.out()) {                                         \
+      return formatter<Base, Char>::format(static_cast<Base>(val), ctx); \
+    }                                                                    \
+  }
+
+FMT_FORMAT_AS(signed char, int);
+FMT_FORMAT_AS(unsigned char, unsigned);
+FMT_FORMAT_AS(short, int);
+FMT_FORMAT_AS(unsigned short, unsigned);
+FMT_FORMAT_AS(long, long long);
+FMT_FORMAT_AS(unsigned long, unsigned long long);
+FMT_FORMAT_AS(Char*, const Char*);
+FMT_FORMAT_AS(std::basic_string<Char>, basic_string_view<Char>);
+FMT_FORMAT_AS(std::nullptr_t, const void*);
+FMT_FORMAT_AS(detail::std_string_view<Char>, basic_string_view<Char>);
 
 template <typename Char> struct basic_runtime { basic_string_view<Char> str; };
 

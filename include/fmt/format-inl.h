@@ -242,9 +242,11 @@ struct fp {
   template <typename Float> explicit FMT_CONSTEXPR fp(Float n) { assign(n); }
 
   template <typename Float>
-  using is_supported = bool_constant<sizeof(Float) == sizeof(uint32_t) ||
-                                     sizeof(Float) == 2 * sizeof(uint32_t) ||
-                                     std::numeric_limits<Float>::digits == 64>;
+  using is_supported =
+      bool_constant<sizeof(Float) == sizeof(uint32_t) ||
+                    sizeof(Float) == sizeof(uint64_t) ||
+                    (sizeof(Float) == sizeof(uint128_t) &&
+                     std::numeric_limits<Float>::digits == 64)>;
 
   // Assigns d to this and return true iff predecessor is closer than successor.
   template <typename Float, FMT_ENABLE_IF(is_supported<Float>::value)>
@@ -256,7 +258,7 @@ struct fp {
     using carrier_uint = typename dragonbox::float_info<Float>::carrier_uint;
     const carrier_uint significand_mask = implicit_bit - 1;
     auto u = bit_cast<carrier_uint>(n);
-    f = u & significand_mask;
+    f = static_cast<uint64_t>(u & significand_mask);
     int biased_e =
         static_cast<int>((u & exponent_mask<Float>()) >>
                          dragonbox::float_info<Float>::significand_bits);
@@ -441,9 +443,6 @@ class bigint {
  public:
   FMT_CONSTEXPR20 bigint() : exp_(0) {}
   explicit bigint(uint64_t n) { assign(n); }
-  FMT_CONSTEXPR20 ~bigint() {
-    FMT_ASSERT(bigits_.capacity() <= bigits_capacity, "");
-  }
 
   bigint(const bigint&) = delete;
   void operator=(const bigint&) = delete;
@@ -556,7 +555,8 @@ class bigint {
     int num_result_bigits = 2 * num_bigits;
     basic_memory_buffer<bigit, bigits_capacity> n(std::move(bigits_));
     bigits_.resize(to_unsigned(num_result_bigits));
-    using accumulator_t = conditional_t<FMT_USE_INT128, uint128_t, accumulator>;
+    using accumulator_t =
+        conditional_t<FMT_USE_INT128, uint128_opt, accumulator>;
     auto sum = accumulator_t();
     for (int bigit_index = 0; bigit_index < num_bigits; ++bigit_index) {
       // Compute bigit at position bigit_index of the result by adding
@@ -681,6 +681,14 @@ struct gen_digits_handler {
   }
 };
 
+inline FMT_CONSTEXPR20 void adjust_precision(int& precision, int exp10) {
+  // Adjust fixed precision by exponent because it is relative to decimal
+  // point.
+  if (exp10 > 0 && precision > max_value<int>() - exp10)
+    FMT_THROW(format_error("number is too big"));
+  precision += exp10;
+}
+
 // Generates output using the Grisu digit-gen algorithm.
 // error: the size of the region (lower, upper) outside of which numbers
 // definitely do not round to value (Delta in Grisu3).
@@ -698,14 +706,7 @@ FMT_INLINE FMT_CONSTEXPR20 digits::result grisu_gen_digits(
   exp = count_digits(integral);  // kappa in Grisu.
   // Non-fixed formats require at least one digit and no precision adjustment.
   if (handler.fixed) {
-    // Adjust fixed precision by exponent because it is relative to decimal
-    // point.
-    int precision_offset = exp + handler.exp10;
-    if (precision_offset > 0 &&
-        handler.precision > max_value<int>() - precision_offset) {
-      FMT_THROW(format_error("number is too big"));
-    }
-    handler.precision += precision_offset;
+    adjust_precision(handler.precision, exp + handler.exp10);
     // Check if precision is satisfied just by leading zeros, e.g.
     // format("{:.2f}", 0.001) gives "0.00" without generating any digits.
     if (handler.precision <= 0) {
@@ -830,7 +831,7 @@ namespace dragonbox {
 // Computes 128-bit result of multiplication of two 64-bit unsigned integers.
 inline uint128_wrapper umul128(uint64_t x, uint64_t y) noexcept {
 #if FMT_USE_INT128
-  auto p = static_cast<uint128_t>(x) * static_cast<uint128_t>(y);
+  auto p = static_cast<uint128_opt>(x) * static_cast<uint128_opt>(y);
   return {static_cast<uint64_t>(p >> 64), static_cast<uint64_t>(p)};
 #elif defined(_MSC_VER) && defined(_M_X64)
   uint128_wrapper result;
@@ -860,7 +861,7 @@ inline uint128_wrapper umul128(uint64_t x, uint64_t y) noexcept {
 // Computes upper 64 bits of multiplication of two 64-bit unsigned integers.
 inline uint64_t umul128_upper64(uint64_t x, uint64_t y) noexcept {
 #if FMT_USE_INT128
-  auto p = static_cast<uint128_t>(x) * static_cast<uint128_t>(y);
+  auto p = static_cast<uint128_opt>(x) * static_cast<uint128_opt>(y);
   return static_cast<uint64_t>(p >> 64);
 #elif defined(_MSC_VER) && defined(_M_X64)
   return __umulh(x, y);
@@ -2274,6 +2275,9 @@ FMT_HEADER_ONLY_CONSTEXPR20 int format_float(Float value, int precision,
       exp += handler.size - cached_exp10 - 1;
       precision = handler.precision;
     }
+  } else {
+    exp = static_cast<int>(std::log10(value));
+    if (fixed) adjust_precision(precision, exp + 1);
   }
   if (use_dragon) {
     auto f = fp();
