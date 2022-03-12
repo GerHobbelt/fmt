@@ -15,6 +15,10 @@
 #include <string>
 #include <type_traits>
 
+// macros defined by Microsoft which throw a spanner in the (chrono) works around here.
+#undef max
+#undef min
+
 #undef FMT_STATIC_THOUSANDS_SEPARATOR
 #define FMT_STATIC_THOUSANDS_SEPARATOR 0
 #undef FMT_EXCEPTIONS
