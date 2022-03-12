@@ -136,7 +136,7 @@ class system_message {
   operator basic_string_view<wchar_t>() const noexcept {
     return basic_string_view<wchar_t>(message_, result_);
   }
-  basic_string_view<wchar_t> rtrim() const FMT_NOEXCEPT {
+  basic_string_view<wchar_t> rtrim() const noexcept {
     auto len = result_;
     while (len != 0 && is_whitespace(message_[len - 1])) {
       --len;
@@ -193,7 +193,7 @@ void report_windows_error(int error_code, const char* message) noexcept {
   report_error(detail::format_windows_error, error_code, message);
 }
 #else
-const std::error_category& system_category() FMT_NOEXCEPT {
+const std::error_category& system_category() noexcept {
   return std::system_category();
 }
 #endif  // _WIN32
