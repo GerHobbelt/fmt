@@ -16,7 +16,7 @@ class FMTConan(ConanFile):
         relative = "3rdparty/fmt/"
 
         # headers
-        self.copy("*.h", src=base + "src", dst=relative + "src")
+        self.copy("*.h", src=base + "include", dst=relative + "include")
 
         # libraries
         output = "output/" + str(self.settings.platform_architecture_target) + "/staticlib"
