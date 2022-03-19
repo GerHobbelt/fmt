@@ -140,7 +140,7 @@ void print(std::ostream& os, format_string<Args...> fmt, Args&&... args) {
 
 FMT_MODULE_EXPORT
 template <typename... Args>
-void print(std::wostream& os,
+void print(std::basic_ostream<wchar_t>& os,
            basic_format_string<wchar_t, type_identity_t<Args>...> fmt,
            Args&&... args) {
   vprint(os, fmt, fmt::make_format_args<buffer_context<wchar_t>>(args...));
