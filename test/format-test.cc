@@ -66,6 +66,48 @@ TEST(uint128_test, minus) {
   EXPECT_EQ(n - 2, 40);
 }
 
+template <typename Float> void check_isfinite() {
+  using fmt::detail::isfinite;
+  EXPECT_TRUE(isfinite(Float(0.0)));
+  EXPECT_TRUE(isfinite(Float(42.0)));
+  EXPECT_TRUE(isfinite(Float(-42.0)));
+  EXPECT_TRUE(isfinite(Float(fmt::detail::max_value<double>())));
+  // Use double because std::numeric_limits is broken for __float128.
+  using limits = std::numeric_limits<double>;
+  EXPECT_FALSE(isfinite(Float(limits::infinity())));
+  EXPECT_FALSE(isfinite(Float(-limits::infinity())));
+  EXPECT_FALSE(isfinite(Float(limits::quiet_NaN())));
+  EXPECT_FALSE(isfinite(Float(-limits::quiet_NaN())));
+}
+
+TEST(float_test, isfinite) {
+  check_isfinite<double>();
+#ifdef __SIZEOF_FLOAT128__
+  check_isfinite<fmt::detail::float128>();
+#endif
+}
+
+template <typename Float> void check_isnan() {
+  using fmt::detail::isnan;
+  EXPECT_FALSE(isnan(Float(0.0)));
+  EXPECT_FALSE(isnan(Float(42.0)));
+  EXPECT_FALSE(isnan(Float(-42.0)));
+  EXPECT_FALSE(isnan(Float(fmt::detail::max_value<double>())));
+  // Use double because std::numeric_limits is broken for __float128.
+  using limits = std::numeric_limits<double>;
+  EXPECT_FALSE(isnan(Float(limits::infinity())));
+  EXPECT_FALSE(isnan(Float(-limits::infinity())));
+  EXPECT_TRUE(isnan(Float(limits::quiet_NaN())));
+  EXPECT_TRUE(isnan(Float(-limits::quiet_NaN())));
+}
+
+TEST(float_test, isnan) {
+  check_isnan<double>();
+#ifdef __SIZEOF_FLOAT128__
+  check_isnan<fmt::detail::float128>();
+#endif
+}
+
 struct uint32_pair {
   uint32_t u[2];
 };
@@ -1265,32 +1307,30 @@ TEST(format_test, format_float) {
 }
 
 TEST(format_test, format_double) {
-  EXPECT_EQ("0", fmt::format("{}", 0.0));
+  EXPECT_EQ(fmt::format("{}", 0.0), "0");
   check_unknown_types(1.2, "eEfFgGaAnL%", "double");
-  EXPECT_EQ("0", fmt::format("{:}", 0.0));
-  EXPECT_EQ("0.000000", fmt::format("{:f}", 0.0));
-  EXPECT_EQ("0", fmt::format("{:g}", 0.0));
-  EXPECT_EQ("392.65", fmt::format("{:}", 392.65));
-  EXPECT_EQ("392.65", fmt::format("{:g}", 392.65));
-  EXPECT_EQ("392.65", fmt::format("{:G}", 392.65));
-  EXPECT_EQ("4.9014e+06", fmt::format("{:g}", 4.9014e6));
-  EXPECT_EQ("392.650000", fmt::format("{:f}", 392.65));
-  EXPECT_EQ("392.650000", fmt::format("{:F}", 392.65));
-  EXPECT_EQ("42", fmt::format("{:L}", 42.0));
-  EXPECT_EQ("    0x1.0cccccccccccdp+2", fmt::format("{:24a}", 4.2));
-  EXPECT_EQ("0x1.0cccccccccccdp+2    ", fmt::format("{:<24a}", 4.2));
+  EXPECT_EQ(fmt::format("{:}", 0.0), "0");
+  EXPECT_EQ(fmt::format("{:f}", 0.0), "0.000000");
+  EXPECT_EQ(fmt::format("{:g}", 0.0), "0");
+  EXPECT_EQ(fmt::format("{:}", 392.65), "392.65");
+  EXPECT_EQ(fmt::format("{:g}", 392.65), "392.65");
+  EXPECT_EQ(fmt::format("{:G}", 392.65), "392.65");
+  EXPECT_EQ(fmt::format("{:g}", 4.9014e6), "4.9014e+06");
+  EXPECT_EQ(fmt::format("{:f}", 392.65), "392.650000");
+  EXPECT_EQ(fmt::format("{:F}", 392.65), "392.650000");
+  EXPECT_EQ(fmt::format("{:L}", 42.0), "42");
+  EXPECT_EQ(fmt::format("{:24a}", 4.2), "    0x1.0cccccccccccdp+2");
+  EXPECT_EQ(fmt::format("{:<24a}", 4.2), "0x1.0cccccccccccdp+2    ");
+  EXPECT_EQ(fmt::format("{0:e}", 392.65), "3.926500e+02");
+  EXPECT_EQ(fmt::format("{0:E}", 392.65), "3.926500E+02");
+  EXPECT_EQ(fmt::format("{0:+010.4g}", 392.65), "+0000392.6");
   char buffer[buffer_size];
-  safe_sprintf(buffer, "%e", 392.65);
-  EXPECT_EQ(buffer, fmt::format("{0:e}", 392.65));
-  safe_sprintf(buffer, "%E", 392.65);
-  EXPECT_EQ(buffer, fmt::format("{0:E}", 392.65));
-  EXPECT_EQ("+0000392.6", fmt::format("{0:+010.4g}", 392.65));
   safe_sprintf(buffer, "%a", -42.0);
-  EXPECT_EQ(buffer, fmt::format("{:a}", -42.0));
+  EXPECT_EQ(fmt::format("{:a}", -42.0), buffer);
   safe_sprintf(buffer, "%A", -42.0);
-  EXPECT_EQ(buffer, fmt::format("{:A}", -42.0));
-  EXPECT_EQ("9223372036854775808.000000",
-            fmt::format("{:f}", 9223372036854775807.0));
+  EXPECT_EQ(fmt::format("{:A}", -42.0), buffer);
+  EXPECT_EQ(fmt::format("{:f}", 9223372036854775807.0),
+            "9223372036854775808.000000");
 }
 
 TEST(format_test, precision_rounding) {
@@ -1776,6 +1816,7 @@ TEST(format_test, compile_time_string) {
                                   "foo"_a = "foo"));
   EXPECT_EQ("", fmt::format(FMT_STRING("")));
   EXPECT_EQ("", fmt::format(FMT_STRING(""), "arg"_a = 42));
+  EXPECT_EQ("42", fmt::format(FMT_STRING("{answer}"), "answer"_a = Answer()));
 #endif
 
   (void)static_with_null;
@@ -1845,6 +1886,8 @@ TEST(format_test, named_arg_udl) {
       fmt::format("{first}{second}{first}{third}", fmt::arg("first", "abra"),
                   fmt::arg("second", "cad"), fmt::arg("third", 99)),
       udl_a);
+
+  EXPECT_EQ("42", fmt::format("{answer}", "answer"_a = Answer()));
 }
 #endif  // FMT_USE_USER_DEFINED_LITERALS
 
