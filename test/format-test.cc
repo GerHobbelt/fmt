@@ -33,6 +33,7 @@ using fmt::memory_buffer;
 using fmt::runtime;
 using fmt::string_view;
 using fmt::detail::max_value;
+using fmt::detail::uint128_fallback;
 
 using testing::Return;
 using testing::StrictMock;
@@ -40,7 +41,6 @@ using testing::StrictMock;
 enum { buffer_size = 256 };
 
 TEST(uint128_test, ctor) {
-  using fmt::detail::uint128_fallback;
   auto n = uint128_fallback();
   EXPECT_EQ(n, 0);
   n = uint128_fallback(42);
@@ -49,7 +49,7 @@ TEST(uint128_test, ctor) {
 }
 
 TEST(uint128_test, shift) {
-  auto n = fmt::detail::uint128_fallback(42);
+  auto n = uint128_fallback(42);
   n = n << 64;
   EXPECT_EQ(static_cast<uint64_t>(n), 0);
   n = n >> 64;
@@ -62,8 +62,17 @@ TEST(uint128_test, shift) {
 }
 
 TEST(uint128_test, minus) {
-  auto n = fmt::detail::uint128_fallback(42);
+  auto n = uint128_fallback(42);
   EXPECT_EQ(n - 2, 40);
+}
+
+TEST(uint128_test, plus_assign) {
+  auto n = uint128_fallback(32);
+  n += uint128_fallback(10);
+  EXPECT_EQ(n, 42);
+  n = uint128_fallback(max_value<uint64_t>());
+  n += uint128_fallback(1);
+  EXPECT_EQ(n, uint128_fallback(1) << 64);
 }
 
 template <typename Float> void check_isfinite() {
@@ -1760,9 +1769,15 @@ TEST(format_test, join) {
 }
 
 #ifdef __cpp_lib_byte
+TEST(format_test, format_byte) {
+  using arg_mapper = fmt::detail::arg_mapper<fmt::format_context>;
+  EXPECT_EQ(arg_mapper().map(std::byte(42)), 42);
+  EXPECT_EQ(fmt::format("{}", std::byte(42)), "42");
+}
+
 TEST(format_test, join_bytes) {
   auto v = std::vector<std::byte>{std::byte(1), std::byte(2), std::byte(3)};
-  EXPECT_EQ("1, 2, 3", fmt::format("{}", fmt::join(v, ", ")));
+  EXPECT_EQ(fmt::format("{}", fmt::join(v, ", ")), "1, 2, 3");
 }
 #endif
 

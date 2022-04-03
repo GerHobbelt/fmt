@@ -212,42 +212,36 @@ template <typename F> struct basic_fp {
   constexpr basic_fp() : f(0), e(0) {}
   constexpr basic_fp(uint64_t f_val, int e_val) : f(f_val), e(e_val) {}
 
-  // Constructs fp from an IEEE754 floating-point number. It is a template to
-  // prevent compile errors on systems where n is not IEEE754.
+  // Constructs fp from an IEEE754 floating-point number.
   template <typename Float> FMT_CONSTEXPR basic_fp(Float n) { assign(n); }
 
-  template <typename Float>
-  using is_supported =
-      bool_constant<(std::numeric_limits<Float>::is_iec559 &&
-                     std::numeric_limits<Float>::digits <= 113) ||
-                    is_float128<Float>::value>;
-
-  // Assigns d to this and return true iff predecessor is closer than successor.
-  template <typename Float, FMT_ENABLE_IF(is_supported<Float>::value)>
-  FMT_CONSTEXPR bool assign(Float n) {
-    // Assume float is in the format [sign][exponent][significand].
+  // Assigns n to this and return true iff predecessor is closer than successor.
+  template <typename Float> FMT_CONSTEXPR bool assign(Float n) {
+    static_assert((std::numeric_limits<Float>::is_iec559 &&
+                   std::numeric_limits<Float>::digits <= 113) ||
+                      is_float128<Float>::value,
+                  "unsupported FP");
+    // Assume Float is in the format [sign][exponent][significand].
     using carrier_uint = typename dragonbox::float_info<Float>::carrier_uint;
-    const carrier_uint implicit_bit = carrier_uint(1)
-                                      << detail::num_significand_bits<Float>();
-    const carrier_uint significand_mask = implicit_bit - 1;
+    const auto num_float_significand_bits =
+        detail::num_significand_bits<Float>();
+    const auto implicit_bit = carrier_uint(1) << num_float_significand_bits;
+    const auto significand_mask = implicit_bit - 1;
     auto u = bit_cast<carrier_uint>(n);
     f = static_cast<F>(u & significand_mask);
-    int biased_e = static_cast<int>((u & exponent_mask<Float>()) >>
-                                    detail::num_significand_bits<Float>());
+    auto biased_e = static_cast<int>((u & exponent_mask<Float>()) >>
+                                     num_float_significand_bits);
     // The predecessor is closer if n is a normalized power of 2 (f == 0) other
     // than the smallest normalized number (biased_e > 1).
-    bool is_predecessor_closer = f == 0 && biased_e > 1;
+    auto is_predecessor_closer = f == 0 && biased_e > 1;
     if (biased_e != 0)
-      f += static_cast<uint64_t>(implicit_bit);
+      f += static_cast<F>(implicit_bit);
     else
       biased_e = 1;  // Subnormals use biased exponent 1 (min exponent).
-    const int exponent_bias = std::numeric_limits<Float>::max_exponent - 1;
-    e = biased_e - exponent_bias - std::numeric_limits<Float>::digits + 1;
+    e = biased_e - exponent_bias<Float>() - num_float_significand_bits;
+    if (!has_implicit_bit<Float>()) ++e;
     return is_predecessor_closer;
   }
-
-  template <typename Float, FMT_ENABLE_IF(!is_supported<Float>::value)>
-  bool assign(Float) = delete;
 };
 
 using fp = basic_fp<unsigned long long>;
@@ -374,21 +368,37 @@ class bigint {
     if (carry != 0) bigits_.push_back(carry);
   }
 
-  FMT_CONSTEXPR20 void multiply(uint64_t value) {
-    const bigit mask = ~bigit(0);
-    const double_bigit lower = value & mask;
-    const double_bigit upper = value >> bigit_bits;
-    double_bigit carry = 0;
+  template <typename UInt, FMT_ENABLE_IF(std::is_same<UInt, uint64_t>::value ||
+                                         std::is_same<UInt, uint128_t>::value)>
+  FMT_CONSTEXPR20 void multiply(UInt value) {
+    using half_uint =
+        conditional_t<std::is_same<UInt, uint128_t>::value, uint64_t, uint32_t>;
+    const int shift = num_bits<half_uint>() - bigit_bits;
+    const UInt lower = static_cast<half_uint>(value);
+    const UInt upper = value >> num_bits<half_uint>();
+    UInt carry = 0;
     for (size_t i = 0, n = bigits_.size(); i < n; ++i) {
-      double_bigit result = bigits_[i] * lower + (carry & mask);
-      carry =
-          bigits_[i] * upper + (result >> bigit_bits) + (carry >> bigit_bits);
+      UInt result = lower * bigits_[i] + static_cast<bigit>(carry);
+      carry = (upper * bigits_[i] << shift) + (result >> bigit_bits) +
+              (carry >> bigit_bits);
       bigits_[i] = static_cast<bigit>(result);
     }
     while (carry != 0) {
-      bigits_.push_back(carry & mask);
+      bigits_.push_back(static_cast<bigit>(carry));
       carry >>= bigit_bits;
     }
+  }
+
+  template <typename UInt, FMT_ENABLE_IF(std::is_same<UInt, uint64_t>::value ||
+                                         std::is_same<UInt, uint128_t>::value)>
+  FMT_CONSTEXPR20 void assign(UInt n) {
+    size_t num_bigits = 0;
+    do {
+      bigits_[num_bigits++] = static_cast<bigit>(n);
+      n >>= bigit_bits;
+    } while (n != 0);
+    bigits_.resize(num_bigits);
+    exp_ = 0;
   }
 
  public:
@@ -406,14 +416,9 @@ class bigint {
     exp_ = other.exp_;
   }
 
-  FMT_CONSTEXPR20 void assign(uint64_t n) {
-    size_t num_bigits = 0;
-    do {
-      bigits_[num_bigits++] = n & ~bigit(0);
-      n >>= bigit_bits;
-    } while (n != 0);
-    bigits_.resize(num_bigits);
-    exp_ = 0;
+  template <typename Int> FMT_CONSTEXPR20 void operator=(Int n) {
+    FMT_ASSERT(n > 0, "");
+    assign(uint64_or_128_t<Int>(n));
   }
 
   FMT_CONSTEXPR20 int num_bigits() const {
@@ -484,14 +489,14 @@ class bigint {
   // Assigns pow(10, exp) to this bigint.
   FMT_CONSTEXPR20 void assign_pow10(int exp) {
     FMT_ASSERT(exp >= 0, "");
-    if (exp == 0) return assign(1);
+    if (exp == 0) return *this = 1;
     // Find the top bit.
     int bitmask = 1;
     while (exp >= bitmask) bitmask <<= 1;
     bitmask >>= 1;
     // pow(10, exp) = pow(5, exp) * pow(2, exp). First compute pow(5, exp) by
     // repeated squaring and multiplication.
-    assign(5);
+    *this = 5;
     bitmask >>= 1;
     while (bitmask != 0) {
       square();
@@ -731,39 +736,31 @@ FMT_INLINE FMT_CONSTEXPR20 digits::result grisu_gen_digits(
   }
 }
 
-// A 128-bit integer type used internally.
-struct uint128_wrapper {
-  uint128_wrapper() = default;
-
-  uint64_t high_;
-  uint64_t low_;
-
-  constexpr uint128_wrapper(uint64_t high, uint64_t low) noexcept
-      : high_{high}, low_{low} {}
-
-  constexpr uint64_t high() const noexcept { return high_; }
-  constexpr uint64_t low() const noexcept { return low_; }
-
-  uint128_wrapper& operator+=(uint64_t n) noexcept {
-#if FMT_HAS_BUILTIN(__builtin_addcll)
-    unsigned long long carry;
-    low_ = __builtin_addcll(low_, n, 0, &carry);
-    high_ += carry;
-#elif FMT_HAS_BUILTIN(__builtin_ia32_addcarryx_u64)
-    unsigned long long result;
-    auto carry = __builtin_ia32_addcarryx_u64(0, low_, n, &result);
-    low_ = result;
-    high_ += carry;
-#elif defined(_MSC_VER) && defined(_M_X64)
-    auto carry = _addcarry_u64(0, low_, n, &low_);
-    _addcarry_u64(carry, high_, 0, &high_);
-#else
-    low_ += n;
-    high_ += (low_ < n ? 1 : 0);
-#endif
+inline FMT_CONSTEXPR20 uint128_fallback& uint128_fallback::operator+=(
+    uint64_t n) noexcept {
+  if (is_constant_evaluated()) {
+    lo_ += n;
+    hi_ += (lo_ < n ? 1 : 0);
     return *this;
   }
-};
+#if FMT_HAS_BUILTIN(__builtin_addcll)
+  unsigned long long carry;
+  lo_ = __builtin_addcll(lo_, n, 0, &carry);
+  hi_ += carry;
+#elif FMT_HAS_BUILTIN(__builtin_ia32_addcarryx_u64)
+  unsigned long long result;
+  auto carry = __builtin_ia32_addcarryx_u64(0, lo_, n, &result);
+  lo_ = result;
+  hi_ += carry;
+#elif defined(_MSC_VER) && defined(_M_X64)
+  auto carry = _addcarry_u64(0, lo_, n, &lo_);
+  _addcarry_u64(carry, hi_, 0, &hi_);
+#else
+  lo_ += n;
+  hi_ += (lo_ < n ? 1 : 0);
+#endif
+  return *this;
+}
 
 // Compilers should be able to optimize this into the ror instruction.
 FMT_CONSTEXPR inline uint32_t rotr(uint32_t n, uint32_t r) noexcept {
@@ -775,16 +772,14 @@ FMT_CONSTEXPR inline uint64_t rotr(uint64_t n, uint32_t r) noexcept {
   return (n >> r) | (n << (64 - r));
 }
 
-// Implementation of Dragonbox algorithm: https://github.com/jk-jeon/dragonbox.
-namespace dragonbox {
 // Computes 128-bit result of multiplication of two 64-bit unsigned integers.
-inline uint128_wrapper umul128(uint64_t x, uint64_t y) noexcept {
+inline uint128_fallback umul128(uint64_t x, uint64_t y) noexcept {
 #if FMT_USE_INT128
   auto p = static_cast<uint128_opt>(x) * static_cast<uint128_opt>(y);
   return {static_cast<uint64_t>(p >> 64), static_cast<uint64_t>(p)};
 #elif defined(_MSC_VER) && defined(_M_X64)
-  uint128_wrapper result;
-  result.low_ = _umul128(x, y, &result.high_);
+  auto result = uint128_fallback();
+  result.lo_ = _umul128(x, y, &result.hi_);
   return result;
 #else
   const uint64_t mask = static_cast<uint64_t>(max_value<uint32_t>());
@@ -806,6 +801,8 @@ inline uint128_wrapper umul128(uint64_t x, uint64_t y) noexcept {
 #endif
 }
 
+// Implementation of Dragonbox algorithm: https://github.com/jk-jeon/dragonbox.
+namespace dragonbox {
 // Computes upper 64 bits of multiplication of two 64-bit unsigned integers.
 inline uint64_t umul128_upper64(uint64_t x, uint64_t y) noexcept {
 #if FMT_USE_INT128
@@ -820,9 +817,9 @@ inline uint64_t umul128_upper64(uint64_t x, uint64_t y) noexcept {
 
 // Computes upper 128 bits of multiplication of a 64-bit unsigned integer and a
 // 128-bit unsigned integer.
-inline uint128_wrapper umul192_upper128(uint64_t x,
-                                        uint128_wrapper y) noexcept {
-  uint128_wrapper r = umul128(x, y.high());
+inline uint128_fallback umul192_upper128(uint64_t x,
+                                         uint128_fallback y) noexcept {
+  uint128_fallback r = umul128(x, y.high());
   r += umul128_upper64(x, y.low());
   return r;
 }
@@ -835,10 +832,10 @@ inline uint64_t umul96_upper64(uint32_t x, uint64_t y) noexcept {
 
 // Computes lower 128 bits of multiplication of a 64-bit unsigned integer and a
 // 128-bit unsigned integer.
-inline uint128_wrapper umul192_lower128(uint64_t x,
-                                        uint128_wrapper y) noexcept {
+inline uint128_fallback umul192_lower128(uint64_t x,
+                                         uint128_fallback y) noexcept {
   uint64_t high = x * y.high();
-  uint128_wrapper high_low = umul128(x, y.low());
+  uint128_fallback high_low = umul128(x, y.low());
   return {high + high_low.high(), high_low.low()};
 }
 
@@ -1015,13 +1012,13 @@ template <> struct cache_accessor<float> {
 
 template <> struct cache_accessor<double> {
   using carrier_uint = float_info<double>::carrier_uint;
-  using cache_entry_type = uint128_wrapper;
+  using cache_entry_type = uint128_fallback;
 
-  static uint128_wrapper get_cached_power(int k) noexcept {
+  static uint128_fallback get_cached_power(int k) noexcept {
     FMT_ASSERT(k >= float_info<double>::min_k && k <= float_info<double>::max_k,
                "k is out of range");
 
-    static constexpr const uint128_wrapper pow10_significands[] = {
+    static constexpr const uint128_fallback pow10_significands[] = {
 #if FMT_USE_FULL_CACHE_DRAGONBOX
       {0xff77b1fcbebcdc4f, 0x25e8e89c13bb0f7b},
       {0x9faacf3df73609b1, 0x77b191618c54e9ad},
@@ -1693,7 +1690,7 @@ template <> struct cache_accessor<double> {
     int offset = k - kb;
 
     // Get base cache.
-    uint128_wrapper base_cache = pow10_significands[cache_index];
+    uint128_fallback base_cache = pow10_significands[cache_index];
     if (offset == 0) return base_cache;
 
     // Compute the required amount of bit-shift.
@@ -1702,8 +1699,8 @@ template <> struct cache_accessor<double> {
 
     // Try to recover the real cache.
     uint64_t pow5 = powers_of_5_64[offset];
-    uint128_wrapper recovered_cache = umul128(base_cache.high(), pow5);
-    uint128_wrapper middle_low = umul128(base_cache.low(), pow5);
+    uint128_fallback recovered_cache = umul128(base_cache.high(), pow5);
+    uint128_fallback middle_low = umul128(base_cache.low(), pow5);
 
     recovered_cache += middle_low.high();
 
@@ -1711,8 +1708,8 @@ template <> struct cache_accessor<double> {
     uint64_t middle_to_low = recovered_cache.low() << (64 - alpha);
 
     recovered_cache =
-        uint128_wrapper{(recovered_cache.low() >> alpha) | high_to_middle,
-                        ((middle_low.low() >> alpha) | middle_to_low)};
+        uint128_fallback{(recovered_cache.low() >> alpha) | high_to_middle,
+                         ((middle_low.low() >> alpha) | middle_to_low)};
     FMT_ASSERT(recovered_cache.low() + 1 != 0, "");
     return {recovered_cache.high(), recovered_cache.low() + 1};
 #endif
@@ -1917,8 +1914,7 @@ template <typename T> decimal_fp<T> to_decimal(T x) noexcept {
       static_cast<int>((br & exponent_mask<T>()) >> num_significand_bits<T>());
 
   if (exponent != 0) {  // Check if normal.
-    const int exponent_bias = std::numeric_limits<T>::max_exponent - 1;
-    exponent -= exponent_bias + num_significand_bits<T>();
+    exponent -= exponent_bias<T>() + num_significand_bits<T>();
 
     // Shorter interval case; proceed like Schubfach.
     // In fact, when exponent == 1 and significand == 0, the interval is
@@ -2068,12 +2064,12 @@ FMT_CONSTEXPR20 inline void format_dragon(fp value, unsigned flags,
   bool is_predecessor_closer = (flags & dragon::predecessor_closer) != 0;
   int shift = is_predecessor_closer ? 2 : 1;
   if (value.e >= 0) {
-    numerator.assign(value.f);
+    numerator = value.f;
     numerator <<= value.e + shift;
-    lower.assign(1);
+    lower = 1;
     lower <<= value.e;
     if (is_predecessor_closer) {
-      upper_store.assign(1);
+      upper_store = 1;
       upper_store <<= value.e + 1;
       upper = &upper_store;
     }
@@ -2089,16 +2085,16 @@ FMT_CONSTEXPR20 inline void format_dragon(fp value, unsigned flags,
     }
     numerator *= value.f;
     numerator <<= shift;
-    denominator.assign(1);
+    denominator = 1;
     denominator <<= shift - value.e;
   } else {
-    numerator.assign(value.f);
+    numerator = value.f;
     numerator <<= shift;
     denominator.assign_pow10(exp10);
     denominator <<= shift - value.e;
-    lower.assign(1);
+    lower = 1;
     if (is_predecessor_closer) {
-      upper_store.assign(1ULL << 1);
+      upper_store = 1ULL << 1;
       upper = &upper_store;
     }
   }
@@ -2285,13 +2281,14 @@ FMT_HEADER_ONLY_CONSTEXPR20 int format_float(Float value, int precision,
 }  // namespace detail
 
 template <> struct formatter<detail::bigint> {
-  FMT_CONSTEXPR format_parse_context::iterator parse(
-      format_parse_context& ctx) {
+  FMT_CONSTEXPR auto parse(format_parse_context& ctx)
+      -> format_parse_context::iterator {
     return ctx.begin();
   }
 
-  format_context::iterator format(const detail::bigint& n,
-                                  format_context& ctx) {
+  template <typename FormatContext>
+  auto format(const detail::bigint& n, FormatContext& ctx) const ->
+      typename FormatContext::iterator {
     auto out = ctx.out();
     bool first = true;
     for (auto i = n.bigits_.size(); i > 0; --i) {

@@ -34,7 +34,6 @@
 #define FMT_FORMAT_H_
 
 #include <cmath>         // std::signbit
-#include <cstddef>       // std::byte
 #include <cstdint>       // uint32_t
 #include <cstring>       // std::memcpy
 #include <limits>        // std::numeric_limits
@@ -322,10 +321,15 @@ inline auto is_big_endian() -> bool {
 class uint128_fallback {
  private:
   uint64_t lo_, hi_;
-  constexpr uint128_fallback(uint64_t hi, uint64_t lo) : lo_(lo), hi_(hi) {}
+
+  friend uint128_fallback umul128(uint64_t x, uint64_t y) noexcept;
 
  public:
+  constexpr uint128_fallback(uint64_t hi, uint64_t lo) : lo_(lo), hi_(hi) {}
   constexpr uint128_fallback(uint64_t value = 0) : lo_(value), hi_(0) {}
+
+  constexpr uint64_t high() const noexcept { return hi_; }
+  constexpr uint64_t low() const noexcept { return lo_; }
 
   template <typename T, FMT_ENABLE_IF(std::is_integral<T>::value)>
   constexpr explicit operator T() const {
@@ -340,6 +344,10 @@ class uint128_fallback {
                          const uint128_fallback& rhs) -> bool {
     return !(lhs == rhs);
   }
+  friend auto operator>(const uint128_fallback& lhs,
+                        const uint128_fallback& rhs) -> bool {
+    return lhs.hi_ != rhs.hi_ ? lhs.hi_ > rhs.hi_ : lhs.lo_ > rhs.lo_;
+  }
   friend auto operator|(const uint128_fallback& lhs,
                         const uint128_fallback& rhs) -> uint128_fallback {
     return {lhs.hi_ | rhs.hi_, lhs.lo_ | rhs.lo_};
@@ -347,6 +355,18 @@ class uint128_fallback {
   friend auto operator&(const uint128_fallback& lhs,
                         const uint128_fallback& rhs) -> uint128_fallback {
     return {lhs.hi_ & rhs.hi_, lhs.lo_ & rhs.lo_};
+  }
+  friend auto operator+(const uint128_fallback& lhs,
+                        const uint128_fallback& rhs) -> uint128_fallback {
+    auto result = uint128_fallback(lhs);
+    result += rhs;
+    return result;
+  }
+  friend auto operator*(const uint128_fallback& lhs, uint32_t rhs)
+      -> uint128_fallback {
+    FMT_ASSERT(lhs.hi_ == 0, "");
+    uint64_t hi = (lhs.lo_ >> 32) * rhs;
+    return {hi >> 32, (hi << 32) + (lhs.lo_ & ~uint32_t()) * rhs};
   }
   friend auto operator-(const uint128_fallback& lhs, uint64_t rhs)
       -> uint128_fallback {
@@ -364,10 +384,14 @@ class uint128_fallback {
   FMT_CONSTEXPR auto operator>>=(int shift) -> uint128_fallback& {
     return *this = *this >> shift;
   }
-  FMT_CONSTEXPR void operator+=(uint64_t n) {
-    lo_ += n;
-    if (lo_ < n) ++hi_;
+  FMT_CONSTEXPR void operator+=(uint128_fallback n) {
+    uint64_t new_lo = lo_ + n.lo_;
+    uint64_t new_hi = hi_ + n.hi_ + (new_lo < lo_ ? 1 : 0);
+    FMT_ASSERT(new_hi >= hi_, "");
+    lo_ = new_lo;
+    hi_ = new_hi;
   }
+  FMT_CONSTEXPR20 uint128_fallback& operator+=(uint64_t n) noexcept;
 };
 
 using uint128_t = conditional_t<FMT_USE_INT128, uint128_opt, uint128_fallback>;
@@ -971,10 +995,9 @@ template <typename T>
 using uint32_or_64_or_128_t =
     conditional_t<num_bits<T>() <= 32 && !FMT_REDUCE_INT_INSTANTIATIONS,
                   uint32_t,
-                  conditional_t<num_bits<T>() <= 64, uint64_t, uint128_opt>>;
+                  conditional_t<num_bits<T>() <= 64, uint64_t, uint128_t>>;
 template <typename T>
-using uint64_or_128_t =
-    conditional_t<num_bits<T>() <= 64, uint64_t, uint128_opt>;
+using uint64_or_128_t = conditional_t<num_bits<T>() <= 64, uint64_t, uint128_t>;
 
 #define FMT_POWERS_OF_10(factor)                                             \
   factor * 10, (factor)*100, (factor)*1000, (factor)*10000, (factor)*100000, \
@@ -1307,6 +1330,11 @@ constexpr auto exponent_mask() ->
   using uint = typename dragonbox::float_info<Float>::carrier_uint;
   return ((uint(1) << dragonbox::float_info<Float>::exponent_bits) - 1)
          << num_significand_bits<Float>();
+}
+template <typename Float> constexpr auto exponent_bias() -> int {
+  // std::numeric_limits may not support __float128.
+  return is_float128<Float>() ? 16383
+                              : std::numeric_limits<Float>::max_exponent - 1;
 }
 
 // Writes the exponent exp in the form "[+-]d{2,3}" to buffer.
@@ -1963,7 +1991,7 @@ class counting_iterator {
   using difference_type = std::ptrdiff_t;
   using pointer = void;
   using reference = void;
-  using _Unchecked_type = counting_iterator;  // Mark iterator as checked.
+  FMT_UNCHECKED_ITERATOR(counting_iterator);
 
   struct value_type {
     template <typename T> void operator=(const T&) {}
@@ -2286,19 +2314,19 @@ FMT_CONSTEXPR20 auto write_float(OutputIt out, const DecimalFP& fp,
   }
 }
 
+template <typename T> constexpr bool isnan(T value) {
+  return !(value >= value);  // std::isnan doesn't support __float128.
+}
+
 template <typename T, FMT_ENABLE_IF(std::is_floating_point<T>::value &&
                                     !is_float128<T>::value)>
 FMT_CONSTEXPR20 bool isfinite(T value) {
-  if (is_constant_evaluated()) return value - value == 0;
+  if (is_constant_evaluated()) return !isnan(value - value);
   return std::isfinite(value);
 }
 template <typename T, FMT_ENABLE_IF(is_float128<T>::value)>
 constexpr bool isfinite(T value) {
   return value - value == 0;  // std::isfinite doesn't support __float128.
-}
-
-template <typename T> constexpr bool isnan(T value) {
-  return value != value;  // std::isnan doesn't support __float128.
 }
 
 template <typename T, FMT_ENABLE_IF(is_floating_point<T>::value)>
@@ -2370,12 +2398,7 @@ template <typename Char, typename OutputIt, typename T,
 FMT_CONSTEXPR20 auto write(OutputIt out, T value) -> OutputIt {
   if (is_constant_evaluated())
     return write(out, value, basic_format_specs<Char>());
-
   if (const_check(!is_supported_floating_point(value))) return out;
-
-  using floaty = conditional_t<std::is_same<T, long double>::value, double, T>;
-  using uint = typename dragonbox::float_info<floaty>::carrier_uint;
-  auto bits = bit_cast<uint>(value);
 
   auto fspecs = float_specs();
   if (detail::signbit(value)) {
@@ -2384,8 +2407,10 @@ FMT_CONSTEXPR20 auto write(OutputIt out, T value) -> OutputIt {
   }
 
   constexpr auto specs = basic_format_specs<Char>();
+  using floaty = conditional_t<std::is_same<T, long double>::value, double, T>;
+  using uint = typename dragonbox::float_info<floaty>::carrier_uint;
   uint mask = exponent_mask<floaty>();
-  if ((bits & mask) == mask)
+  if ((bit_cast<uint>(value) & mask) == mask)
     return write_nonfinite(out, std::isnan(value), specs, fspecs);
 
   auto dec = dragonbox::to_decimal(static_cast<floaty>(value));
@@ -2995,11 +3020,6 @@ constexpr auto format_as(Enum e) noexcept -> underlying_t<Enum> {
 }
 }  // namespace enums
 
-#ifdef __cpp_lib_byte
-inline auto format_as(std::byte b) -> unsigned char { return underlying(b); }
-FMT_FORMAT_AS(std::byte, unsigned char);
-#endif
-
 class bytes {
  private:
   string_view data_;
@@ -3331,11 +3351,9 @@ inline namespace literals {
   \endrst
  */
 #  if FMT_USE_NONTYPE_TEMPLATE_PARAMETERS
-template <detail_exported::fixed_string Str>
-constexpr auto operator""_a()
-    -> detail::udl_arg<remove_cvref_t<decltype(Str.data[0])>,
-                       sizeof(Str.data) / sizeof(decltype(Str.data[0])), Str> {
-  return {};
+template <detail_exported::fixed_string Str> constexpr auto operator""_a() {
+  using char_t = remove_cvref_t<decltype(Str.data[0])>;
+  return detail::udl_arg<char_t, sizeof(Str.data) / sizeof(char_t), Str>();
 }
 #  else
 constexpr auto operator"" _a(const char* s, size_t) -> detail::udl_arg<char> {
