@@ -34,7 +34,6 @@
 #define FMT_FORMAT_H_
 
 #include <cmath>         // std::signbit
-#include <cstddef>       // std::byte
 #include <cstdint>       // uint32_t
 #include <cstring>       // std::memcpy
 #include <limits>        // std::numeric_limits
@@ -330,36 +329,60 @@ inline auto is_big_endian() -> bool {
 class uint128_fallback {
  private:
   uint64_t lo_, hi_;
-  constexpr uint128_fallback(uint64_t hi, uint64_t lo) : lo_(lo), hi_(hi) {}
+
+  friend uint128_fallback umul128(uint64_t x, uint64_t y) noexcept;
 
  public:
+  constexpr uint128_fallback(uint64_t hi, uint64_t lo) : lo_(lo), hi_(hi) {}
   constexpr uint128_fallback(uint64_t value = 0) : lo_(value), hi_(0) {}
+
+  constexpr uint64_t high() const noexcept { return hi_; }
+  constexpr uint64_t low() const noexcept { return lo_; }
 
   template <typename T, FMT_ENABLE_IF(std::is_integral<T>::value)>
   constexpr explicit operator T() const {
     return static_cast<T>(lo_);
   }
 
-  friend auto operator==(const uint128_fallback& lhs,
-                         const uint128_fallback& rhs) -> bool {
+  friend constexpr auto operator==(const uint128_fallback& lhs,
+                                   const uint128_fallback& rhs) -> bool {
     return lhs.hi_ == rhs.hi_ && lhs.lo_ == rhs.lo_;
   }
-  friend auto operator!=(const uint128_fallback& lhs,
-                         const uint128_fallback& rhs) -> bool {
+  friend constexpr auto operator!=(const uint128_fallback& lhs,
+                                   const uint128_fallback& rhs) -> bool {
     return !(lhs == rhs);
   }
-  friend auto operator|(const uint128_fallback& lhs,
-                        const uint128_fallback& rhs) -> uint128_fallback {
+  friend constexpr auto operator>(const uint128_fallback& lhs,
+                                  const uint128_fallback& rhs) -> bool {
+    return lhs.hi_ != rhs.hi_ ? lhs.hi_ > rhs.hi_ : lhs.lo_ > rhs.lo_;
+  }
+  friend constexpr auto operator|(const uint128_fallback& lhs,
+                                  const uint128_fallback& rhs)
+      -> uint128_fallback {
     return {lhs.hi_ | rhs.hi_, lhs.lo_ | rhs.lo_};
   }
-  friend auto operator&(const uint128_fallback& lhs,
-                        const uint128_fallback& rhs) -> uint128_fallback {
+  friend constexpr auto operator&(const uint128_fallback& lhs,
+                                  const uint128_fallback& rhs)
+      -> uint128_fallback {
     return {lhs.hi_ & rhs.hi_, lhs.lo_ & rhs.lo_};
+  }
+  friend auto operator+(const uint128_fallback& lhs,
+                        const uint128_fallback& rhs) -> uint128_fallback {
+    auto result = uint128_fallback(lhs);
+    result += rhs;
+    return result;
+  }
+  friend auto operator*(const uint128_fallback& lhs, uint32_t rhs)
+      -> uint128_fallback {
+    FMT_ASSERT(lhs.hi_ == 0, "");
+    uint64_t hi = (lhs.lo_ >> 32) * rhs;
+    uint64_t lo = (lhs.lo_ & ~uint32_t()) * rhs;
+    uint64_t new_lo = (hi << 32) + lo;
+    return {(hi >> 32) + (new_lo < lo ? 1 : 0), new_lo};
   }
   friend auto operator-(const uint128_fallback& lhs, uint64_t rhs)
       -> uint128_fallback {
-    FMT_ASSERT(lhs.lo_ >= rhs, "");
-    return {lhs.hi_, lhs.lo_ - rhs};
+    return {lhs.hi_ - (lhs.lo_ < rhs ? 1 : 0), lhs.lo_ - rhs};
   }
   FMT_CONSTEXPR auto operator>>(int shift) const -> uint128_fallback {
     if (shift == 64) return {0, hi_};
@@ -372,10 +395,14 @@ class uint128_fallback {
   FMT_CONSTEXPR auto operator>>=(int shift) -> uint128_fallback& {
     return *this = *this >> shift;
   }
-  FMT_CONSTEXPR void operator+=(uint64_t n) {
-    lo_ += n;
-    if (lo_ < n) ++hi_;
+  FMT_CONSTEXPR void operator+=(uint128_fallback n) {
+    uint64_t new_lo = lo_ + n.lo_;
+    uint64_t new_hi = hi_ + n.hi_ + (new_lo < lo_ ? 1 : 0);
+    FMT_ASSERT(new_hi >= hi_, "");
+    lo_ = new_lo;
+    hi_ = new_hi;
   }
+  FMT_CONSTEXPR20 uint128_fallback& operator+=(uint64_t n) noexcept;
 };
 
 using uint128_t = conditional_t<FMT_USE_INT128, uint128_opt, uint128_fallback>;
@@ -979,10 +1006,9 @@ template <typename T>
 using uint32_or_64_or_128_t =
     conditional_t<num_bits<T>() <= 32 && !FMT_REDUCE_INT_INSTANTIATIONS,
                   uint32_t,
-                  conditional_t<num_bits<T>() <= 64, uint64_t, uint128_opt>>;
+                  conditional_t<num_bits<T>() <= 64, uint64_t, uint128_t>>;
 template <typename T>
-using uint64_or_128_t =
-    conditional_t<num_bits<T>() <= 64, uint64_t, uint128_opt>;
+using uint64_or_128_t = conditional_t<num_bits<T>() <= 64, uint64_t, uint128_t>;
 
 #define FMT_POWERS_OF_10(factor)                                             \
   factor * 10, (factor)*100, (factor)*1000, (factor)*10000, (factor)*100000, \
@@ -2233,7 +2259,7 @@ FMT_CONSTEXPR20 auto do_write_float(OutputIt out, const DecimalFP& fp,
       if (num_zeros > 0) size += to_unsigned(num_zeros);
     }
     auto grouping = Grouping(loc, fspecs.locale);
-    size += to_unsigned(grouping.count_separators(significand_size));
+    size += to_unsigned(grouping.count_separators(exp));
     return write_padded<align::right>(out, specs, size, [&](iterator it) {
       if (sign) *it++ = detail::sign<Char>(sign);
       it = write_significand<Char>(it, significand, significand_size,
@@ -2301,19 +2327,19 @@ FMT_CONSTEXPR20 auto write_float(OutputIt out, const DecimalFP& fp,
   }
 }
 
+template <typename T> constexpr bool isnan(T value) {
+  return !(value >= value);  // std::isnan doesn't support __float128.
+}
+
 template <typename T, FMT_ENABLE_IF(std::is_floating_point<T>::value &&
                                     !is_float128<T>::value)>
 FMT_CONSTEXPR20 bool isfinite(T value) {
-  if (is_constant_evaluated()) return value - value == 0;
+  if (is_constant_evaluated()) return !isnan(value - value);
   return std::isfinite(value);
 }
 template <typename T, FMT_ENABLE_IF(is_float128<T>::value)>
 constexpr bool isfinite(T value) {
   return value - value == 0;  // std::isfinite doesn't support __float128.
-}
-
-template <typename T> constexpr bool isnan(T value) {
-  return value != value;  // std::isnan doesn't support __float128.
 }
 
 template <typename T, FMT_ENABLE_IF(is_floating_point<T>::value)>
@@ -3032,11 +3058,6 @@ constexpr auto format_as(Enum e) noexcept -> underlying_t<Enum> {
   return static_cast<underlying_t<Enum>>(e);
 }
 }  // namespace enums
-
-#ifdef __cpp_lib_byte
-inline auto format_as(std::byte b) -> unsigned char { return underlying(b); }
-FMT_FORMAT_AS(std::byte, unsigned char);
-#endif
 
 class bytes {
  private:
