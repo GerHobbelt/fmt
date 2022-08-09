@@ -8,22 +8,29 @@
 #ifndef FMT_STD_H_
 #define FMT_STD_H_
 
-#include <version>
+#include <thread>
+
+#include "ostream.h"
+
+#if FMT_HAS_INCLUDE(<version>)
+#  include <version>
+#endif
 
 #ifdef __cpp_lib_filesystem
 #  include <filesystem>
 
-namespace fmt {
-
-template <> struct formatter<std::filesystem::path> : formatter<string_view> {
+template <>
+struct fmt::formatter<std::filesystem::path> : formatter<string_view> {
   template <typename FormatContext>
-  auto format(const path& p, FormatContext& ctx) const ->
+  auto format(const std::filesystem::path& p, FormatContext& ctx) const ->
       typename FormatContext::iterator {
     return formatter<string_view>::format(p.string(), ctx);
   }
 };
-
-}  // namespace fmt
 #endif
+
+FMT_BEGIN_NAMESPACE
+template <> struct formatter<std::thread::id> : ostream_formatter {};
+FMT_END_NAMESPACE
 
 #endif  // FMT_STD_H_
