@@ -258,8 +258,8 @@
 #endif
 
 // libc++ supports string_view in pre-c++17.
-#if FMT_HAS_INCLUDE(<string_view>) && \
-    (FMT_CPLUSPLUS >= 201703L || defined(_LIBCPP_VERSION))
+#if 1 || (FMT_HAS_INCLUDE(<string_view>) && \
+    (FMT_CPLUSPLUS >= 201703L || defined(_LIBCPP_VERSION)))
 #  include <string_view>
 #  define FMT_USE_STRING_VIEW
 #elif FMT_HAS_INCLUDE("experimental/string_view") && FMT_CPLUSPLUS >= 201402L
@@ -2137,8 +2137,7 @@ enum class presentation_type : unsigned char {
   chr,             // 'c'
   string,          // 's'
   pointer,         // 'p'
-  debug,           // '?'
-  any              // 'y'
+  debug            // '?'
 };
 
 // Format specifiers for built-in and string types.
@@ -2558,8 +2557,6 @@ FMT_CONSTEXPR auto parse_presentation_type(Char type) -> presentation_type {
     return presentation_type::pointer;
   case '?':
     return presentation_type::debug;
-  case 'y':
-    return presentation_type::any;
   default:
     return presentation_type::none;
   }
@@ -2759,7 +2756,7 @@ FMT_CONSTEXPR auto parse_format_specs(ParseContext& ctx)
 template <typename ErrorHandler>
 FMT_CONSTEXPR void check_int_type_spec(presentation_type type,
                                        ErrorHandler&& eh) {
-  if (type > presentation_type::bin_upper && type != presentation_type::chr && type != presentation_type::any)
+  if (type > presentation_type::bin_upper && type != presentation_type::chr)
     eh.on_error("invalid type specifier");
 }
 
@@ -2769,9 +2766,7 @@ FMT_CONSTEXPR auto check_char_specs(const basic_format_specs<Char>& specs,
                                     ErrorHandler&& eh = {}) -> bool {
   if (specs.type != presentation_type::none &&
       specs.type != presentation_type::chr &&
-      specs.type != presentation_type::string && 
-      specs.type != presentation_type::debug && 
-	  specs.type != presentation_type::any) {
+      specs.type != presentation_type::debug) {
     check_int_type_spec(specs.type, eh);
     return false;
   }
@@ -2813,7 +2808,6 @@ FMT_CONSTEXPR auto parse_float_type_spec(const basic_format_specs<Char>& specs,
     result.upper = true;
     FMT_FALLTHROUGH;
   case presentation_type::general_lower:
-  case presentation_type::any:
     result.format = float_format::general;
     break;
   case presentation_type::exp_upper:
@@ -2838,7 +2832,6 @@ FMT_CONSTEXPR auto parse_float_type_spec(const basic_format_specs<Char>& specs,
     break;
   default:
     eh.on_error("invalid type specifier");
-    result.format = float_format::general;
     break;
   }
   return result;
@@ -2847,19 +2840,17 @@ FMT_CONSTEXPR auto parse_float_type_spec(const basic_format_specs<Char>& specs,
 template <typename ErrorHandler = error_handler>
 FMT_CONSTEXPR auto check_cstring_type_spec(presentation_type type,
                                            ErrorHandler&& eh = {}) -> bool {
-  if (type == presentation_type::none || type == presentation_type::string || type == presentation_type::any ||
+  if (type == presentation_type::none || type == presentation_type::string ||
       type == presentation_type::debug)
     return true;
   if (type != presentation_type::pointer) eh.on_error("invalid type specifier");
-  return true;
+  return false;
 }
 
 template <typename ErrorHandler = error_handler>
 FMT_CONSTEXPR void check_string_type_spec(presentation_type type,
                                           ErrorHandler&& eh = {}) {
-  if (type != presentation_type::none &&
-      type != presentation_type::string &&
-      type != presentation_type::any &&
+  if (type != presentation_type::none && type != presentation_type::string &&
       type != presentation_type::debug)
     eh.on_error("invalid type specifier");
 }
@@ -2867,7 +2858,7 @@ FMT_CONSTEXPR void check_string_type_spec(presentation_type type,
 template <typename ErrorHandler>
 FMT_CONSTEXPR void check_pointer_type_spec(presentation_type type,
                                            ErrorHandler&& eh) {
-  if (type != presentation_type::none && type != presentation_type::pointer && type != presentation_type::any)
+  if (type != presentation_type::none && type != presentation_type::pointer)
     eh.on_error("invalid type specifier");
 }
 
