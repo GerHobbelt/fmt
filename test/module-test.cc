@@ -113,8 +113,8 @@ TEST(module_test, macros) {
 // The following is less about functional testing (that's done elsewhere)
 // but rather visibility of all client-facing overloads, reachability of
 // non-exported entities, name lookup and overload resolution within
-// template instantitions.
-// Excercise all exported entities of the API at least once.
+// template instantiations.
+// Exercise all exported entities of the API at least once.
 // Instantiate as many code paths as possible.
 
 TEST(module_test, to_string) {
