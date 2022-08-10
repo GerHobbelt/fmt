@@ -88,7 +88,7 @@ using wformat_string = basic_format_string<wchar_t, type_identity_t<Args>...>;
 #endif
 
 template <typename... T>
-auto format(wformat_string<T...> fmt, T&&... args) -> std::wstring {
+auto format(wformat_string<T...> fmt, T&&... args) -> std::basic_string<wchar_t> {
   return vformat(fmt, fmt::make_wformat_args(args...));
 }
 

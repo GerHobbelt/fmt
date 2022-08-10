@@ -87,7 +87,7 @@ inline bool write(std::filebuf& buf, fmt::string_view data) {
   print(f, data);
   return true;
 }
-inline bool write(std::wfilebuf&, fmt::basic_string_view<wchar_t>) {
+inline bool write(std::basic_filebuf<wchar_t>&, fmt::basic_string_view<wchar_t>) {
   return false;
 }
 
