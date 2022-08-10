@@ -17,7 +17,12 @@
 #  include <crtdbg.h>
 #endif
 
-int main(int argc, char** argv) {
+
+#if !defined(MUDRAW_STANDALONE) && defined(BUILD_MONOLITHIC)
+#define main(cnt, arr)      fmt_test_main(cnt, arr)
+#endif
+
+int main(int argc, const char** argv) {
 #ifdef _WIN32
   // Don't display any error dialogs. This also suppresses message boxes
   // on assertion failures in MinGW where _set_error_mode/CrtSetReportMode
