@@ -21,7 +21,7 @@
 #  define FMT_RANGES_TEST_ENABLE_C_STYLE_ARRAY
 #endif
 
-#if !FMT_MSC_VER || FMT_MSC_VER > 1910
+#if !FMT_MSC_VERSION || FMT_MSC_VERSION > 1910
 #  define FMT_RANGES_TEST_ENABLE_JOIN
 #  define FMT_RANGES_TEST_ENABLE_FORMAT_STRUCT
 #endif
@@ -70,13 +70,9 @@ struct box {
   int value;
 };
 
-auto begin(const box& b) -> const int* {
-  return &b.value;
-}
+auto begin(const box& b) -> const int* { return &b.value; }
 
-auto end(const box& b) -> const int* {
-  return &b.value + 1;
-}
+auto end(const box& b) -> const int* { return &b.value + 1; }
 }  // namespace adl
 
 TEST(ranges_test, format_adl_begin_end) {
@@ -89,11 +85,22 @@ TEST(ranges_test, format_pair) {
   EXPECT_EQ(fmt::format("{}", p), "(42, 1.5)");
 }
 
+struct unformattable {};
+
 TEST(ranges_test, format_tuple) {
   auto t =
       std::tuple<int, float, std::string, char>(42, 1.5f, "this is tuple", 'i');
   EXPECT_EQ(fmt::format("{}", t), "(42, 1.5, \"this is tuple\", 'i')");
   EXPECT_EQ(fmt::format("{}", std::tuple<>()), "()");
+
+  EXPECT_TRUE((fmt::is_formattable<std::tuple<>>::value));
+  EXPECT_FALSE((fmt::is_formattable<unformattable>::value));
+  EXPECT_FALSE((fmt::is_formattable<std::tuple<unformattable>>::value));
+  EXPECT_FALSE((fmt::is_formattable<std::tuple<unformattable, int>>::value));
+  EXPECT_FALSE((fmt::is_formattable<std::tuple<int, unformattable>>::value));
+  EXPECT_FALSE(
+      (fmt::is_formattable<std::tuple<unformattable, unformattable>>::value));
+  EXPECT_TRUE((fmt::is_formattable<std::tuple<int, float>>::value));
 }
 
 #ifdef FMT_RANGES_TEST_ENABLE_FORMAT_STRUCT
@@ -217,14 +224,14 @@ TEST(ranges_test, range) {
 }
 
 enum test_enum { foo };
+auto format_as(test_enum e) -> int { return e; }
 
 TEST(ranges_test, enum_range) {
   auto v = std::vector<test_enum>{test_enum::foo};
   EXPECT_EQ(fmt::format("{}", v), "[0]");
 }
 
-#if !FMT_MSC_VER
-struct unformattable {};
+#if !FMT_MSC_VERSION
 
 TEST(ranges_test, unformattable_range) {
   EXPECT_FALSE((fmt::has_formatter<std::vector<unformattable>,
@@ -370,6 +377,7 @@ TEST(ranges_test, escape_string) {
     EXPECT_EQ(fmt::format("{}", vec{"\xf0\xaa\x9b\x9e"}), "[\"\\U0002a6de\"]");
     EXPECT_EQ(fmt::format("{}", vec{"\xf4\x8f\xbf\xc0"}),
               "[\"\\xf4\\x8f\\xbf\\xc0\"]");
+    EXPECT_EQ(fmt::format("{}", vec{"понедельник"}), "[\"понедельник\"]");
   }
 }
 

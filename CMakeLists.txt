@@ -125,7 +125,6 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH}
   "${CMAKE_CURRENT_SOURCE_DIR}/support/cmake")
 
 include(cxx14)
-include(CheckCXXCompilerFlag)
 include(JoinPaths)
 
 list(FIND CMAKE_CXX_COMPILE_FEATURES "cxx_variadic_templates" index)
@@ -219,7 +218,7 @@ endfunction()
 
 # Define the fmt library, its includes and the needed defines.
 add_headers(FMT_HEADERS args.h chrono.h color.h compile.h core.h format.h
-                        format-inl.h locale.h os.h ostream.h printf.h ranges.h
+                        format-inl.h os.h ostream.h printf.h ranges.h std.h
                         xchar.h)
 if (FMT_MODULE)
   set(FMT_SOURCES src/fmt.cc)

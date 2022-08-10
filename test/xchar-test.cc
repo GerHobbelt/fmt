@@ -66,7 +66,7 @@ TYPED_TEST(is_string_test, is_string) {
 }
 
 // std::is_constructible is broken in MSVC until version 2015.
-#if !FMT_MSC_VER || FMT_MSC_VER >= 1900
+#if !FMT_MSC_VERSION || FMT_MSC_VERSION >= 1900
 struct explicitly_convertible_to_wstring_view {
   explicit operator fmt::wstring_view() const { return L"foo"; }
 };
@@ -98,12 +98,12 @@ TEST(xchar_test, is_formattable) {
 }
 
 TEST(xchar_test, compile_time_string) {
-#if defined(FMT_USE_STRING_VIEW) && __cplusplus >= 201703L
+#if defined(FMT_USE_STRING_VIEW) && FMT_CPLUSPLUS >= 201703L
   EXPECT_EQ(L"42", fmt::format(FMT_STRING(std::wstring_view(L"{}")), 42));
 #endif
 }
 
-#if __cplusplus > 201103L
+#if FMT_CPLUSPLUS > 201103L
 struct custom_char {
   int value;
   custom_char() = default;
@@ -185,11 +185,6 @@ TEST(format_test, wide_format_to_n) {
 }
 
 #if FMT_USE_USER_DEFINED_LITERALS
-TEST(xchar_test, format_udl) {
-  using namespace fmt::literals;
-  EXPECT_EQ(L"{}c{}"_format(L"ab", 1), fmt::format(L"{}c{}", L"ab", 1));
-}
-
 TEST(xchar_test, named_arg_udl) {
   using namespace fmt::literals;
   auto udl_a =
@@ -227,6 +222,7 @@ struct formatter<streamable_enum, wchar_t> : basic_ostream_formatter<wchar_t> {
 }  // namespace fmt
 
 enum unstreamable_enum {};
+auto format_as(unstreamable_enum e) -> int { return e; }
 
 TEST(xchar_test, enum) {
   EXPECT_EQ(L"streamable_enum", fmt::format(L"{}", streamable_enum()));
@@ -238,28 +234,6 @@ TEST(xchar_test, sign_not_truncated) {
       L'{', L':',
       '+' | static_cast<wchar_t>(1 << fmt::detail::num_bits<char>()), L'}', 0};
   EXPECT_THROW(fmt::format(format_str, 42), fmt::format_error);
-}
-
-namespace fake_qt {
-class QString {
- public:
-  QString(const wchar_t* s) : s_(s) {}
-  const wchar_t* utf16() const noexcept { return s_.data(); }
-  int size() const noexcept { return static_cast<int>(s_.size()); }
-
- private:
-  std::wstring s_;
-};
-
-fmt::basic_string_view<wchar_t> to_string_view(const QString& s) noexcept {
-  return {s.utf16(), static_cast<size_t>(s.size())};
-}
-}  // namespace fake_qt
-
-TEST(format_test, format_foreign_strings) {
-  using fake_qt::QString;
-  EXPECT_EQ(fmt::format(QString(L"{}"), 42), L"42");
-  EXPECT_EQ(fmt::format(QString(L"{}"), QString(L"42")), L"42");
 }
 
 TEST(xchar_test, chrono) {
@@ -337,6 +311,17 @@ TEST(xchar_test, ostream) {
 #endif
 }
 
+TEST(xchar_test, format_map) {
+  auto m = std::map<std::wstring, int>{{L"one", 1}, {L"t\"wo", 2}};
+  EXPECT_EQ(fmt::format(L"{}", m), L"{\"one\": 1, \"t\\\"wo\": 2}");
+}
+
+TEST(xchar_test, escape_string) {
+  using vec = std::vector<std::wstring>;
+  EXPECT_EQ(fmt::format(L"{}", vec{L"\n\r\t\"\\"}), L"[\"\\n\\r\\t\\\"\\\\\"]");
+  EXPECT_EQ(fmt::format(L"{}", vec{L"понедельник"}), L"[\"понедельник\"]");
+}
+
 TEST(xchar_test, to_wstring) { EXPECT_EQ(L"42", fmt::to_wstring(42)); }
 
 #ifndef FMT_STATIC_THOUSANDS_SEPARATOR
@@ -370,10 +355,11 @@ template <typename Char> struct small_grouping : std::numpunct<Char> {
 
 TEST(locale_test, localized_double) {
   auto loc = std::locale(std::locale(), new numpunct<char>());
-  EXPECT_EQ("1?23", fmt::format(loc, "{:L}", 1.23));
-  EXPECT_EQ("1?230000", fmt::format(loc, "{:Lf}", 1.23));
-  EXPECT_EQ("1~234?5", fmt::format(loc, "{:L}", 1234.5));
-  EXPECT_EQ("12~000", fmt::format(loc, "{:L}", 12000.0));
+  EXPECT_EQ(fmt::format(loc, "{:L}", 1.23), "1?23");
+  EXPECT_EQ(fmt::format(loc, "{:Lf}", 1.23), "1?230000");
+  EXPECT_EQ(fmt::format(loc, "{:L}", 1234.5), "1~234?5");
+  EXPECT_EQ(fmt::format(loc, "{:L}", 12000.0), "12~000");
+  EXPECT_EQ(fmt::format(loc, "{:8L}", 1230.0), "   1~230");
 }
 
 TEST(locale_test, format) {

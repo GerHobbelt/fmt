@@ -187,7 +187,7 @@ TEST(compile_test, named) {
   EXPECT_THROW(fmt::format(FMT_COMPILE("{invalid}"), fmt::arg("valid", 42)),
                fmt::format_error);
 
-#  if FMT_USE_NONTYPE_TEMPLATE_PARAMETERS
+#  if FMT_USE_NONTYPE_TEMPLATE_ARGS
   using namespace fmt::literals;
   auto statically_named_field_compiled =
       fmt::detail::compile<decltype("arg"_a = 42)>(FMT_COMPILE("{arg}"));
@@ -285,7 +285,7 @@ TEST(compile_test, print) {
 }
 #endif
 
-#if FMT_USE_NONTYPE_TEMPLATE_PARAMETERS
+#if FMT_USE_NONTYPE_TEMPLATE_ARGS
 TEST(compile_test, compile_format_string_literal) {
   using namespace fmt::literals;
   EXPECT_EQ("", fmt::format(""_cf));
@@ -294,8 +294,15 @@ TEST(compile_test, compile_format_string_literal) {
 }
 #endif
 
-#if __cplusplus >= 202002L || \
-    (__cplusplus >= 201709L && FMT_GCC_VERSION >= 1002)
+// MSVS 2019 19.29.30145.0 - Support C++20 and OK.
+// MSVS 2022 19.32.31332.0 - compile-test.cc(362,3): fatal error C1001: Internal
+// compiler error.
+//  (compiler file
+//  'D:\a\_work\1\s\src\vctools\Compiler\CxxFE\sl\p1\c\constexpr\constexpr.cpp',
+//  line 8635)
+#if ((FMT_CPLUSPLUS >= 202002L) &&                    \
+     (!FMT_MSC_VERSION || FMT_MSC_VERSION < 1930)) || \
+    (FMT_CPLUSPLUS >= 201709L && FMT_GCC_VERSION >= 1002)
 template <size_t max_string_length, typename Char = char> struct test_string {
   template <typename T> constexpr bool operator==(const T& rhs) const noexcept {
     return fmt::basic_string_view<Char>(rhs).compare(buffer) == 0;
