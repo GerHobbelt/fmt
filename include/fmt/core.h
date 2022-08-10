@@ -1472,6 +1472,7 @@ template <typename Context> struct arg_mapper {
     return values;
   }
 
+#if 0
   template <typename T,
             FMT_ENABLE_IF(
                 std::is_enum<T>::value&& std::is_convertible<T, int>::value &&
@@ -1482,6 +1483,7 @@ template <typename Context> struct arg_mapper {
           static_cast<underlying_t<T>>(val))) {
     return map(static_cast<underlying_t<T>>(val));
   }
+#endif
 
   template <typename T, FMT_ENABLE_IF(has_format_as<T>::value &&
                                       !has_formatter<T, Context>::value)>
