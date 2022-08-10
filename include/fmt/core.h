@@ -573,7 +573,7 @@ void to_string_view(...);
 // enable_if and MSVC 2015 fails to compile it as an alias template.
 // ADL invocation of to_string_view is DEPRECATED!
 template <typename S>
-struct is_string : std::is_class<decltype(to_string_view(std::declval<S>()))> {
+struct is_string : std::is_class<decltype(detail::to_string_view(std::declval<S>()))> {
 };
 
 template <typename S, typename = void> struct char_t_impl {};
@@ -1416,7 +1416,7 @@ template <typename Context> struct arg_mapper {
                           std::is_same<char_type, char_t<T>>::value)>
   FMT_CONSTEXPR FMT_INLINE auto map(const T& val)
       -> basic_string_view<char_type> {
-    return to_string_view(val);
+    return detail::to_string_view(val);
   }
   template <typename T,
             FMT_ENABLE_IF(is_string<T>::value && !std::is_pointer<T>::value &&
