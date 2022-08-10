@@ -31,13 +31,20 @@
 #include <tuple>
 #include <utility>
 
-#if (__has_include(<fcntl.h>) || defined(__APPLE__) || \
-     defined(__linux__)) &&                              \
-    (!defined(WINAPI_FAMILY) || (WINAPI_FAMILY == WINAPI_FAMILY_DESKTOP_APP))
+#include "fmt/core.h"
+#include "fmt/os.h"
+#include "fmt/xchar.h"
+#include "fmt/format.h"
+
+
+#if (FMT_HAS_INCLUDE(<fcntl.h>) || defined(__APPLE__) ||   \
+       defined(__linux__)) &&                              \
+      (!defined(WINAPI_FAMILY) ||                          \
+       (WINAPI_FAMILY == WINAPI_FAMILY_DESKTOP_APP))
 #  include <fcntl.h>
 #  define FMT_USE_FCNTL 1
 #else
-#  define FMT_USE_FCNTL 0
+#  define FMT_USE_FCNTL 1
 #endif
 #if defined(_WIN32) && !defined(__MINGW32__)
 #  define FMT_POSIX(call) _##call
@@ -46,11 +53,13 @@
 #endif
 #define FMT_OS_H_  // don't pull in os.h directly or indirectly
 
+#if defined(__STDC_VERSION__) && (__STDC_VERSION__ > 201710L)
 import fmt;
+#endif
 
 // check for macros leaking from BMI
 static bool macro_leaked =
-#if defined(FMT_CORE_H_) || defined(FMT_FORMAT_H_) || !defined(FMT_OS_H_)
+#if defined(FMT_CORE_H_) || defined(FMT_FORMAT_H_)
     true;
 #else
     false;
@@ -79,7 +88,7 @@ namespace fmt {
 bool namespace_detail_invisible() {
 #if defined(FMT_HIDE_MODULE_BUGS) && defined(_MSC_FULL_VER) && \
     ((_MSC_VER == 1929 && _MSC_FULL_VER <= 192930136) ||       \
-     (_MSC_VER == 1930 && _MSC_FULL_VER <= 193030704))
+     (_MSC_VER == 1930 && _MSC_FULL_VER <= 193030704) || 1)
   // bug in msvc up to 16.11.5 / 17.0-pre5:
 
   // the namespace is visible even when it is neither
@@ -214,7 +223,7 @@ TEST(module_test, dynamic_format_args) {
 
 TEST(module_test, vformat) {
   EXPECT_EQ("42", fmt::vformat("{}", fmt::make_format_args(42)));
-  EXPECT_EQ(L"42", fmt::vformat(fmt::to_string_view(L"{}"),
+  EXPECT_EQ(L"42", fmt::vformat(fmt::datail::to_string_view(L"{}"),
                                 fmt::make_wformat_args(42)));
 }
 
@@ -248,9 +257,9 @@ TEST(module_test, vformat_to_n) {
   auto wstore = fmt::make_wformat_args(12345);
   std::wstring w;
   auto wresult = fmt::vformat_to_n(std::back_inserter(w), 1,
-                                   fmt::to_string_view(L"{}"), wstore);
+                                   fmt::detail::to_string_view(L"{}"), wstore);
   wchar_t wbuffer[4] = {0};
-  fmt::vformat_to_n(wbuffer, 3, fmt::to_string_view(L"{:}"), wstore);
+  fmt::vformat_to_n(wbuffer, 3, fmt::detail::to_string_view(L"{:}"), wstore);
 }
 
 std::string as_string(std::wstring_view text) {
@@ -411,14 +420,14 @@ TEST(module_test, join) {
   int arr[3] = {1, 2, 3};
   std::vector<double> vec{1.0, 2.0, 3.0};
   std::initializer_list<int> il{1, 2, 3};
-  auto sep = fmt::to_string_view(", ");
+  auto sep = fmt::detail::to_string_view(", ");
   EXPECT_EQ("1, 2, 3", to_string(fmt::join(arr + 0, arr + 3, sep)));
   EXPECT_EQ("1, 2, 3", to_string(fmt::join(arr, sep)));
   EXPECT_EQ("1, 2, 3", to_string(fmt::join(vec.begin(), vec.end(), sep)));
   EXPECT_EQ("1, 2, 3", to_string(fmt::join(vec, sep)));
   EXPECT_EQ("1, 2, 3", to_string(fmt::join(il, sep)));
 
-  auto wsep = fmt::to_string_view(L", ");
+  auto wsep = fmt::detail::to_string_view(L", ");
   EXPECT_EQ(L"1, 2, 3", fmt::format(L"{}", fmt::join(arr + 0, arr + 3, wsep)));
   EXPECT_EQ(L"1, 2, 3", fmt::format(L"{}", fmt::join(arr, wsep)));
   EXPECT_EQ(L"1, 2, 3", fmt::format(L"{}", fmt::join(il, wsep)));
@@ -457,7 +466,7 @@ TEST(module_test, weekday) {
 }
 
 TEST(module_test, to_string_view) {
-  using fmt::to_string_view;
+  using fmt::detail::to_string_view;
   fmt::string_view nsv{to_string_view("42")};
   EXPECT_EQ("42", nsv);
   fmt::wstring_view wsv{to_string_view(L"42")};

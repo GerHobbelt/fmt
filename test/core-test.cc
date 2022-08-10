@@ -32,7 +32,7 @@ using testing::Invoke;
 using testing::Return;
 
 #ifdef FMT_FORMAT_H_
-#  error core-test includes format.h
+#pragma message("core-test includes format.h")
 #endif
 
 TEST(string_view_test, value_type) {

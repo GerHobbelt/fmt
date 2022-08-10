@@ -10,7 +10,7 @@
 #include <locale>
 #include <string>
 
-#ifdef FMT_MODULE_TEST
+#if defined( FMT_MODULE_TEST ) && defined(__STDC_VERSION__) && (__STDC_VERSION__ > 201710L)
 import fmt;
 #else
 #  include "fmt/os.h"
