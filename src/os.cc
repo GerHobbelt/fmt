@@ -5,6 +5,8 @@
 //
 // For the license information refer to format.h.
 
+#ifdef AMALGAMATED_SOURCECODE
+
 // Disable bogus MSVC warnings.
 #if !defined(_CRT_SECURE_NO_WARNINGS) && defined(_MSC_VER)
 #  define _CRT_SECURE_NO_WARNINGS
@@ -370,3 +372,6 @@ FMT_API void ostream::grow(size_t) {
 }
 #endif  // FMT_USE_FCNTL
 FMT_END_NAMESPACE
+
+#endif // AMALGAMATED_SOURCECODE
+

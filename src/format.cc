@@ -5,6 +5,8 @@
 //
 // For the license information refer to format.h.
 
+#ifdef AMALGAMATED_SOURCECODE
+
 #ifdef __GNUC__
 #pragma GCC visibility push(default)
 #endif
@@ -48,3 +50,5 @@ template FMT_API void buffer<wchar_t>::append(const wchar_t*, const wchar_t*);
 
 }  // namespace detail
 FMT_END_NAMESPACE
+
+#endif // AMALGAMATED_SOURCECODE
