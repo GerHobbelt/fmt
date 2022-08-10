@@ -1659,7 +1659,7 @@
      template <typename S, typename... Args>
      void log(const char* file, int line, const S& format, Args&&... args) {
        vlog(file, line, format,
-           fmt::make_args_checked<Args...>(format, args...));
+           fmt::make_format_args<buffer_context<char_t<S>>>(args...));
      }
 
      #define MY_LOG(format, ...) \
