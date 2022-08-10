@@ -40,6 +40,8 @@ TEST(ranges_test, format_2d_array) {
 TEST(ranges_test, format_array_of_literals) {
   const char* arr[] = {"1234", "abcd"};
   EXPECT_EQ(fmt::format("{}", arr), "[\"1234\", \"abcd\"]");
+  EXPECT_EQ(fmt::format("{:n}", arr), "\"1234\", \"abcd\"");
+  EXPECT_EQ(fmt::format("{:n:}", arr), "1234, abcd");
 }
 #endif  // FMT_RANGES_TEST_ENABLE_C_STYLE_ARRAY
 
@@ -47,17 +49,20 @@ TEST(ranges_test, format_vector) {
   auto v = std::vector<int>{1, 2, 3, 5, 7, 11};
   EXPECT_EQ(fmt::format("{}", v), "[1, 2, 3, 5, 7, 11]");
   EXPECT_EQ(fmt::format("{::#x}", v), "[0x1, 0x2, 0x3, 0x5, 0x7, 0xb]");
+  EXPECT_EQ(fmt::format("{:n:#x}", v), "0x1, 0x2, 0x3, 0x5, 0x7, 0xb");
 }
 
 TEST(ranges_test, format_vector2) {
   auto v = std::vector<std::vector<int>>{{1, 2}, {3, 5}, {7, 11}};
   EXPECT_EQ(fmt::format("{}", v), "[[1, 2], [3, 5], [7, 11]]");
   EXPECT_EQ(fmt::format("{:::#x}", v), "[[0x1, 0x2], [0x3, 0x5], [0x7, 0xb]]");
+  EXPECT_EQ(fmt::format("{:n:n:#x}", v), "0x1, 0x2, 0x3, 0x5, 0x7, 0xb");
 }
 
 TEST(ranges_test, format_map) {
   auto m = std::map<std::string, int>{{"one", 1}, {"two", 2}};
   EXPECT_EQ(fmt::format("{}", m), "{\"one\": 1, \"two\": 2}");
+  EXPECT_EQ(fmt::format("{:n}", m), "\"one\": 1, \"two\": 2");
 }
 
 TEST(ranges_test, format_set) {
