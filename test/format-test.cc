@@ -1581,7 +1581,7 @@ struct fmt::formatter<explicitly_convertible_to_std_string_view>
     : formatter<std::string_view> {
   auto format(explicitly_convertible_to_std_string_view v, format_context& ctx)
       -> decltype(ctx.out()) {
-    return format_to(ctx.out(), "'{}'", std::string_view(v));
+    return fmt::format_to(ctx.out(), "'{}'", std::string_view(v));
   }
 };
 
@@ -1603,7 +1603,7 @@ template <> struct formatter<converible_to_anything> {
 
   auto format(converible_to_anything, format_context& ctx)
       -> decltype(ctx.out()) {
-    return format_to(ctx.out(), "foo");
+    return fmt::format_to(ctx.out(), "foo");
   }
 };
 FMT_END_NAMESPACE
@@ -1624,7 +1624,7 @@ template <> struct formatter<date> {
   }
 
   auto format(const date& d, format_context& ctx) -> decltype(ctx.out()) {
-    format_to(ctx.out(), "{}-{}-{}", d.year(), d.month(), d.day());
+    fmt::format_to(ctx.out(), "{}-{}-{}", d.year(), d.month(), d.day());
     return ctx.out();
   }
 };
@@ -1665,7 +1665,7 @@ TEST(format_test, format_examples) {
   EXPECT_EQ("42", fmt::format("{}", 42));
 
   memory_buffer out;
-  format_to(std::back_inserter(out), "The answer is {}.", 42);
+  fmt::format_to(std::back_inserter(out), "The answer is {}.", 42);
   EXPECT_EQ("The answer is 42.", to_string(out));
 
   const char* filename = "nonexistent";
@@ -1803,8 +1803,8 @@ TEST(format_test, join_bytes) {
 
 std::string vformat_message(int id, const char* format, fmt::format_args args) {
   auto buffer = fmt::memory_buffer();
-  format_to(fmt::appender(buffer), "[{}] ", id);
-  vformat_to(fmt::appender(buffer), format, args);
+  fmt::format_to(fmt::appender(buffer), "[{}] ", id);
+  fmt::vformat_to(fmt::appender(buffer), format, args);
   return to_string(buffer);
 }
 
