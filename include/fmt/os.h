@@ -31,7 +31,7 @@
 #    include <fcntl.h>  // for O_RDONLY
 #    define FMT_USE_FCNTL 1
 #  else
-#    define FMT_USE_FCNTL 1
+#    define FMT_USE_FCNTL 0
 #  endif
 #endif
 
@@ -272,8 +272,7 @@ class buffered_file {
   }
 };
 
-#if !FMT_USE_FCNTL || 1
-#include <fcntl.h>
+#if FMT_USE_FCNTL
 // A file. Closed file is represented by a file object with descriptor -1.
 // Methods that are not declared with noexcept may throw
 // fmt::system_error in case of failure. Note that some errors such as
