@@ -5,6 +5,12 @@
 //
 // For the license information refer to format.h.
 
+#if defined(_MSC_VER) && (_MSC_VER <= 1929)
+#define IGNORE_FOR_ME    1
+#else
+#define IGNORE_FOR_ME    0
+#endif
+
 // Check if fmt/format.h compiles with windows.h included before it.
 #ifdef _WIN32
 #  include <windows.h>
@@ -1468,10 +1474,14 @@ TEST(format_test, format_char) {
   EXPECT_EQ("'\\n'", fmt::format("{:?}", '\n'));
 }
 
+#if !IGNORE_FOR_ME    
+
 TEST(format_test, format_volatile_char) {
   volatile char c = 'x';
   EXPECT_EQ("x", fmt::format("{}", c));
 }
+
+#endif
 
 TEST(format_test, format_unsigned_char) {
   EXPECT_EQ("42", fmt::format("{}", static_cast<unsigned char>(42)));
@@ -1840,6 +1850,8 @@ constexpr char no_null[2] = {'{', '}'};
 static constexpr const char static_with_null[3] = {'{', '}', '\0'};
 static constexpr const char static_no_null[2] = {'{', '}'};
 
+#if !IGNORE_FOR_ME
+
 TEST(format_test, compile_time_string) {
   EXPECT_EQ("foo", fmt::format(FMT_STRING("foo")));
   EXPECT_EQ("42", fmt::format(FMT_STRING("{}"), 42));
@@ -1881,6 +1893,8 @@ TEST(format_test, custom_format_compile_time_string) {
   const Answer const_answer = Answer();
   EXPECT_EQ("42", fmt::format(FMT_STRING("{}"), const_answer));
 }
+
+#endif
 
 #if FMT_USE_USER_DEFINED_LITERALS
 TEST(format_test, named_arg_udl) {
