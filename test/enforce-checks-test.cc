@@ -55,9 +55,15 @@ void test_range() {
   (void)fmt::format(FMT_STRING("{}"), hello);
 }
 
+
+#if defined(BUILD_MONOLITHIC)
+#define main      fmt_test_enforce_checks_main
+#endif
+
 int main() {
   test_format_api();
   test_chrono();
   test_text_style();
   test_range();
+  return 0;
 }
