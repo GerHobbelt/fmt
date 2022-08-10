@@ -134,13 +134,6 @@ class system_message {
   operator basic_string_view<wchar_t>() const noexcept {
     return basic_string_view<wchar_t>(message_, result_);
   }
-  basic_string_view<wchar_t> rtrim() const noexcept {
-    auto len = result_;
-    while (len != 0 && is_whitespace(message_[len - 1])) {
-      --len;
-    }
-    return basic_string_view<wchar_t>(message_, len);
-  }
 };
 
 class utf8_system_category final : public std::error_category {
