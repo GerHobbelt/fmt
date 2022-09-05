@@ -607,19 +607,23 @@ FMT_CONSTEXPR inline auto utf8_decode(const char* s, uint32_t* c, int* e)
   constexpr const int shiftc[] = {0, 18, 12, 6, 0};
   constexpr const int shifte[] = {0, 6, 4, 2, 0};
 
-  int len = code_point_length(s);
-  const char* next = s + len;
+  int len = code_point_length_impl(*s);
+  // Compute the pointer to the next character early so that the next
+  // iteration can start working on the next character. Neither Clang
+  // nor GCC figure out this reordering on their own.
+  const char* next = s + len + !len;
+
+  using uchar = unsigned char;
 
   // Assume a four-byte character and load four bytes. Unused bits are
   // shifted out.
-  *c = uint32_t(s[0] & masks[len]) << 18;
-  *c |= uint32_t(s[1] & 0x3f) << 12;
-  *c |= uint32_t(s[2] & 0x3f) << 6;
-  *c |= uint32_t(s[3] & 0x3f) << 0;
+  *c = uint32_t(uchar(s[0]) & masks[len]) << 18;
+  *c |= uint32_t(uchar(s[1]) & 0x3f) << 12;
+  *c |= uint32_t(uchar(s[2]) & 0x3f) << 6;
+  *c |= uint32_t(uchar(s[3]) & 0x3f) << 0;
   *c >>= shiftc[len];
 
   // Accumulate the various error conditions.
-  using uchar = unsigned char;
   *e = (*c < mins[len]) << 6;       // non-canonical encoding
   *e |= ((*c >> 11) == 0x1b) << 7;  // surrogate half?
   *e |= (*c > 0x10FFFF) << 8;       // out of range?
@@ -643,8 +647,8 @@ FMT_CONSTEXPR void for_each_codepoint(string_view s, F f) {
     auto error = 0;
     auto end = utf8_decode(buf_ptr, &cp, &error);
     bool result = f(error ? invalid_code_point : cp,
-                    string_view(ptr, to_unsigned(end - buf_ptr)));
-    return result ? end : nullptr;
+                    string_view(ptr, error ? 1 : to_unsigned(end - buf_ptr)));
+    return result ? (error ? buf_ptr + 1 : end) : nullptr;
   };
   auto p = s.data();
   const size_t block_size = 4;  // utf8_decode always reads blocks of 4 chars.
@@ -1557,7 +1561,10 @@ FMT_CONSTEXPR inline fp get_cached_power(int min_exponent,
   const int dec_exp_step = 8;
   index = (index - first_dec_exp - 1) / dec_exp_step + 1;
   pow10_exponent = first_dec_exp + index * dec_exp_step;
-  return {data::pow10_significands[index], data::pow10_exponents[index]};
+  // Using *(x + index) instead of x[index] avoids an issue with some compilers
+  // using the EDG frontend (e.g. nvhpc/22.3 in C++17 mode).
+  return {*(data::pow10_significands + index),
+          *(data::pow10_exponents + index)};
 }
 
 #ifndef _MSC_VER
@@ -1995,7 +2002,10 @@ auto write_int_localized(OutputIt out, UInt value, unsigned prefix,
                               grouping.count_separators(num_digits));
   return write_padded<align::right>(
       out, specs, size, size, [&](reserve_iterator<OutputIt> it) {
-        if (prefix != 0) *it++ = static_cast<Char>(prefix);
+        if (prefix != 0) {
+          char sign = static_cast<char>(prefix);
+          *it++ = static_cast<Char>(sign);
+        }
         return grouping.apply(it, string_view(digits, to_unsigned(num_digits)));
       });
 }
@@ -2154,7 +2164,8 @@ class counting_iterator {
     return it;
   }
 
-  FMT_CONSTEXPR friend counting_iterator operator+(counting_iterator it, difference_type n) {
+  FMT_CONSTEXPR friend counting_iterator operator+(counting_iterator it,
+                                                   difference_type n) {
     it.count_ += static_cast<size_t>(n);
     return it;
   }
