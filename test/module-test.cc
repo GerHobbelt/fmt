@@ -107,7 +107,7 @@ bool namespace_detail_invisible() {
 #if defined(FMT_HIDE_MODULE_BUGS) && defined(_MSC_FULL_VER) &&       \
     ((_MSC_VER == 1929 && _MSC_FULL_VER <= 192930136) ||             \
      (_MSC_VER == 1930 && _MSC_FULL_VER <= 193030704) ||             \
-	!( defined(__STDC_VERSION__) && (__STDC_VERSION__ > 201710L) )   \
+    !( defined(__STDC_VERSION__) && (__STDC_VERSION__ > 201710L) )   \
     )
   // bug in msvc up to 16.11.5 / 17.0-pre5:
 
