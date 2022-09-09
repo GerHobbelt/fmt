@@ -6,11 +6,11 @@
 // For the license information refer to format.h.
 
 #include "fmt/std.h"
-#include "fmt/ranges.h"
 
 #include <string>
 #include <vector>
 
+#include "fmt/ranges.h"
 #include "gtest/gtest.h"
 
 TEST(std_test, path) {
@@ -75,5 +75,27 @@ TEST(std_test, variant) {
 
   EXPECT_EQ(fmt::format("{}", v4), "variant(monostate)");
   EXPECT_EQ(fmt::format("{}", v5), "variant(\"yes, this is variant\")");
+
+  volatile int i = 42;  // Test compile error before GCC 11 described in #3068.
+  EXPECT_EQ(fmt::format("{}", i), "42");
 #endif
+}
+
+TEST(std_test, exception) {
+  std::string str("Test Exception");
+  std::string escstr = fmt::format("\"{}\"", str);
+
+  try {
+    throw std::runtime_error(str);
+  } catch (const std::exception& ex) {
+    EXPECT_EQ(fmt::format("{}", ex), str);
+    EXPECT_EQ(fmt::format("{:?}", ex), escstr);
+  }
+
+  try {
+    throw std::runtime_error(str);
+  } catch (const std::runtime_error& ex) {
+    EXPECT_EQ(fmt::format("{}", ex), str);
+    EXPECT_EQ(fmt::format("{:?}", ex), escstr);
+  }
 }
