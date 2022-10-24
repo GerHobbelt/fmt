@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 # reStructuredText (RST) to GitHub-flavored Markdown converter
 
-import re, sys
+import re
+import sys
+
 from docutils import core, nodes, writers
 
 

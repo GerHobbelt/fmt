@@ -2,8 +2,15 @@
 # Build the documentation in CI.
 
 from __future__ import print_function
-import errno, os, shutil, subprocess, sys, urllib
-from subprocess import call, check_call, Popen, PIPE, STDOUT
+
+import errno
+import os
+import shutil
+import subprocess
+import sys
+import urllib
+from subprocess import PIPE, STDOUT, Popen, call, check_call
+
 
 def rmtree_if_exists(dir):
     try:
@@ -16,6 +23,7 @@ def rmtree_if_exists(dir):
 fmt_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 sys.path.insert(0, os.path.join(fmt_dir, 'doc'))
 import build
+
 build.create_build_env()
 html_dir = build.build_docs()
 

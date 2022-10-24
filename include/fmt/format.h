@@ -1173,7 +1173,7 @@ FMT_CONSTEXPR auto count_digits(UInt n) -> int {
 FMT_INLINE auto do_count_digits(uint32_t n) -> int {
 // An optimization by Kendall Willets from https://bit.ly/3uOIQrB.
 // This increments the upper 32 bits (log10(T) - 1) when >= T is added.
-#  define FMT_INC(T) (((sizeof(#  T) - 1ull) << 32) - T)
+#  define FMT_INC(T) (((sizeof(#T) - 1ull) << 32) - T)
   static constexpr uint64_t table[] = {
       FMT_INC(0),          FMT_INC(0),          FMT_INC(0),           // 8
       FMT_INC(10),         FMT_INC(10),         FMT_INC(10),          // 64
@@ -3952,7 +3952,9 @@ template <> struct formatter<bytes> {
 };
 
 // group_digits_view is not derived from view because it copies the argument.
-template <typename T> struct group_digits_view { T value; };
+template <typename T> struct group_digits_view {
+  T value;
+};
 
 /**
   \rst

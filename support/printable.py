@@ -8,10 +8,10 @@
 # - UnicodeData.txt
 
 
-from collections import namedtuple
 import csv
 import os
 import subprocess
+from collections import namedtuple
 
 NUM_CODEPOINTS=0x110000
 

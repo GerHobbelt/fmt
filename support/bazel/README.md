@@ -1,10 +1,15 @@
 # Bazel support
 
-To get [Bazel](https://bazel.build/) working with {fmt} you can copy the files `BUILD.bazel`, `WORKSPACE.bazel`, `.bazelrc`, and `.bazelversion` from this folder (`support/bazel`) to the root folder of this project. This way {fmt} gets bazelized and can be used with Bazel (e.g. doing a `bazel build //...` on {fmt}). 
+To get [Bazel](https://bazel.build/) working with {fmt} you can copy the files
+`BUILD.bazel`, `WORKSPACE.bazel`, `.bazelrc`, and `.bazelversion` from this
+folder (`support/bazel`) to the root folder of this project. This way {fmt} gets
+bazelized and can be used with Bazel (e.g. doing a `bazel build //...` on
+{fmt}).
 
 ## Using {fmt} as a dependency
 
-The following minimal example shows how to use {fmt} as a dependency within a Bazel project.
+The following minimal example shows how to use {fmt} as a dependency within a
+Bazel project.
 
 The following file structure is assumed:
 
@@ -15,7 +20,7 @@ example
 └── WORKSPACE.bazel
 ```
 
-*main.cpp*:
+_main.cpp_:
 
 ```c++
 #include "fmt/core.h"
@@ -27,7 +32,7 @@ int main() {
 
 The expected output of this example is `The answer is 42`.
 
-*WORKSPACE.bazel*:
+_WORKSPACE.bazel_:
 
 ```python
 load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
@@ -55,9 +60,12 @@ git_repository(
 )
 ```
 
-In the *WORKSPACE* file, the {fmt} GitHub repository is fetched. Using the attribute `patch_cmds` the  files `BUILD.bazel`, `WORKSPACE.bazel`, `.bazelrc`, and `.bazelversion` are moved to the root of the {fmt} repository. This way the {fmt} repository is recognized as a bazelized workspace. 
+In the _WORKSPACE_ file, the {fmt} GitHub repository is fetched. Using the
+attribute `patch_cmds` the files `BUILD.bazel`, `WORKSPACE.bazel`, `.bazelrc`,
+and `.bazelversion` are moved to the root of the {fmt} repository. This way the
+{fmt} repository is recognized as a bazelized workspace.
 
-*BUILD.bazel*:
+_BUILD.bazel_:
 
 ```python
 cc_binary(
@@ -67,7 +75,6 @@ cc_binary(
 )
 ```
 
-The *BUILD* file defines a binary named `Demo` that has a dependency to {fmt}.
+The _BUILD_ file defines a binary named `Demo` that has a dependency to {fmt}.
 
 To execute the binary you can run `bazel run //:Demo`.
-
