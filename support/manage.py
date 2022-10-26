@@ -270,10 +270,10 @@ def release(args):
     script = os.path.join('doc', 'build.py')
     script_path = os.path.join(fmt_repo.dir, script)
     for line in fileinput.input(script_path, inplace=True):
-      m = re.match(r'( *versions = )\[(.+)\]', line)
-      if m:
-        line = '{}[{}, \'{}\']\n'.format(m.group(1), m.group(2), version)
-      sys.stdout.write(line)
+        m = re.match(r'( *versions = )\[(.+)\]', line)
+        if m:
+            line = '{}[{}, \'{}\']\n'.format(m.group(1), m.group(2), version)
+        sys.stdout.write(line)
 
     fmt_repo.checkout('-B', 'release')
     fmt_repo.add(changelog, cmakelists, script)

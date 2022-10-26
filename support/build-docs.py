@@ -2,6 +2,7 @@
 # Build the documentation in CI.
 
 from __future__ import print_function
+import build
 
 import errno
 import os
@@ -19,10 +20,10 @@ def rmtree_if_exists(dir):
         if e.errno == errno.ENOENT:
             pass
 
+
 # Build the docs.
 fmt_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 sys.path.insert(0, os.path.join(fmt_dir, 'doc'))
-import build
 
 build.create_build_env()
 html_dir = build.build_docs()
@@ -32,7 +33,7 @@ branch = os.environ['GITHUB_REF']
 is_ci = 'CI' in os.environ
 if is_ci and branch != 'refs/heads/master':
     print('Branch: ' + branch)
-    exit(0) # Ignore non-master branches
+    exit(0)  # Ignore non-master branches
 if is_ci and 'KEY' not in os.environ:
     # Don't update the repo if building in CI from an account that doesn't have
     # push access.
@@ -61,6 +62,7 @@ if call(['git', 'diff-index', '--quiet', 'HEAD'], cwd=repo):
         cmd += ' https://$KEY@github.com/fmtlib/fmtlib.github.io.git master'
     p = Popen(cmd, shell=True, stdout=PIPE, stderr=STDOUT, cwd=repo)
     # Print the output without the key.
-    print(p.communicate()[0].decode('utf-8').replace(os.environ['KEY'], '$KEY'))
+    print(p.communicate()[0].decode(
+        'utf-8').replace(os.environ['KEY'], '$KEY'))
     if p.returncode != 0:
         raise subprocess.CalledProcessError(p.returncode, cmd)
