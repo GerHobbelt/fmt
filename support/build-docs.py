@@ -2,7 +2,6 @@
 # Build the documentation in CI.
 
 from __future__ import print_function
-import build
 
 import errno
 import os
@@ -11,6 +10,8 @@ import subprocess
 import sys
 import urllib
 from subprocess import PIPE, STDOUT, Popen, call, check_call
+
+import build
 
 
 def rmtree_if_exists(dir):
