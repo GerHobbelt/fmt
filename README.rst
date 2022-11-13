@@ -324,7 +324,7 @@ Projects using this library
 
 * `ClickHouse <https://github.com/ClickHouse/ClickHouse>`_: an analytical database
   management system
-  
+
 * `Contour <https://github.com/contour-terminal/contour/>`_: a modern terminal emulator
 
 * `CUAUV <https://cuauv.org/>`_: Cornell University's autonomous underwater
