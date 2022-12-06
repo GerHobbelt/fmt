@@ -1984,8 +1984,7 @@ template <typename, typename OutputIt> void write(OutputIt, foo) = delete;
 FMT_BEGIN_NAMESPACE
 template <>
 struct formatter<adl_test::fmt::detail::foo> : formatter<std::string> {
-  template <typename FormatContext>
-  auto format(adl_test::fmt::detail::foo, FormatContext& ctx)
+  auto format(adl_test::fmt::detail::foo, format_context& ctx)
       -> decltype(ctx.out()) {
     return formatter<std::string>::format("foo", ctx);
   }
@@ -1993,9 +1992,7 @@ struct formatter<adl_test::fmt::detail::foo> : formatter<std::string> {
 FMT_END_NAMESPACE
 
 struct convertible_to_int {
-  operator int() const { return value; }
-
-  int value = 42;
+  operator int() const { return 42; }
 };
 
 TEST(format_test, to_string) {
