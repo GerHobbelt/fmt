@@ -476,7 +476,7 @@ struct range_formatter<
     auto end = ctx.end();
     if (it == end || *it == '}') {
       maybe_set_debug_format();
-      return it;
+      return underlying_.parse(ctx);
     }
 
     if (*it == 'n') {
@@ -486,7 +486,8 @@ struct range_formatter<
 
     if (*it == '}') {
       maybe_set_debug_format();
-      return it;
+      ctx.advance_to(it);
+      return underlying_.parse(ctx);
     }
 
     if (*it != ':')
