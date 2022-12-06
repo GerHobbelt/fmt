@@ -156,19 +156,6 @@ Compatibility
 
 .. doxygentypedef:: fmt::string_view
 
-Locale
-------
-
-All formatting is locale-independent by default. Use the ``'L'`` format
-specifier to insert the appropriate number separator characters from the
-locale::
-
-  #include <fmt/core.h>
-  #include <locale>
-
-  std::locale::global(std::locale("en_US.UTF-8"));
-  auto s = fmt::format("{:L}", 1000000);  // s == "1,000,000"
-
 .. _format-api:
 
 Format API
@@ -249,6 +236,8 @@ Then you can pass objects of type ``point`` to any formatting function::
 You can also reuse existing formatters via inheritance or composition, for
 example::
 
+  #include <fmt/core.h>
+
   enum class color {red, green, blue};
 
   template <> struct fmt::formatter<color>: formatter<string_view> {
@@ -277,7 +266,7 @@ will return ``"      blue"``.
 You can also write a formatter for a hierarchy of classes::
 
   #include <type_traits>
-  #include <fmt/format.h>
+  #include <fmt/core.h>
 
   struct A {
     virtual ~A() {}
@@ -403,6 +392,27 @@ The allocator will be used for the output container only. Formatting functions
 normally don't do any allocations for built-in and string types except for
 non-default floating-point formatting that occasionally falls back on
 ``sprintf``.
+
+Locale
+------
+
+All formatting is locale-independent by default. Use the ``'L'`` format
+specifier to insert the appropriate number separator characters from the
+locale::
+
+  #include <fmt/core.h>
+  #include <locale>
+
+  std::locale::global(std::locale("en_US.UTF-8"));
+  auto s = fmt::format("{:L}", 1000000);  // s == "1,000,000"
+
+``fmt/format.h`` provides the following overloads of formatting functions that
+take ``std::locale`` as a parameter. The locale type is a template parameter to
+avoid the expensive ``<locale>`` include.
+
+.. doxygenfunction:: format(const Locale& loc, format_string<T...> fmt, T&&... args) -> std::string
+.. doxygenfunction:: format_to(OutputIt out, const Locale& loc, format_string<T...> fmt, T&&... args) -> OutputIt
+.. doxygenfunction:: formatted_size(const Locale& loc, format_string<T...> fmt, T&&... args) -> size_t
 
 .. _ranges-api:
 
