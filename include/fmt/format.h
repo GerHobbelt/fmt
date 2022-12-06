@@ -2118,12 +2118,10 @@ template <typename Char = char> struct loc_writer {
     return true;
   }
 
-  template <typename T, FMT_ENABLE_IF(is_floating_point<T>::value)>
+  template <typename T, FMT_ENABLE_IF(!is_integer<T>::value)>
   auto operator()(T) -> bool {
     return false;
   }
-
-  auto operator()(...) -> bool { return false; }
 };
 
 template <typename Char, typename OutputIt, typename T>
