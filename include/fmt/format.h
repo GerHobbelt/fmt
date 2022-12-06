@@ -2586,14 +2586,14 @@ template <typename T, FMT_ENABLE_IF(std::is_floating_point<T>::value&&
 FMT_CONSTEXPR20 bool isfinite(T value) {
   constexpr T inf = T(std::numeric_limits<double>::infinity());
   if (is_constant_evaluated())
-    return !detail::isnan(value) && value != inf && value != -inf;
+    return !detail::isnan(value) && value < inf && value > -inf;
   return std::isfinite(value);
 }
 template <typename T, FMT_ENABLE_IF(!has_isfinite<T>::value)>
 FMT_CONSTEXPR bool isfinite(T value) {
   T inf = T(std::numeric_limits<double>::infinity());
   // std::isfinite doesn't support __float128.
-  return !detail::isnan(value) && value != inf && value != -inf;
+  return !detail::isnan(value) && value < inf && value > -inf;
 }
 
 template <typename T, FMT_ENABLE_IF(is_floating_point<T>::value)>
@@ -4277,7 +4277,7 @@ auto vformat_to(OutputIt out, const Locale& loc, string_view fmt,
   using detail::get_buffer;
   auto&& buf = get_buffer<char>(out);
   detail::vformat_to(buf, fmt, args, detail::locale_ref(loc));
-  return detail::get_iterator(buf);
+  return detail::get_iterator(buf, out);
 }
 
 template <typename OutputIt, typename Locale, typename... T,
