@@ -1109,6 +1109,11 @@ template <typename... Args> constexpr auto count_named_args() -> size_t {
   return count<is_named_arg<Args>::value...>();
 }
 
+template <typename... Args>
+constexpr auto count_statically_named_args() -> size_t {
+  return count<is_statically_named_arg<Args>::value...>();
+}
+
 enum class type {
   none_type,
   // Integer types should go first,
@@ -1410,15 +1415,18 @@ template <typename Context> struct arg_mapper {
   }
 
   template <typename T,
-            FMT_ENABLE_IF(std::is_enum<T>::value &&
-                          (std::is_convertible<T, int>::value ||
-                           std::is_same<T, detail::byte>::value) &&
-                          !has_formatter<T, Context>::value &&
-                          !has_fallback_formatter<T, char_type>::value)>
+            FMT_ENABLE_IF(
+                std::is_enum<T>::value&& std::is_convertible<T, int>::value &&
+                !has_formatter<T, Context>::value &&
+                !has_fallback_formatter<T, char_type>::value)>
   FMT_CONSTEXPR FMT_INLINE auto map(const T& val)
       -> decltype(std::declval<arg_mapper>().map(
           static_cast<typename std::underlying_type<T>::type>(val))) {
     return map(static_cast<typename std::underlying_type<T>::type>(val));
+  }
+
+  FMT_CONSTEXPR FMT_INLINE auto map(detail::byte val) -> unsigned {
+    return map(static_cast<unsigned char>(val));
   }
 
   template <typename T, typename U = remove_cvref_t<T>>
@@ -1492,14 +1500,11 @@ class appender : public std::back_insert_iterator<detail::buffer<char>> {
   using _Unchecked_type = appender;  // Mark iterator as checked.
 
   auto operator++() -> appender& {
-    base::operator++();
     return *this;
   }
 
   auto operator++(int) -> appender {
-    auto tmp = *this;
-    ++*this;
-    return tmp;
+    return *this;
   }
 };
 
@@ -2482,7 +2487,7 @@ FMT_CONSTEXPR FMT_INLINE auto parse_format_specs(const Char* begin,
                                                  const Char* end,
                                                  SpecHandler&& handler)
     -> const Char* {
-  if (begin + 1 < end && begin[1] == '}' && is_ascii_letter(*begin) &&
+  if (1 < end - begin && begin[1] == '}' && is_ascii_letter(*begin) &&
       *begin != 'L') {
     presentation_type type = parse_presentation_type(*begin++);
     if (type == presentation_type::none)
@@ -3043,7 +3048,8 @@ template <typename Char, typename... Args> class basic_format_string {
              std::is_reference<Args>::value)...>() == 0,
         "passing views as lvalues is disallowed");
 #ifdef FMT_HAS_CONSTEVAL
-    if constexpr (detail::count_named_args<Args...>() == 0) {
+    if constexpr (detail::count_named_args<Args...>() ==
+                  detail::count_statically_named_args<Args...>()) {
       using checker = detail::format_string_checker<Char, detail::error_handler,
                                                     remove_cvref_t<Args>...>;
       detail::parse_format_string<true>(str_, checker(s, {}));
