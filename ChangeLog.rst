@@ -1,3 +1,146 @@
+8.1.0 - TBD
+-----------
+
+* Optimized ``tm`` formatting
+  (`#2576 <https://github.com/fmtlib/fmt/pull/2576>`_,
+  `#2586 <https://github.com/fmtlib/fmt/pull/2586>`_,
+  `#2591 <https://github.com/fmtlib/fmt/pull/2591>`_,
+  `#2594 <https://github.com/fmtlib/fmt/pull/2594>`_,
+  `#2602 <https://github.com/fmtlib/fmt/pull/2602>`_,
+  `#2617 <https://github.com/fmtlib/fmt/pull/2617>`_,
+  `#2628 <https://github.com/fmtlib/fmt/issues/2628>`_
+  `#2633 <https://github.com/fmtlib/fmt/pull/2633>`_,
+  `#2670 <https://github.com/fmtlib/fmt/issues/2670>`_
+  `#2671 <https://github.com/fmtlib/fmt/pull/2671>`_).
+
+  Processing of some specifiers such as ``%z`` and ``%Y`` is now up to 10-20
+  times faster, for example on GCC 11 with libstdc++::
+
+    ----------------------------------------------------------------------------
+    Benchmark                                  Before             After
+    ----------------------------------------------------------------------------
+    FMTFormatter_z                             261 ns             26.3 ns
+    FMTFormatterCompile_z                      246 ns             11.6 ns
+    FMTFormatter_Y                             263 ns             26.1 ns
+    FMTFormatterCompile_Y                      244 ns             10.5 ns
+    ----------------------------------------------------------------------------
+
+  Thanks `@phprus (Vladislav Shchapov) <https://github.com/phprus>`_ and
+  `@toughengineer (Pavel Novikov) <https://github.com/toughengineer>`_.
+
+* Implemented subsecond formatting for chrono durations
+  (`#2623 <https://github.com/fmtlib/fmt/pull/2623>`_).
+  For example (`godbolt <https://godbolt.org/z/es7vWTETe>`__):
+
+  .. code:: c++
+
+     #include <fmt/chrono.h>
+
+     int main() {
+       fmt::print("{:%S}", std::chrono::milliseconds(1234));
+     }
+
+  prints "01.234".
+
+  Thanks `@matrackif <https://github.com/matrackif>`_.
+
+* Fixed handling of precision 0 when formatting chrono durations
+  (`#2588 <https://github.com/fmtlib/fmt/pull/2588>`_).
+  Thanks `@lukester1975 <https://github.com/lukester1975>`_.
+
+* Fixed a potential overflow in the `tm` formatter
+  (`#2564 <https://github.com/fmtlib/fmt/issues/2564>`_).
+  Thanks `@phprus (Vladislav Shchapov) <https://github.com/phprus>`_,
+
+* Deprecated ``_format``, an undocumented UDL-based format API
+  (`#2646 <https://github.com/fmtlib/fmt/pull/2646>`_).
+  Thanks `@alexezeder (Alexey Ochapov) <https://github.com/alexezeder>`_.
+
+* Marked ``format``, ``formatted_size`` and ``to_string`` as ``[[nodiscard]]``
+  (`#2612 <https://github.com/fmtlib/fmt/pull/2612>`_).
+  `@0x8000-0000 (Florin Iucha) <https://github.com/0x8000-0000>`_.
+
+* Added missing diagnostic when trying to format function and member pointers
+  which is explicitly disallowed
+  (`#2610 <https://github.com/fmtlib/fmt/pull/2610>`_).
+  Thanks `@AlexGuteniev (Alex Guteniev) <https://github.com/AlexGuteniev>`_.
+
+* Disabled a partially broken copy ctor for ``dynamic_format_arg_store`` and
+  enabled a working move ctor
+  (`#2664 <https://github.com/fmtlib/fmt/pull/2664>`_).
+  Thanks `@lucpelletier <https://github.com/lucpelletier>`_.
+
+* Added UDL-based named argument support to compile-time format string checks
+  (`#2640 <https://github.com/fmtlib/fmt/issues/2640>`_,
+  `#2649 <https://github.com/fmtlib/fmt/pull/2649>`_).
+  For example (`godbolt <https://godbolt.org/z/ohGbbvonv>`__):
+
+  .. code:: c++
+
+     #include <fmt/format.h>
+
+     int main() {
+       using namespace fmt::literals;
+       fmt::print("{answer:s}", "answer"_a=42);
+     }
+
+  gives a compile-time error on compilers with C++20 ``consteval`` and non-type
+  template parameter support (gcc 10+) because ``s`` is not a valid format
+  specifier for an integer.
+
+  Thanks `@alexezeder (Alexey Ochapov) <https://github.com/alexezeder>`_.
+
+* Resolved lookup ambiguity with C++20 format-related functions due to ADL
+  (`#2639 <https://github.com/fmtlib/fmt/issues/2639>`_,
+  `#2641 <https://github.com/fmtlib/fmt/pull/2641>`_).
+  Thanks `@mkurdej (Marek Kurdej) <https://github.com/mkurdej>`_.
+
+* Removed unnecessary inline namespace qualification
+  (`#2642 <https://github.com/fmtlib/fmt/issues/2642>`_,
+  `#2643 <https://github.com/fmtlib/fmt/pull/2643>`_).
+  Thanks `@mkurdej (Marek Kurdej) <https://github.com/mkurdej>`_.
+
+* Improved C++14/17 attribute detection
+  (`#2615 <https://github.com/fmtlib/fmt/pull/2615>`_).
+  Thanks `@AlexGuteniev (Alex Guteniev) <https://github.com/AlexGuteniev>`_.
+
+* Improved ``consteval`` detection for MSVC
+  (`#2559 <https://github.com/fmtlib/fmt/pull/2559>`_).
+  Thanks `@DanielaE (Daniela Engert) <https://github.com/DanielaE>`_.
+
+* Improved documentation
+  (`#2562 <https://github.com/fmtlib/fmt/pull/2562>`_,
+  `#2575 <https://github.com/fmtlib/fmt/pull/2575>`_,
+  `#2606 <https://github.com/fmtlib/fmt/pull/2606>`_,
+  `#2620 <https://github.com/fmtlib/fmt/pull/2620>`_,
+  `#2676 <https://github.com/fmtlib/fmt/issues/2676>`_).
+  Thanks `@zhsj <https://github.com/zhsj>`_,
+  `@phprus (Vladislav Shchapov) <https://github.com/phprus>`_,
+  `@ericcurtin (Eric Curtin) <https://github.com/ericcurtin>`_,
+  `@Lounarok <https://github.com/Lounarok>`_.
+
+* Improved build configuration and tests
+  (`#2650 <https://github.com/fmtlib/fmt/pull/2650>`_,
+  `#2651 <https://github.com/fmtlib/fmt/pull/2651>`_,
+  `#2663 <https://github.com/fmtlib/fmt/pull/2663>`_,
+  `#2677 <https://github.com/fmtlib/fmt/pull/2677>`_).
+  Thanks `@alexezeder (Alexey Ochapov) <https://github.com/alexezeder>`_,
+  `@phprus (Vladislav Shchapov) <https://github.com/phprus>`_.
+
+* Fixed various warnings and compilation issues
+  (`#2570 <https://github.com/fmtlib/fmt/issues/2570>`_,
+  `#2573 <https://github.com/fmtlib/fmt/pull/2573>`_,
+  `#2582 <https://github.com/fmtlib/fmt/pull/2582>`_,
+  `#2611 <https://github.com/fmtlib/fmt/pull/2611>`_,
+  `#2647 <https://github.com/fmtlib/fmt/pull/2647>`_,
+  `#2627 <https://github.com/fmtlib/fmt/issues/2627>`_,
+  `#2630 <https://github.com/fmtlib/fmt/pull/2630>`_).
+  Thanks  `@timkalu <https://github.com/timkalu>`_,
+  `@olupton (Olli Lupton) <https://github.com/olupton>`_,
+  `@Acretock <https://github.com/Acretock>`_,
+  `@alexezeder (Alexey Ochapov) <https://github.com/alexezeder>`_,
+  `@andrewcorrigan (Andrew Corrigan) <https://github.com/andrewcorrigan>`_.
+
 8.0.1 - 2021-07-02
 ------------------
 
@@ -50,7 +193,7 @@
 8.0.0 - 2021-06-21
 ------------------
 
-* Enabled compile-time format string check by default.
+* Enabled compile-time format string checks by default.
   For example (`godbolt <https://godbolt.org/z/sMxcohGjz>`__):
 
   .. code:: c++
