@@ -110,5 +110,7 @@ module : private;
 #endif
 #endif
 
+#define AMALGAMATED_SOURCECODE
+
 #include "format.cc"
 #include "os.cc"

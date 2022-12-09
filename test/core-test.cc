@@ -30,7 +30,7 @@ using testing::Invoke;
 using testing::Return;
 
 #ifdef FMT_FORMAT_H_
-#  error core-test includes format.h
+#pragma message("core-test includes format.h")
 #endif
 
 TEST(string_view_test, value_type) {
@@ -70,6 +70,16 @@ TEST(string_view_test, compare) {
   EXPECT_LT(string_view("foo").compare(string_view("fop")), 0);
   EXPECT_GT(string_view("foo").compare(string_view("fo")), 0);
   EXPECT_LT(string_view("fo").compare(string_view("foo")), 0);
+
+  EXPECT_TRUE(string_view("foo").starts_with('f'));
+  EXPECT_FALSE(string_view("foo").starts_with('o'));
+  EXPECT_FALSE(string_view().starts_with('o'));
+
+  EXPECT_TRUE(string_view("foo").starts_with("fo"));
+  EXPECT_TRUE(string_view("foo").starts_with("foo"));
+  EXPECT_FALSE(string_view("foo").starts_with("fooo"));
+  EXPECT_FALSE(string_view().starts_with("fooo"));
+
   check_op<std::equal_to>();
   check_op<std::not_equal_to>();
   check_op<std::less>();
@@ -128,7 +138,7 @@ TEST(core_test, buffer_appender) {
 #if !FMT_GCC_VERSION || FMT_GCC_VERSION >= 470
 TEST(buffer_test, noncopyable) {
   EXPECT_FALSE(std::is_copy_constructible<buffer<char>>::value);
-#  if !FMT_MSC_VER
+#  if !FMT_MSC_VERSION
   // std::is_copy_assignable is broken in MSVC2013.
   EXPECT_FALSE(std::is_copy_assignable<buffer<char>>::value);
 #  endif
@@ -136,7 +146,7 @@ TEST(buffer_test, noncopyable) {
 
 TEST(buffer_test, nonmoveable) {
   EXPECT_FALSE(std::is_move_constructible<buffer<char>>::value);
-#  if !FMT_MSC_VER
+#  if !FMT_MSC_VERSION
   // std::is_move_assignable is broken in MSVC2013.
   EXPECT_FALSE(std::is_move_assignable<buffer<char>>::value);
 #  endif
@@ -385,11 +395,11 @@ VISIT_TYPE(unsigned long, unsigned long long);
 
 template <typename T> class numeric_arg_test : public testing::Test {};
 
-using types =
+using test_types =
     testing::Types<bool, signed char, unsigned char, short, unsigned short, int,
                    unsigned, long, unsigned long, long long, unsigned long long,
                    float, double, long double>;
-TYPED_TEST_SUITE(numeric_arg_test, types);
+TYPED_TEST_SUITE(numeric_arg_test, test_types);
 
 template <typename T, fmt::enable_if_t<std::is_integral<T>::value, int> = 0>
 T test_value() {
@@ -584,6 +594,7 @@ struct test_parse_context {
 
   constexpr int next_arg_id() { return 11; }
   template <typename Id> FMT_CONSTEXPR void check_arg_id(Id) {}
+  FMT_CONSTEXPR void check_dynamic_spec(int) {}
 
   constexpr const char* begin() { return nullptr; }
   constexpr const char* end() { return nullptr; }
@@ -679,6 +690,7 @@ TEST(format_test, constexpr_parse_format_string) {
 #endif  // FMT_USE_CONSTEXPR
 
 struct enabled_formatter {};
+struct enabled_ptr_formatter {};
 struct disabled_formatter {};
 struct disabled_formatter_convertible {
   operator int() const { return 42; }
@@ -690,6 +702,16 @@ template <> struct formatter<enabled_formatter> {
     return ctx.begin();
   }
   auto format(enabled_formatter, format_context& ctx) -> decltype(ctx.out()) {
+    return ctx.out();
+  }
+};
+
+template <> struct formatter<enabled_ptr_formatter*> {
+  auto parse(format_parse_context& ctx) -> decltype(ctx.begin()) {
+    return ctx.begin();
+  }
+  auto format(enabled_ptr_formatter*, format_context& ctx)
+      -> decltype(ctx.out()) {
     return ctx.out();
   }
 };
@@ -737,13 +759,43 @@ struct convertible_to_pointer {
   operator const int*() const { return nullptr; }
 };
 
-enum class test_scoped_enum {};
+struct convertible_to_pointer_formattable {
+  operator const int*() const { return nullptr; }
+};
+
+FMT_BEGIN_NAMESPACE
+template <> struct formatter<convertible_to_pointer_formattable> {
+  auto parse(format_parse_context& ctx) -> decltype(ctx.begin()) {
+    return ctx.begin();
+  }
+
+  auto format(convertible_to_pointer_formattable, format_context& ctx) const
+      -> decltype(ctx.out()) {
+    auto test = string_view("test");
+    return std::copy_n(test.data(), test.size(), ctx.out());
+  }
+};
+FMT_END_NAMESPACE
+
+enum class unformattable_scoped_enum {};
+
+namespace test {
+enum class formattable_scoped_enum {};
+auto format_as(formattable_scoped_enum) -> int { return 42; }
+
+struct convertible_to_enum {
+  operator formattable_scoped_enum() const { return {}; }
+};
+}  // namespace test
 
 TEST(core_test, is_formattable) {
+#if 0
+  // This should be enabled once corresponding map overloads are gone.
   static_assert(fmt::is_formattable<signed char*>::value, "");
   static_assert(fmt::is_formattable<unsigned char*>::value, "");
   static_assert(fmt::is_formattable<const signed char*>::value, "");
   static_assert(fmt::is_formattable<const unsigned char*>::value, "");
+#endif
   static_assert(!fmt::is_formattable<wchar_t>::value, "");
 #ifdef __cpp_char8_t
   static_assert(!fmt::is_formattable<char8_t>::value, "");
@@ -755,6 +807,7 @@ TEST(core_test, is_formattable) {
   static_assert(!fmt::is_formattable<fmt::basic_string_view<wchar_t>>::value,
                 "");
   static_assert(fmt::is_formattable<enabled_formatter>::value, "");
+  static_assert(!fmt::is_formattable<enabled_ptr_formatter*>::value, "");
   static_assert(!fmt::is_formattable<disabled_formatter>::value, "");
   static_assert(fmt::is_formattable<disabled_formatter_convertible>::value, "");
 
@@ -762,24 +815,22 @@ TEST(core_test, is_formattable) {
   static_assert(fmt::is_formattable<const const_formattable&>::value, "");
 
   static_assert(fmt::is_formattable<nonconst_formattable&>::value, "");
-#if !FMT_MSC_VER || FMT_MSC_VER >= 1910
+#if !FMT_MSC_VERSION || FMT_MSC_VERSION >= 1910
   static_assert(!fmt::is_formattable<const nonconst_formattable&>::value, "");
 #endif
 
   static_assert(!fmt::is_formattable<convertible_to_pointer>::value, "");
-
-  static_assert(!fmt::is_formattable<signed char*, wchar_t>::value, "");
-  static_assert(!fmt::is_formattable<unsigned char*, wchar_t>::value, "");
-  static_assert(!fmt::is_formattable<const signed char*, wchar_t>::value, "");
-  static_assert(!fmt::is_formattable<const unsigned char*, wchar_t>::value, "");
+  const auto f = convertible_to_pointer_formattable();
+  EXPECT_EQ(fmt::format("{}", f), "test");
 
   static_assert(!fmt::is_formattable<void (*)()>::value, "");
 
   struct s;
-
   static_assert(!fmt::is_formattable<int(s::*)>::value, "");
   static_assert(!fmt::is_formattable<int (s::*)()>::value, "");
-  static_assert(!fmt::is_formattable<test_scoped_enum>::value, "");
+  static_assert(!fmt::is_formattable<unformattable_scoped_enum>::value, "");
+  static_assert(fmt::is_formattable<test::formattable_scoped_enum>::value, "");
+  static_assert(!fmt::is_formattable<test::convertible_to_enum>::value, "");
 }
 
 TEST(core_test, format) { EXPECT_EQ(fmt::format("{}", 42), "42"); }
@@ -788,6 +839,10 @@ TEST(core_test, format_to) {
   std::string s;
   fmt::format_to(std::back_inserter(s), "{}", 42);
   EXPECT_EQ(s, "42");
+}
+
+TEST(core_test, format_as) {
+  EXPECT_EQ(fmt::format("{}", test::formattable_scoped_enum()), "42");
 }
 
 struct convertible_to_int {
@@ -852,13 +907,16 @@ TEST(core_test, format_implicitly_convertible_to_string_view) {
 }
 
 // std::is_constructible is broken in MSVC until version 2015.
-#if !FMT_MSC_VER || FMT_MSC_VER >= 1900
+#if !FMT_MSC_VERSION || FMT_MSC_VERSION >= 1900
 struct explicitly_convertible_to_string_view {
   explicit operator fmt::string_view() const { return "foo"; }
 };
 
 TEST(core_test, format_explicitly_convertible_to_string_view) {
-  EXPECT_EQ("foo", fmt::format("{}", explicitly_convertible_to_string_view()));
+  // Types explicitly convertible to string_view are not formattable by
+  // default because it may introduce ODR violations.
+  static_assert(
+      !fmt::is_formattable<explicitly_convertible_to_string_view>::value, "");
 }
 
 #  ifdef FMT_USE_STRING_VIEW
@@ -867,8 +925,11 @@ struct explicitly_convertible_to_std_string_view {
 };
 
 TEST(core_test, format_explicitly_convertible_to_std_string_view) {
-  EXPECT_EQ("foo",
-            fmt::format("{}", explicitly_convertible_to_std_string_view()));
+  // Types explicitly convertible to string_view are not formattable by
+  // default because it may introduce ODR violations.
+  static_assert(
+      !fmt::is_formattable<explicitly_convertible_to_std_string_view>::value,
+      "");
 }
 #  endif
 #endif

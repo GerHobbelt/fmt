@@ -24,7 +24,9 @@ class assertion_failure : public std::logic_error {
   virtual void avoid_weak_vtable();
 };
 
+#if !defined(BUILD_MONOLITHIC)
 void assertion_failure::avoid_weak_vtable() {}
+#endif
 
 // We use a separate function (rather than throw directly from FMT_ASSERT) to
 // avoid GCC's -Wterminate warning when FMT_ASSERT is used in a destructor.

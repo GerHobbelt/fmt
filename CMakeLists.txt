@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.1...3.18)
+cmake_minimum_required(VERSION 3.8...3.25)
 
 # Fallback for using newer policies on CMake <3.12.
 if(${CMAKE_VERSION} VERSION_LESS 3.12)
@@ -84,10 +84,8 @@ option(FMT_MODULE "Build a module instead of a traditional library." OFF)
 option(FMT_SYSTEM_HEADERS "Expose headers with marking them as system." OFF)
 
 set(FMT_CAN_MODULE OFF)
-if (CMAKE_CXX_STANDARD GREATER 17 AND
-    # msvc 16.10-pre4
-    MSVC AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 19.29.30035)
-  set(FMT_CAN_MODULE OFF)
+if (CMAKE_CXX_STANDARD GREATER 17 AND NOT MSVC)
+  set(FMT_CAN_MODULE ON)
 endif ()
 if (NOT FMT_CAN_MODULE)
   set(FMT_MODULE OFF)
@@ -118,23 +116,14 @@ message(STATUS "Version: ${FMT_VERSION}")
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 
 if (NOT CMAKE_RUNTIME_OUTPUT_DIRECTORY)
-  set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+  set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/bin)
 endif ()
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH}
   "${CMAKE_CURRENT_SOURCE_DIR}/support/cmake")
 
-include(cxx14)
 include(CheckCXXCompilerFlag)
 include(JoinPaths)
-
-list(FIND CMAKE_CXX_COMPILE_FEATURES "cxx_variadic_templates" index)
-if (${index} GREATER -1)
-  # Use cxx_variadic_templates instead of more appropriate cxx_std_11 for
-  # compatibility with older CMake versions.
-  set(FMT_REQUIRED_FEATURES cxx_variadic_templates)
-endif ()
-message(STATUS "Required features: ${FMT_REQUIRED_FEATURES}")
 
 if (FMT_MASTER_PROJECT AND NOT DEFINED CMAKE_CXX_VISIBILITY_PRESET)
   set_verbose(CMAKE_CXX_VISIBILITY_PRESET hidden CACHE STRING
@@ -209,18 +198,6 @@ if (FMT_MASTER_PROJECT AND CMAKE_GENERATOR MATCHES "Visual Studio")
     ${CMAKE_MAKE_PROGRAM} -p:FrameworkPathOverride=\"${netfxpath}\" %*")
 endif ()
 
-set(strtod_l_headers stdlib.h)
-if (APPLE)
-  set(strtod_l_headers ${strtod_l_headers} xlocale.h)
-endif ()
-
-include(CheckSymbolExists)
-if (WIN32)
-  check_symbol_exists(_strtod_l "${strtod_l_headers}" HAVE_STRTOD_L)
-else ()
-  check_symbol_exists(strtod_l "${strtod_l_headers}" HAVE_STRTOD_L)
-endif ()
-
 function(add_headers VAR)
   set(headers ${${VAR}})
   foreach (header ${ARGN})
@@ -231,7 +208,7 @@ endfunction()
 
 # Define the fmt library, its includes and the needed defines.
 add_headers(FMT_HEADERS args.h chrono.h color.h compile.h core.h format.h
-                        format-inl.h locale.h os.h ostream.h printf.h ranges.h
+                        format-inl.h os.h ostream.h printf.h ranges.h std.h
                         xchar.h)
 if (FMT_MODULE)
   set(FMT_SOURCES src/fmt.cc)
@@ -244,17 +221,6 @@ endif ()
 add_library(fmt ${FMT_SOURCES} ${FMT_HEADERS} README.rst ChangeLog.rst)
 add_library(fmt::fmt ALIAS fmt)
 
-if (HAVE_STRTOD_L)
-  target_compile_definitions(fmt PUBLIC FMT_LOCALE)
-endif ()
-
-if (MINGW)
-  check_cxx_compiler_flag("-Wa,-mbig-obj" FMT_HAS_MBIG_OBJ)
-  if (${FMT_HAS_MBIG_OBJ})
-    target_compile_options(fmt PUBLIC "-Wa,-mbig-obj")
-  endif()
-endif ()
-
 if (FMT_WERROR)
   target_compile_options(fmt PRIVATE ${WERROR_FLAG})
 endif ()
@@ -265,7 +231,7 @@ if (FMT_MODULE)
   enable_module(fmt)
 endif ()
 
-target_compile_features(fmt INTERFACE ${FMT_REQUIRED_FEATURES})
+target_compile_features(fmt PUBLIC cxx_std_11)
 
 target_include_directories(fmt ${FMT_SYSTEM_HEADERS_ATTRIBUTE} PUBLIC
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
@@ -275,6 +241,7 @@ set(FMT_DEBUG_POSTFIX d CACHE STRING "Debug library postfix.")
 
 set_target_properties(fmt PROPERTIES
   VERSION ${FMT_VERSION} SOVERSION ${CPACK_PACKAGE_VERSION_MAJOR}
+  PUBLIC_HEADER "${FMT_HEADERS}"
   DEBUG_POSTFIX "${FMT_DEBUG_POSTFIX}")
 
 # Set FMT_LIB_NAME for pkg-config fmt.pc. We cannot use the OUTPUT_NAME target
@@ -285,12 +252,6 @@ if (CMAKE_BUILD_TYPE STREQUAL "Debug")
 endif ()
 
 if (BUILD_SHARED_LIBS)
-  if (UNIX AND NOT APPLE AND NOT ${CMAKE_SYSTEM_NAME} MATCHES "SunOS" AND
-      NOT EMSCRIPTEN)
-    # Fix rpmlint warning:
-    # unused-direct-shlib-dependency /usr/lib/libformat.so.1.1.0 /lib/libm.so.6.
-    target_link_libraries(fmt -Wl,--as-needed)
-  endif ()
   target_compile_definitions(fmt PRIVATE FMT_EXPORT INTERFACE FMT_SHARED)
 endif ()
 if (FMT_SAFE_DURATION_CAST)
@@ -301,7 +262,7 @@ add_library(fmt-header-only INTERFACE)
 add_library(fmt::fmt-header-only ALIAS fmt-header-only)
 
 target_compile_definitions(fmt-header-only INTERFACE FMT_HEADER_ONLY=1)
-target_compile_features(fmt-header-only INTERFACE ${FMT_REQUIRED_FEATURES})
+target_compile_features(fmt-header-only INTERFACE cxx_std_11)
 
 target_include_directories(fmt-header-only ${FMT_SYSTEM_HEADERS_ATTRIBUTE} INTERFACE
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
@@ -352,6 +313,8 @@ if (FMT_INSTALL)
   install(TARGETS ${INSTALL_TARGETS} EXPORT ${targets_export_name}
           LIBRARY DESTINATION ${FMT_LIB_DIR}
           ARCHIVE DESTINATION ${FMT_LIB_DIR}
+          PUBLIC_HEADER DESTINATION "${FMT_INC_DIR}/fmt"
+          FRAMEWORK DESTINATION "."
           RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
   # Use a namespace because CMake provides better diagnostics for namespaced
@@ -368,7 +331,6 @@ if (FMT_INSTALL)
 
   install(FILES $<TARGET_PDB_FILE:${INSTALL_TARGETS}>
           DESTINATION ${FMT_LIB_DIR} OPTIONAL)
-  install(FILES ${FMT_HEADERS} DESTINATION "${FMT_INC_DIR}/fmt")
   install(FILES "${pkgconfig}" DESTINATION "${FMT_PKGCONFIG_DIR}")
 endif ()
 

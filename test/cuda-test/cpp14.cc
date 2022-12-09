@@ -4,8 +4,16 @@
 // the standard version. See 'cuda-cpp14.cu'.
 //
 // https://en.cppreference.com/w/cpp/preprocessor/replace#Predefined_macros
+#ifndef _MSC_VER
 static_assert(__cplusplus >= 201402L, "expect C++ 2014 for host compiler");
 
 auto make_message_cpp() -> std::string {
   return fmt::format("host compiler \t: __cplusplus == {}", __cplusplus);
 }
+#else
+static_assert((__cplusplus >= 201402L || _MSC_VER >= 1929), "expect C++ 2014 for host compiler");
+
+auto make_message_cpp() -> std::string {
+	return fmt::format("host compiler \t: __cplusplus == {}, _MSC_VER == {}, _MSC_FULL_VER == {}", __cplusplus, _MSC_VER, _MSC_FULL_VER);
+}
+#endif
