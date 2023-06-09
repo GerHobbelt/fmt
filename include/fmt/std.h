@@ -44,6 +44,17 @@
 #  endif
 #endif
 
+// Check if typeid is available.
+#ifndef FMT_USE_TYPEID
+// __RTTI is for EDG compilers. In MSVC typeid is available without RTTI.
+#  if defined(__GXX_RTTI) || FMT_HAS_FEATURE(cxx_rtti) || FMT_MSC_VERSION || \
+      defined(__INTEL_RTTI__) || defined(__RTTI)
+#    define FMT_USE_TYPEID 1
+#  else
+#    define FMT_USE_TYPEID 0
+#  endif
+#endif
+
 #ifdef __cpp_lib_filesystem
 FMT_BEGIN_NAMESPACE
 
@@ -61,7 +72,7 @@ inline void write_escaped_path<char>(memory_buffer& quoted,
   auto buf = basic_memory_buffer<wchar_t>();
   write_escaped_string<wchar_t>(std::back_inserter(buf), p.native());
   // Convert UTF-16 to UTF-8.
-  if (!unicode_to_utf8<wchar_t>::convert(quoted, {buf.data(), buf.size()}))
+  if (!to_utf8<wchar_t>::convert(quoted, {buf.data(), buf.size()}))
     FMT_THROW(std::runtime_error("invalid utf16"));
 }
 #  endif
@@ -75,12 +86,12 @@ inline void write_escaped_path<std::filesystem::path::value_type>(
 
 }  // namespace detail
 
-FMT_MODULE_EXPORT
+FMT_EXPORT
 template <typename Char>
 struct formatter<std::filesystem::path, Char>
-    : formatter<basic_string_view<Char>> {
+    : formatter<basic_string_view<Char>, Char> {
   template <typename ParseContext> FMT_CONSTEXPR auto parse(ParseContext& ctx) {
-    auto out = formatter<basic_string_view<Char>>::parse(ctx);
+    auto out = formatter<basic_string_view<Char>, Char>::parse(ctx);
     this->set_debug_format(false);
     return out;
   }
@@ -89,7 +100,7 @@ struct formatter<std::filesystem::path, Char>
       typename FormatContext::iterator {
     auto quoted = basic_memory_buffer<Char>();
     detail::write_escaped_path(quoted, p);
-    return formatter<basic_string_view<Char>>::format(
+    return formatter<basic_string_view<Char>, Char>::format(
         basic_string_view<Char>(quoted.data(), quoted.size()), ctx);
   }
 };
@@ -97,14 +108,14 @@ FMT_END_NAMESPACE
 #endif
 
 FMT_BEGIN_NAMESPACE
-FMT_MODULE_EXPORT
+FMT_EXPORT
 template <typename Char>
 struct formatter<std::thread::id, Char> : basic_ostream_formatter<Char> {};
 FMT_END_NAMESPACE
 
 #ifdef __cpp_lib_optional
 FMT_BEGIN_NAMESPACE
-FMT_MODULE_EXPORT
+FMT_EXPORT
 template <typename T, typename Char>
 struct formatter<std::optional<T>, Char,
                  std::enable_if_t<is_formattable<T, Char>::value>> {
@@ -148,7 +159,7 @@ FMT_END_NAMESPACE
 
 #ifdef __cpp_lib_variant
 FMT_BEGIN_NAMESPACE
-FMT_MODULE_EXPORT
+FMT_EXPORT
 template <typename Char> struct formatter<std::monostate, Char> {
   template <typename ParseContext>
   FMT_CONSTEXPR auto parse(ParseContext& ctx) -> decltype(ctx.begin()) {
@@ -206,7 +217,7 @@ template <typename T, typename C> struct is_variant_formattable {
       detail::is_variant_formattable_<T, C>::value;
 };
 
-FMT_MODULE_EXPORT
+FMT_EXPORT
 template <typename Variant, typename Char>
 struct formatter<
     Variant, Char,
@@ -240,7 +251,7 @@ FMT_END_NAMESPACE
 #endif  // __cpp_lib_variant
 
 FMT_BEGIN_NAMESPACE
-FMT_MODULE_EXPORT
+FMT_EXPORT
 template <typename Char> struct formatter<std::error_code, Char> {
   template <typename ParseContext>
   FMT_CONSTEXPR auto parse(ParseContext& ctx) -> decltype(ctx.begin()) {
@@ -258,7 +269,7 @@ template <typename Char> struct formatter<std::error_code, Char> {
   }
 };
 
-FMT_MODULE_EXPORT
+FMT_EXPORT
 template <typename T, typename Char>
 struct formatter<
     T, Char,
@@ -274,7 +285,7 @@ struct formatter<
     if (it == end || *it == '}') return it;
     if (*it == 't') {
       ++it;
-      with_typename_ = true;
+      with_typename_ = FMT_USE_TYPEID != 0;
     }
     return it;
   }
@@ -287,8 +298,9 @@ struct formatter<
     if (!with_typename_)
       return detail::write_bytes(out, string_view(ex.what()), spec);
 
+#if FMT_USE_TYPEID
     const std::type_info& ti = typeid(ex);
-#ifdef FMT_HAS_ABI_CXA_DEMANGLE
+#  ifdef FMT_HAS_ABI_CXA_DEMANGLE
     int status = 0;
     std::size_t size = 0;
     std::unique_ptr<char, decltype(&std::free)> demangled_name_ptr(
@@ -327,21 +339,22 @@ struct formatter<
       demangled_name_view = string_view(ti.name());
     }
     out = detail::write_bytes(out, demangled_name_view, spec);
-#elif FMT_MSC_VERSION
+#  elif FMT_MSC_VERSION
     string_view demangled_name_view(ti.name());
     if (demangled_name_view.starts_with("class "))
       demangled_name_view.remove_prefix(6);
     else if (demangled_name_view.starts_with("struct "))
       demangled_name_view.remove_prefix(7);
     out = detail::write_bytes(out, demangled_name_view, spec);
-#else
+#  else
     out = detail::write_bytes(out, string_view(ti.name()), spec);
-#endif
+#  endif
     out = detail::write<Char>(out, Char(':'));
     out = detail::write<Char>(out, Char(' '));
     out = detail::write_bytes(out, string_view(ex.what()), spec);
 
     return out;
+#endif
   }
 };
 FMT_END_NAMESPACE

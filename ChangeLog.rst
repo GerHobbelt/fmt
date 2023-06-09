@@ -29,6 +29,8 @@
   `#3272 <https://github.com/fmtlib/fmt/pull/3272>`_).
   Thanks `@ShawnZhong (Shawn Zhong) <https://github.com/ShawnZhong>`_.
 
+* Made handling of ``#`` consistent with ``std::format``.
+
 * Improved C++20 module support
   (`#3134 <https://github.com/fmtlib/fmt/pull/3134>`_,
   `#3254 <https://github.com/fmtlib/fmt/pull/3254>`_,
@@ -292,6 +294,9 @@
 * Added ``println`` for compatibility with C++23
   (`#3267 <https://github.com/fmtlib/fmt/pull/3267>`_).
   Thanks `@ShawnZhong (Shawn Zhong) <https://github.com/ShawnZhong>`_.
+
+* Renamed the ``FMT_EXPORT`` macro for shared library usage to
+  ``FMT_LIB_EXPORT``.
 
 * Improved documentation
   (`#3108 <https://github.com/fmtlib/fmt/issues/3108>`_,
