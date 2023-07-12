@@ -680,6 +680,9 @@ auto format_as(scoped_enum_as_int) -> int { return 42; }
 enum class scoped_enum_as_string {};
 auto format_as(scoped_enum_as_string) -> fmt::string_view { return "foo"; }
 
+struct struct_as_int {};
+auto format_as(struct_as_int) -> int { return 42; }
+
 struct convertible_to_enum {
   operator scoped_enum_as_int() const { return {}; }
 };
@@ -724,7 +727,7 @@ TEST(core_test, is_formattable) {
   static_assert(!fmt::is_formattable<int (s::*)()>::value, "");
   static_assert(!fmt::is_formattable<unformattable_scoped_enum>::value, "");
   static_assert(fmt::is_formattable<test::scoped_enum_as_int>::value, "");
-  static_assert(!fmt::is_formattable<test::convertible_to_enum>::value, "");
+  static_assert(!fmt::is_formattable<unformattable_scoped_enum>::value, "");
 }
 
 TEST(core_test, format) { EXPECT_EQ(fmt::format("{}", 42), "42"); }
@@ -738,6 +741,7 @@ TEST(core_test, format_to) {
 TEST(core_test, format_as) {
   EXPECT_EQ(fmt::format("{}", test::scoped_enum_as_int()), "42");
   EXPECT_EQ(fmt::format("{}", test::scoped_enum_as_string()), "foo");
+  EXPECT_EQ(fmt::format("{}", test::struct_as_int()), "42");
 }
 
 #ifdef __cpp_lib_byte
@@ -796,17 +800,25 @@ TEST(core_test, to_string_view_foreign_strings) {
   EXPECT_EQ(type, fmt::detail::type::string_type);
 }
 
-struct implicitly_convertible_to_string {
-  operator std::string() const { return "foo"; }
-};
-
 struct implicitly_convertible_to_string_view {
   operator fmt::string_view() const { return "foo"; }
 };
 
-TEST(core_test, format_implicitly_convertible_to_string_view) {
-  EXPECT_EQ("foo", fmt::format("{}", implicitly_convertible_to_string_view()));
+TEST(core_test, no_implicit_conversion_to_string_view) {
+  EXPECT_FALSE(
+      fmt::is_formattable<implicitly_convertible_to_string_view>::value);
 }
+
+#ifdef FMT_USE_STRING_VIEW
+struct implicitly_convertible_to_std_string_view {
+  operator std::string_view() const { return "foo"; }
+};
+
+TEST(core_test, no_implicit_conversion_to_std_string_view) {
+  EXPECT_FALSE(
+      fmt::is_formattable<implicitly_convertible_to_std_string_view>::value);
+}
+#endif
 
 // std::is_constructible is broken in MSVC until version 2015.
 #if !FMT_MSC_VERSION || FMT_MSC_VERSION >= 1900

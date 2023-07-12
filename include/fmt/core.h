@@ -1359,9 +1359,15 @@ inline auto format_as(std::byte b) -> unsigned char {
 }
 #endif
 
+template <typename T> struct convertible_to { operator const T&() const; };
+
 template <typename T> struct has_format_as {
   template <typename U, typename V = decltype(format_as(U())),
             FMT_ENABLE_IF(std::is_enum<U>::value)>
+  static auto check(U*) -> std::true_type;
+  // Use convertible_to to avoid implicit conversions.
+  template <typename U, typename V = decltype(format_as(convertible_to<U>())),
+            FMT_ENABLE_IF(std::is_class<U>::value)>
   static auto check(U*) -> std::true_type;
   static auto check(...) -> std::false_type;
 
@@ -1443,25 +1449,6 @@ template <typename Context> struct arg_mapper {
   FMT_CONSTEXPR FMT_INLINE auto map(const T&) -> unformattable_char {
     return {};
   }
-  template <typename T,
-            FMT_ENABLE_IF(
-                std::is_convertible<T, basic_string_view<char_type>>::value &&
-                !is_string<T>::value && !has_formatter<T, Context>::value &&
-                !has_fallback_formatter<T, char_type>::value)>
-  FMT_CONSTEXPR FMT_INLINE auto map(const T& val)
-      -> basic_string_view<char_type> {
-    return basic_string_view<char_type>(val);
-  }
-  template <typename T,
-            FMT_ENABLE_IF(
-                std::is_convertible<T, std_string_view<char_type>>::value &&
-                !std::is_convertible<T, basic_string_view<char_type>>::value &&
-                !is_string<T>::value && !has_formatter<T, Context>::value &&
-                !has_fallback_formatter<T, char_type>::value)>
-  FMT_CONSTEXPR FMT_INLINE auto map(const T& val)
-      -> basic_string_view<char_type> {
-    return std_string_view<char_type>(val);
-  }
 
   FMT_CONSTEXPR FMT_INLINE auto map(void* val) -> const void* { return val; }
   FMT_CONSTEXPR FMT_INLINE auto map(const void* val) -> const void* {
@@ -1471,8 +1458,8 @@ template <typename Context> struct arg_mapper {
     return val;
   }
 
-  // We use SFINAE instead of a const T* parameter to avoid conflicting with
-  // the C array overload.
+  // Use SFINAE instead of a const T* parameter to avoid a conflict with the
+  // array overload.
   template <
       typename T,
       FMT_ENABLE_IF(
@@ -1491,15 +1478,14 @@ template <typename Context> struct arg_mapper {
     return values;
   }
 
-#if 0
+#ifdef FMT_DEPRECATED_IMPLICIT_ENUMS
   template <typename T,
             FMT_ENABLE_IF(
                 std::is_enum<T>::value&& std::is_convertible<T, int>::value &&
                 !has_format_as<T>::value && !has_formatter<T, Context>::value &&
                 !has_fallback_formatter<T, char_type>::value)>
   FMT_DEPRECATED FMT_CONSTEXPR FMT_INLINE auto map(const T& val)
-      -> decltype(std::declval<arg_mapper>().map(
-          static_cast<underlying_t<T>>(val))) {
+      -> decltype(this->map(static_cast<underlying_t<T>>(val))) {
     return map(static_cast<underlying_t<T>>(val));
   }
 #endif
@@ -1507,7 +1493,7 @@ template <typename Context> struct arg_mapper {
   template <typename T, FMT_ENABLE_IF(has_format_as<T>::value &&
                                       !has_formatter<T, Context>::value)>
   FMT_CONSTEXPR FMT_INLINE auto map(const T& val)
-      -> decltype(std::declval<arg_mapper>().map(format_as(T()))) {
+      -> decltype(this->map(format_as(T()))) {
     return map(format_as(val));
   }
 
@@ -1548,7 +1534,7 @@ template <typename Context> struct arg_mapper {
 
   template <typename T, FMT_ENABLE_IF(is_named_arg<T>::value)>
   FMT_CONSTEXPR FMT_INLINE auto map(const T& named_arg)
-      -> decltype(std::declval<arg_mapper>().map(named_arg.value)) {
+      -> decltype(this->map(named_arg.value)) {
     return map(named_arg.value);
   }
 
