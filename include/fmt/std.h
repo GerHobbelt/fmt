@@ -17,6 +17,7 @@
 #include <utility>
 #include <filesystem>
 
+#include "format.h"
 #include "ostream.h"
 
 #if FMT_HAS_INCLUDE(<version>)
@@ -235,13 +236,14 @@ struct formatter<
     auto out = ctx.out();
 
     out = detail::write<Char>(out, "variant(");
-    try {
+    FMT_TRY {
       std::visit(
           [&](const auto& v) {
             out = detail::write_variant_alternative<Char>(out, v);
           },
           value);
-    } catch (const std::bad_variant_access&) {
+    }
+    FMT_CATCH(const std::bad_variant_access&) {
       detail::write<Char>(out, "valueless by exception");
     }
     *out++ = ')';
