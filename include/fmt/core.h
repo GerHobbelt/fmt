@@ -635,6 +635,14 @@ constexpr bool is_arithmetic_type(type t) {
   return t > type::none_type && t <= type::last_numeric_type;
 }
 
+constexpr auto has_sign(type t) -> bool {
+  return ((0xe2a >> static_cast<int>(t)) & 1) != 0;
+}
+
+constexpr auto has_precision(type t) -> bool {
+  return ((0x3e00 >> static_cast<int>(t)) & 1) != 0;
+}
+
 FMT_NORETURN FMT_API void throw_format_error(const char* message);
 
 struct error_handler {
@@ -2194,14 +2202,14 @@ template <typename Char> constexpr bool is_ascii_letter(Char c) {
   return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
 }
 
-// Converts a character to ASCII. Returns a number > 127 on conversion failure.
+// Converts a character to ASCII. Returns '\0' on conversion failure.
 template <typename Char, FMT_ENABLE_IF(std::is_integral<Char>::value)>
-constexpr auto to_ascii(Char c) -> Char {
-  return c;
+constexpr auto to_ascii(Char c) -> char {
+  return c <= 0xff ? static_cast<char>(c) : '\0';
 }
 template <typename Char, FMT_ENABLE_IF(std::is_enum<Char>::value)>
-constexpr auto to_ascii(Char c) -> underlying_t<Char> {
-  return c;
+constexpr auto to_ascii(Char c) -> char {
+  return c <= 0xff ? static_cast<char>(c) : '\0';
 }
 
 FMT_CONSTEXPR inline auto code_point_length_impl(char c) -> int {
@@ -2262,15 +2270,10 @@ FMT_CONSTEXPR auto parse_nonnegative_int(const Char*& begin, const Char* end,
              : error_value;
 }
 
-template <typename Char> struct parse_align_result {
-  const Char* end;
-  align_t align;
-};
-
 // Parses [[fill]align].
 template <typename Char>
-FMT_CONSTEXPR auto parse_align(const Char* begin, const Char* end)
-    -> parse_align_result<Char> {
+FMT_CONSTEXPR auto parse_align(const Char* begin, const Char* end,
+                               format_specs<Char>& specs) -> const Char* {
   FMT_ASSERT(begin != end, "");
   auto align = align::none;
   auto p = begin + code_point_length(begin);
@@ -2290,11 +2293,12 @@ FMT_CONSTEXPR auto parse_align(const Char* begin, const Char* end)
     if (align != align::none) {
       if (p != begin) {
         auto c = *begin;
-        if (c == '}') return {begin, align::none};
+        if (c == '}') return begin;
         if (c == '{') {
           throw_format_error("invalid fill character '{'");
-          return {begin, align::none};
+          return begin;
         }
+        specs.fill = {begin, to_unsigned(p - begin)};
         begin = p + 1;
       } else {
         ++begin;
@@ -2305,11 +2309,12 @@ FMT_CONSTEXPR auto parse_align(const Char* begin, const Char* end)
     }
     p = begin;
   }
-  return {begin, align};
+  specs.align = align;
+  return begin;
 }
 
-template <typename Char> FMT_CONSTEXPR bool is_name_start(Char c) {
-  return ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') || '_' == c;
+template <typename Char> constexpr auto is_name_start(Char c) -> bool {
+  return ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') || c == '_';
 }
 
 template <typename Char, typename Handler>
@@ -2401,15 +2406,15 @@ FMT_CONSTEXPR auto parse_precision(const Char* begin, const Char* end,
     -> const Char* {
   ++begin;
   if (begin == end || *begin == '}') {
-    throw_format_error("missing precision");
+    throw_format_error("invalid precision");
     return begin;
   }
   return parse_dynamic_spec(begin, end, value, ref, ctx);
 }
 
-template <typename Char>
-FMT_CONSTEXPR auto parse_presentation_type(Char type) -> presentation_type {
-  switch (to_ascii(type)) {
+FMT_CONSTEXPR inline auto parse_presentation_type(char type)
+    -> presentation_type {
+  switch (type) {
   case 'd':
     return presentation_type::dec;
   case 'o':
@@ -2447,13 +2452,9 @@ FMT_CONSTEXPR auto parse_presentation_type(Char type) -> presentation_type {
   case '?':
     return presentation_type::debug;
   default:
+    throw_format_error("invalid format specifier");
     return presentation_type::none;
   }
-}
-
-FMT_CONSTEXPR inline void require_numeric_argument(type arg_type) {
-  if (!is_arithmetic_type(arg_type))
-    throw_format_error("format specifier requires numeric argument");
 }
 
 // Parses standard format specifiers.
@@ -2463,58 +2464,42 @@ FMT_CONSTEXPR FMT_INLINE auto parse_format_specs(
     basic_format_parse_context<Char>& ctx, type arg_type) -> const Char* {
   if (1 < end - begin && begin[1] == '}' && is_ascii_letter(*begin) &&
       *begin != 'L') {
-    specs.type = parse_presentation_type(*begin++);
-    if (specs.type == presentation_type::none)
-      throw_format_error("invalid type specifier");
+    specs.type = parse_presentation_type(to_ascii(*begin++));
     return begin;
   }
   if (begin == end) return begin;
 
-  auto align = parse_align(begin, end);
-  if (align.align != align::none) {
-    specs.align = align.align;
-    auto fill_size = align.end - begin - 1;
-    if (fill_size > 0) specs.fill = {begin, to_unsigned(fill_size)};
-  }
-  begin = align.end;
+  begin = parse_align(begin, end, specs);
   if (begin == end) return begin;
 
-  // Parse sign.
-  switch (to_ascii(*begin)) {
-  case '+':
-    specs.sign = sign::plus;
-    ++begin;
-    break;
-  case '-':
-    specs.sign = sign::minus;
-    ++begin;
-    break;
-  case ' ':
-    specs.sign = sign::space;
-    ++begin;
-    break;
-  default:
-    break;
-  }
-  if (specs.sign != sign::none) {
-    require_numeric_argument(arg_type);
-    if (is_integral_type(arg_type) && arg_type != type::int_type &&
-        arg_type != type::long_long_type && arg_type != type::int128_type &&
-        arg_type != type::char_type) {
-      throw_format_error("format specifier requires signed argument");
+  if (has_sign(arg_type)) {
+    switch (to_ascii(*begin)) {
+    case '+':
+      specs.sign = sign::plus;
+      ++begin;
+      break;
+    case '-':
+      specs.sign = sign::minus;
+      ++begin;
+      break;
+    case ' ':
+      specs.sign = sign::space;
+      ++begin;
+      break;
+    default:
+      break;
     }
+    if (begin == end) return begin;
   }
-  if (begin == end) return begin;
 
-  if (*begin == '#') {
-    require_numeric_argument(arg_type);
+  if (*begin == '#' && is_arithmetic_type(arg_type)) {
     specs.alt = true;
     if (++begin == end) return begin;
   }
 
-  // Parse zero flag.
-  if (*begin == '0') {
-    require_numeric_argument(arg_type);
+  if (*begin == '0') {  // Parse zero flag.
+    if (!is_arithmetic_type(arg_type))
+      throw_format_error("format specifier requires numeric argument");
     if (specs.align == align::none) {
       // Ignore 0 if align is specified for compatibility with std::format.
       specs.align = align::numeric;
@@ -2526,27 +2511,18 @@ FMT_CONSTEXPR FMT_INLINE auto parse_format_specs(
   begin = parse_dynamic_spec(begin, end, specs.width, specs.width_ref, ctx);
   if (begin == end) return begin;
 
-  // Parse precision.
-  if (*begin == '.') {
+  if (*begin == '.' && has_precision(arg_type)) {
     begin =
         parse_precision(begin, end, specs.precision, specs.precision_ref, ctx);
-    if (is_integral_type(arg_type) || arg_type == type::pointer_type)
-      throw_format_error("precision not allowed for this argument type");
     if (begin == end) return begin;
   }
 
-  if (*begin == 'L') {
-    require_numeric_argument(arg_type);
+  if (*begin == 'L' && is_arithmetic_type(arg_type)) {
     specs.localized = true;
-    ++begin;
+    if (++begin == end) return begin;
   }
 
-  // Parse type.
-  if (begin != end && *begin != '}') {
-    specs.type = parse_presentation_type(*begin++);
-    if (specs.type == presentation_type::none)
-      throw_format_error("invalid type specifier");
-  }
+  if (*begin != '}') specs.type = parse_presentation_type(to_ascii(*begin++));
   return begin;
 }
 
@@ -2667,7 +2643,7 @@ template <typename ErrorHandler>
 FMT_CONSTEXPR void check_int_type_spec(presentation_type type,
                                        ErrorHandler&& eh) {
   if (type > presentation_type::bin_upper && type != presentation_type::chr)
-    eh.on_error("invalid type specifier");
+    eh.on_error("invalid format specifier");
 }
 
 // Checks char specs and returns true if the type spec is char (and not int).
@@ -2741,7 +2717,7 @@ FMT_CONSTEXPR auto parse_float_type_spec(const format_specs<Char>& specs,
     result.format = float_format::hex;
     break;
   default:
-    eh.on_error("invalid type specifier");
+    eh.on_error("invalid format specifier");
     break;
   }
   return result;
@@ -2753,7 +2729,8 @@ FMT_CONSTEXPR auto check_cstring_type_spec(presentation_type type,
   if (type == presentation_type::none || type == presentation_type::string ||
       type == presentation_type::debug)
     return true;
-  if (type != presentation_type::pointer) eh.on_error("invalid type specifier");
+  if (type != presentation_type::pointer)
+    eh.on_error("invalid format specifier");
   return false;
 }
 
@@ -2762,14 +2739,14 @@ FMT_CONSTEXPR void check_string_type_spec(presentation_type type,
                                           ErrorHandler&& eh = {}) {
   if (type != presentation_type::none && type != presentation_type::string &&
       type != presentation_type::debug)
-    eh.on_error("invalid type specifier");
+    eh.on_error("invalid format specifier");
 }
 
 template <typename ErrorHandler>
 FMT_CONSTEXPR void check_pointer_type_spec(presentation_type type,
                                            ErrorHandler&& eh) {
   if (type != presentation_type::none && type != presentation_type::pointer)
-    eh.on_error("invalid type specifier");
+    eh.on_error("invalid format specifier");
 }
 
 constexpr int invalid_arg_index = -1;
