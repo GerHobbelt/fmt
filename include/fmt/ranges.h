@@ -684,7 +684,7 @@ struct formatter<T, Char,
   }
 };
 
-FMT_MODULE_EXPORT_BEGIN
+FMT_EXPORT_BEGIN
 
 /**
   \rst
@@ -727,7 +727,7 @@ auto join(std::initializer_list<T> list, string_view sep)
   return join(std::begin(list), std::end(list), sep);
 }
 
-FMT_MODULE_EXPORT_END
+FMT_EXPORT_END
 FMT_END_NAMESPACE
 
 #endif  // FMT_RANGES_H_
