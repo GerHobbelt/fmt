@@ -1797,7 +1797,7 @@ class format_arg_store
         basic_format_args<Context>(*this),
 #endif
         data_{detail::make_arg<is_packed, Context>(args)...} {
-    if (num_named_args != 0)
+    if (detail::const_check(num_named_args != 0))
       detail::init_named_args(data_.named_args(), 0, 0, args...);
   }
 };
