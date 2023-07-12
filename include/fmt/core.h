@@ -194,21 +194,17 @@
 
 #ifndef FMT_MODULE_EXPORT
 #  define FMT_MODULE_EXPORT
-#  define FMT_EXPORT_BEGIN
-#  define FMT_EXPORT_END
-#  define FMT_BEGIN_DETAIL_NAMESPACE namespace detail {
-#  define FMT_END_DETAIL_NAMESPACE }
+#  define FMT_BEGIN_EXPORT
+#  define FMT_END_EXPORT
 #endif
 
 #if !defined(FMT_HEADER_ONLY) && defined(_WIN32)
-#  define FMT_CLASS_API FMT_MSC_WARNING(suppress : 4275)
 #  ifdef FMT_LIB_EXPORT
 #    define FMT_API __declspec(dllexport)
 #  elif defined(FMT_SHARED)
 #    define FMT_API __declspec(dllimport)
 #  endif
 #else
-#  define FMT_CLASS_API
 #  if defined(FMT_LIB_EXPORT) || defined(FMT_SHARED)
 #    if defined(__GNUC__) || defined(__clang__)
 #      define FMT_API __attribute__((visibility("default")))
@@ -273,7 +269,6 @@ FMT_GCC_PRAGMA("GCC optimize(\"Og\")")
 #endif
 
 FMT_BEGIN_NAMESPACE
-FMT_EXPORT_BEGIN
 
 // Implementations of enable_if_t and other metafunctions for older systems.
 template <bool B, typename T = void>
@@ -311,8 +306,7 @@ inline auto format_as(std::byte b) -> unsigned char {
 }
 #endif
 
-FMT_BEGIN_DETAIL_NAMESPACE
-
+namespace detail {
 // Suppresses "unused variable" warnings with the method described in
 // https://herbsutter.com/2009/10/18/mailbag-shutting-up-compiler-warnings/.
 // (void)var does not work on many Intel compilers.
@@ -402,7 +396,7 @@ FMT_CONSTEXPR inline auto is_utf8() -> bool {
   return FMT_UNICODE || (sizeof(section) == 3 && uchar(section[0]) == 0xC2 &&
                          uchar(section[1]) == 0xA7);
 }
-FMT_END_DETAIL_NAMESPACE
+}  // namespace detail
 
 /**
   An implementation of ``std::basic_string_view`` for pre-C++17. It provides a
@@ -519,7 +513,7 @@ using string_view = basic_string_view<char>;
 template <typename T> struct is_char : std::false_type {};
 template <> struct is_char<char> : std::true_type {};
 
-FMT_BEGIN_DETAIL_NAMESPACE
+namespace detail {
 
 // A base class for compile-time strings.
 struct compile_string {};
@@ -651,7 +645,7 @@ struct error_handler {
     throw_format_error(message);
   }
 };
-FMT_END_DETAIL_NAMESPACE
+}  // namespace detail
 
 /** String's character type. */
 template <typename S> using char_t = typename detail::char_t_impl<S>::type;
@@ -730,7 +724,7 @@ template <typename Char> class basic_format_parse_context {
 
 using format_parse_context = basic_format_parse_context<char>;
 
-FMT_BEGIN_DETAIL_NAMESPACE
+namespace detail {
 // A parse context with extra data used only in compile-time checks.
 template <typename Char>
 class compile_parse_context : public basic_format_parse_context<Char> {
@@ -768,7 +762,7 @@ class compile_parse_context : public basic_format_parse_context<Char> {
 #endif
   }
 };
-FMT_END_DETAIL_NAMESPACE
+}  // namespace detail
 
 template <typename Char>
 FMT_CONSTEXPR void basic_format_parse_context<Char>::do_check_arg_id(int id) {
@@ -816,7 +810,7 @@ struct is_contiguous<std::basic_string<Char>> : std::true_type {};
 
 class appender;
 
-FMT_BEGIN_DETAIL_NAMESPACE
+namespace detail {
 
 template <typename Context, typename T>
 constexpr auto has_const_formatter_impl(T*)
@@ -1492,8 +1486,7 @@ enum { packed_arg_bits = 4 };
 enum { max_packed_args = 62 / packed_arg_bits };
 enum : unsigned long long { is_unpacked_bit = 1ULL << 63 };
 enum : unsigned long long { has_named_args_bit = 1ULL << 62 };
-
-FMT_END_DETAIL_NAMESPACE
+}  // namespace detail
 
 // An output iterator that appends to a buffer.
 // It is used to reduce symbol sizes for the common case.
@@ -1612,7 +1605,7 @@ FMT_CONSTEXPR FMT_INLINE auto visit_format_arg(
   return vis(monostate());
 }
 
-FMT_BEGIN_DETAIL_NAMESPACE
+namespace detail {
 
 template <typename Char, typename InputIt>
 auto copy_str(InputIt begin, InputIt end, appender out) -> appender {
@@ -1727,7 +1720,7 @@ template <bool IS_PACKED, typename Context, type, typename T,
 FMT_CONSTEXPR inline auto make_arg(T&& value) -> basic_format_arg<Context> {
   return make_arg<Context>(value);
 }
-FMT_END_DETAIL_NAMESPACE
+}  // namespace detail
 
 // Formatting context.
 template <typename OutputIt, typename Char> class basic_format_context {
@@ -2016,7 +2009,7 @@ enum type FMT_ENUM_UNDERLYING_TYPE(unsigned char){none, minus, plus, space};
 }
 using sign_t = sign::type;
 
-FMT_BEGIN_DETAIL_NAMESPACE
+namespace detail {
 
 // Workaround an array initialization issue in gcc 4.8.
 template <typename Char> struct fill_t {
@@ -2041,7 +2034,7 @@ template <typename Char> struct fill_t {
     return data_[index];
   }
 };
-FMT_END_DETAIL_NAMESPACE
+}  // namespace detail
 
 enum class presentation_type : unsigned char {
   none,
@@ -2086,7 +2079,7 @@ template <typename Char = char> struct format_specs {
         localized(false) {}
 };
 
-FMT_BEGIN_DETAIL_NAMESPACE
+namespace detail {
 
 enum class arg_id_kind { none, index, name };
 
@@ -2698,7 +2691,9 @@ FMT_API void vprint_mojibake(std::FILE*, string_view, format_args);
 #ifndef _WIN32
 inline void vprint_mojibake(std::FILE*, string_view, format_args) {}
 #endif
-FMT_END_DETAIL_NAMESPACE
+}  // namespace detail
+
+FMT_BEGIN_EXPORT
 
 // A formatter specialization for natively supported types.
 template <typename T, typename Char>
@@ -2951,7 +2946,7 @@ FMT_INLINE void println(format_string<T...> fmt, T&&... args) {
   return fmt::println(stdout, fmt, std::forward<T>(args)...);
 }
 
-FMT_EXPORT_END
+FMT_END_EXPORT
 FMT_GCC_PRAGMA("GCC pop_options")
 FMT_END_NAMESPACE
 
