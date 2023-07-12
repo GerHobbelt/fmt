@@ -202,14 +202,14 @@
 
 #if !defined(FMT_HEADER_ONLY) && defined(_WIN32)
 #  define FMT_CLASS_API FMT_MSC_WARNING(suppress : 4275)
-#  ifdef FMT_EXPORT
+#  ifdef FMT_LIB_EXPORT
 #    define FMT_API __declspec(dllexport)
 #  elif defined(FMT_SHARED)
 #    define FMT_API __declspec(dllimport)
 #  endif
 #else
 #  define FMT_CLASS_API
-#  if defined(FMT_EXPORT) || defined(FMT_SHARED)
+#  if defined(FMT_LIB_EXPORT) || defined(FMT_SHARED)
 #    if defined(__GNUC__) || defined(__clang__)
 #      define FMT_API __attribute__((visibility("default")))
 #    endif
@@ -527,7 +527,6 @@ struct compile_string {};
 template <typename S>
 struct is_compile_string : std::is_base_of<compile_string, S> {};
 
-// Returns a string view of `s`.
 template <typename Char, FMT_ENABLE_IF(is_char<Char>::value)>
 FMT_INLINE auto to_string_view(const Char* s) -> basic_string_view<Char> {
   return s;
@@ -557,10 +556,10 @@ void to_string_view(...);
 // Specifies whether S is a string type convertible to fmt::basic_string_view.
 // It should be a constexpr function but MSVC 2017 fails to compile it in
 // enable_if and MSVC 2015 fails to compile it as an alias template.
-// ADL invocation of to_string_view is DEPRECATED!
+// ADL is intentionally disabled as to_string_view is not an extension point.
 template <typename S>
-struct is_string : std::is_class<decltype(detail::to_string_view(std::declval<S>()))> {
-};
+struct is_string
+    : std::is_class<decltype(detail::to_string_view(std::declval<S>()))> {};
 
 template <typename S, typename = void> struct char_t_impl {};
 template <typename S> struct char_t_impl<S, enable_if_t<is_string<S>::value>> {
@@ -1220,7 +1219,6 @@ constexpr auto count_statically_named_args() -> size_t {
 
 struct unformattable {};
 struct unformattable_char : unformattable {};
-struct unformattable_const : unformattable {};
 struct unformattable_pointer : unformattable {};
 
 template <typename Char> struct string_value {
@@ -1298,7 +1296,6 @@ template <typename Context> class value {
   }
   value(unformattable);
   value(unformattable_char);
-  value(unformattable_const);
   value(unformattable_pointer);
 
  private:
@@ -1452,31 +1449,24 @@ template <typename Context> struct arg_mapper {
   template <typename T, typename U = remove_cvref_t<T>>
   struct formattable
       : bool_constant<has_const_formatter<U, Context>() ||
-                      !std::is_const<remove_reference_t<T>>::value> {};
+                      (has_formatter<U, Context>::value &&
+                       !std::is_const<remove_reference_t<T>>::value)> {};
 
-#if (FMT_MSC_VERSION != 0 && FMT_MSC_VERSION < 1910) || \
-    FMT_ICC_VERSION != 0 || defined(__NVCC__)
-  // Workaround a bug in MSVC and Intel (Issue 2746).
-  template <typename T> FMT_CONSTEXPR FMT_INLINE auto do_map(T&& val) -> T& {
-    return val;
-  }
-#else
   template <typename T, FMT_ENABLE_IF(formattable<T>::value)>
   FMT_CONSTEXPR FMT_INLINE auto do_map(T&& val) -> T& {
     return val;
   }
   template <typename T, FMT_ENABLE_IF(!formattable<T>::value)>
-  FMT_CONSTEXPR FMT_INLINE auto do_map(T&&) -> unformattable_const {
+  FMT_CONSTEXPR FMT_INLINE auto do_map(T&&) -> unformattable {
     return {};
   }
-#endif
 
   template <typename T, typename U = remove_cvref_t<T>,
-            FMT_ENABLE_IF(!is_string<U>::value && !is_char<U>::value &&
-                          !std::is_array<U>::value &&
-                          !std::is_pointer<U>::value &&
-                          !std::is_arithmetic<format_as_t<U>>::value &&
-                          has_formatter<U, Context>::value)>
+            FMT_ENABLE_IF((std::is_class<U>::value || std::is_enum<U>::value ||
+                           std::is_union<U>::value) &&
+                          !is_string<U>::value && !is_char<U>::value &&
+                          !is_named_arg<U>::value &&
+                          !std::is_arithmetic<format_as_t<U>>::value)>
   FMT_CONSTEXPR FMT_INLINE auto map(T&& val)
       -> decltype(this->do_map(std::forward<T>(val))) {
     return do_map(std::forward<T>(val));
@@ -1697,10 +1687,6 @@ FMT_CONSTEXPR FMT_INLINE auto make_value(T&& val) -> value<Context> {
   constexpr bool formattable_char =
       !std::is_same<decltype(arg), const unformattable_char&>::value;
   static_assert(formattable_char, "Mixing character types is disallowed.");
-
-  constexpr bool formattable_const =
-      !std::is_same<decltype(arg), const unformattable_const&>::value;
-  static_assert(formattable_const, "Cannot format a const argument.");
 
   // Formatting of arbitrary pointers is disallowed. If you want to format a
   // pointer cast it to `void*` or `const void*`. In particular, this forbids

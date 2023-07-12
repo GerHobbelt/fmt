@@ -1876,9 +1876,6 @@ TEST(format_test, unpacked_args) {
                         6, 7, 8, 9, 'a', 'b', 'c', 'd', 'e', 'f', 'g'));
 }
 
-struct string_like {};
-fmt::string_view to_string_view(string_like) { return "foo"; }
-
 constexpr char with_null[3] = {'{', '}', '\0'};
 constexpr char no_null[2] = {'{', '}'};
 static constexpr const char static_with_null[3] = {'{', '}', '\0'};
@@ -1889,7 +1886,6 @@ static constexpr const char static_no_null[2] = {'{', '}'};
 TEST(format_test, compile_time_string) {
   EXPECT_EQ("foo", fmt::format(FMT_STRING("foo")));
   EXPECT_EQ("42", fmt::format(FMT_STRING("{}"), 42));
-  EXPECT_EQ("foo", fmt::format(FMT_STRING("{}"), string_like()));
 
 #if FMT_USE_NONTYPE_TEMPLATE_ARGS
   using namespace fmt::literals;
@@ -1985,15 +1981,10 @@ struct formatter<adl_test::fmt::detail::foo> : formatter<std::string> {
 };
 FMT_END_NAMESPACE
 
-struct convertible_to_int {
-  operator int() const { return 42; }
-};
-
 TEST(format_test, to_string) {
   EXPECT_EQ(fmt::to_string(42), "42");
   EXPECT_EQ(fmt::to_string(reinterpret_cast<void*>(0x1234)), "0x1234");
   EXPECT_EQ(fmt::to_string(adl_test::fmt::detail::foo()), "foo");
-  EXPECT_EQ(fmt::to_string(convertible_to_int()), "42");
   EXPECT_EQ(fmt::to_string(foo), "0");
 
 #if FMT_USE_FLOAT128
