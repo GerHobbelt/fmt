@@ -28,7 +28,7 @@
 #define FMT_LOCALE
 
 // The fmt library version in the form major * 10000 + minor * 100 + patch.
-#define FMT_VERSION 90101
+#define FMT_VERSION 100000
 
 #if defined(__clang__) && !defined(__ibmxl__)
 #  define FMT_CLANG_VERSION (__clang_major__ * 100 + __clang_minor__)
@@ -186,7 +186,7 @@
 #ifndef FMT_BEGIN_NAMESPACE
 #  define FMT_BEGIN_NAMESPACE \
     namespace fmt {           \
-    inline namespace v9 {
+    inline namespace v10 {
 #  define FMT_END_NAMESPACE \
     }                       \
     }

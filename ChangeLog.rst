@@ -1,5 +1,5 @@
-10.0.0 - TBD
-------------
+10.0.0 - 2023-05-09
+-------------------
 
 * Replaced Grisu with a new floating-point formatting algorithm for given
   precision (`#3262 <https://github.com/fmtlib/fmt/issues/3262>`_,
@@ -128,12 +128,29 @@
   `#3222 <https://github.com/fmtlib/fmt/pull/3222>`_).
   Thanks `@phprus (Vladislav Shchapov) <https://github.com/phprus>`_.
 
-* Improved validation of format specifiers for `std::chrono::duration`
+* Improved validation of format specifiers for ``std::chrono::duration``
   (`#3219 <https://github.com/fmtlib/fmt/issues/3219>`_,
   `#3232 <https://github.com/fmtlib/fmt/pull/3232>`_).
   Thanks `@ShawnZhong (Shawn Zhong) <https://github.com/ShawnZhong>`_.
 
-* [Experimental: implemented glibc extension for padding seconds, minutes and
+* Fixed formatting of time points before the epoch
+  (`#3117 <https://github.com/fmtlib/fmt/issues/3117>`_,
+  `#3261 <https://github.com/fmtlib/fmt/pull/3261>`_).
+  For example (`godbolt <https://godbolt.org/z/f7bcznb3W>`__):
+
+  .. code:: c++
+
+     #include <fmt/chrono.h>
+
+     int main() {
+       auto t = std::chrono::system_clock::from_time_t(0) -
+                std::chrono::milliseconds(250);
+       fmt::print("{:%S}\n", t); // prints 59.750000000
+     }
+
+  Thanks `@ShawnZhong (Shawn Zhong) <https://github.com/ShawnZhong>`_.
+
+* Experimental: implemented glibc extension for padding seconds, minutes and
   hours (`#2959 <https://github.com/fmtlib/fmt/issues/2959>`_,
   `#3271 <https://github.com/fmtlib/fmt/pull/3271>`_).
   Thanks `@ShawnZhong (Shawn Zhong) <https://github.com/ShawnZhong>`_.
@@ -216,23 +233,6 @@
 
 * Improved handling of invalid Unicode in paths.
 
-* Fixed formatting of time points before the epoch
-  (`#3117 <https://github.com/fmtlib/fmt/issues/3117>`_,
-  `#3261 <https://github.com/fmtlib/fmt/pull/3261>`_).
-  For example (`godbolt <https://godbolt.org/z/f7bcznb3W>`__):
-
-  .. code:: c++
-
-     #include <fmt/chrono.h>
-
-     int main() {
-       auto t = std::chrono::system_clock::from_time_t(0) -
-                std::chrono::milliseconds(250);
-       fmt::print("{:%S}\n", t); // prints 59.750000000
-     }
-
-  Thanks `@ShawnZhong (Shawn Zhong) <https://github.com/ShawnZhong>`_.
-
 * Enabled compile-time checks on Apple clang 14 and later
   (`#3331 <https://github.com/fmtlib/fmt/pull/3331>`_).
   Thanks `@cloyce (Cloyce D. Spradling) <https://github.com/cloyce>`_.
@@ -293,6 +293,9 @@
   (`#3267 <https://github.com/fmtlib/fmt/pull/3267>`_).
   Thanks `@ShawnZhong (Shawn Zhong) <https://github.com/ShawnZhong>`_.
 
+* The ``FMT_EXPORT`` macro for shared library usage has been renamed to
+  ``FMT_LIB_EXPORT``.
+
 * Improved documentation
   (`#3108 <https://github.com/fmtlib/fmt/issues/3108>`_,
   `#3169 <https://github.com/fmtlib/fmt/issues/3169>`_,
@@ -337,7 +340,7 @@
   `@kevinhwang (Kevin Hwang) <https://github.com/kevinhwang>`_,
   `@Vertexwahn <https://github.com/Vertexwahn>`_.
 
-* Fixed a regression in handling empty format specifiers after a colon (`{:}`)
+* Fixed a regression in handling empty format specifiers after a colon (``{:}``)
   (`#3086 <https://github.com/fmtlib/fmt/pull/3086>`_).
   Thanks `@oxidase (Michael Krasnyk) <https://github.com/oxidase>`_.
 
