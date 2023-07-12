@@ -645,7 +645,6 @@ enum {
       set(type::int_type) | set(type::long_long_type) | set(type::int128_type),
   uint_set = set(type::uint_type) | set(type::ulong_long_type) |
              set(type::uint128_type),
-  all_int_set = sint_set | uint_set,
   bool_set = set(type::bool_type),
   char_set = set(type::char_type),
   float_set = set(type::float_type) | set(type::double_type) |
@@ -1864,10 +1863,6 @@ using buffer_context =
     basic_format_context<detail::buffer_appender<Char>, Char>;
 using format_context = buffer_context<char>;
 
-// Workaround an alias issue: https://stackoverflow.com/q/62767544/471164.
-#define FMT_BUFFER_CONTEXT(Char) \
-  basic_format_context<detail::buffer_appender<Char>, Char>
-
 template <typename T, typename Char = char>
 using is_formattable = bool_constant<
     !std::is_base_of<detail::unformattable,
@@ -2282,47 +2277,16 @@ FMT_CONSTEXPR auto parse_nonnegative_int(const Char*& begin, const Char* end,
              : error_value;
 }
 
-// Parses [[fill]align].
-template <typename Char>
-FMT_CONSTEXPR auto parse_align(const Char* begin, const Char* end,
-                               format_specs<Char>& specs) -> const Char* {
-  FMT_ASSERT(begin != end, "");
-  auto align = align::none;
-  auto p = begin + code_point_length(begin);
-  if (end - p <= 0) p = begin;
-  for (;;) {
-    switch (to_ascii(*p)) {
-    case '<':
-      align = align::left;
-      break;
-    case '>':
-      align = align::right;
-      break;
-    case '^':
-      align = align::center;
-      break;
-    }
-    if (align != align::none) {
-      if (p != begin) {
-        auto c = *begin;
-        if (c == '}') return begin;
-        if (c == '{') {
-          throw_format_error("invalid fill character '{'");
-          return begin;
-        }
-        specs.fill = {begin, to_unsigned(p - begin)};
-        begin = p + 1;
-      } else {
-        ++begin;
-      }
-      break;
-    } else if (p == begin) {
-      break;
-    }
-    p = begin;
+FMT_CONSTEXPR inline auto parse_align(char c) -> align_t {
+  switch (c) {
+  case '<':
+    return align::left;
+  case '>':
+    return align::right;
+  case '^':
+    return align::center;
   }
-  specs.align = align;
-  return begin;
+  return align::none;
 }
 
 template <typename Char> constexpr auto is_name_start(Char c) -> bool {
@@ -2427,7 +2391,7 @@ FMT_CONSTEXPR auto parse_precision(const Char* begin, const Char* end,
 FMT_CONSTEXPR inline auto do_parse_presentation_type(char c, type t)
     -> presentation_type {
   using pt = presentation_type;
-  constexpr auto integral_set = all_int_set | bool_set | char_set;
+  constexpr auto integral_set = sint_set | uint_set | bool_set | char_set;
   switch (c) {
   case 'd':
     return in(t, integral_set) ? pt::dec : pt::none;
@@ -2478,74 +2442,123 @@ FMT_CONSTEXPR inline auto parse_presentation_type(char c, type t)
   return pt;
 }
 
+enum class state { start, align, sign, hash, zero, width, precision, locale };
+
 // Parses standard format specifiers.
 template <typename Char>
 FMT_CONSTEXPR FMT_INLINE auto parse_format_specs(
     const Char* begin, const Char* end, dynamic_format_specs<Char>& specs,
     basic_format_parse_context<Char>& ctx, type arg_type) -> const Char* {
-  if (1 < end - begin && begin[1] == '}' && is_ascii_letter(*begin) &&
-      *begin != 'L') {
-    specs.type = parse_presentation_type(to_ascii(*begin++), arg_type);
-    return begin;
+  auto c = '\0';
+  if (end - begin > 1) {
+    auto next = to_ascii(begin[1]);
+    c = parse_align(next) == align::none ? to_ascii(*begin) : '\0';
+  } else {
+    if (begin == end) return begin;
+    c = to_ascii(*begin);
   }
-  if (begin == end) return begin;
-
-  begin = parse_align(begin, end, specs);
-  if (begin == end) return begin;
-
-  if (in(arg_type, sint_set | float_set)) {
-    switch (to_ascii(*begin)) {
+  struct {
+    state current_state = state::start;
+    FMT_CONSTEXPR void operator()(state s, bool valid = true) {
+      if (current_state >= s || !valid)
+        throw_format_error("invalid format specifier");
+      current_state = s;
+    }
+  } enter_state;
+  for (;;) {
+    switch (c) {
+    case '<':
+    case '>':
+    case '^':
+      enter_state(state::align);
+      specs.align = parse_align(c);
+      ++begin;
+      break;
     case '+':
-      specs.sign = sign::plus;
-      ++begin;
-      break;
     case '-':
-      specs.sign = sign::minus;
-      ++begin;
-      break;
     case ' ':
-      specs.sign = sign::space;
+      enter_state(state::sign, in(arg_type, sint_set | float_set));
+      switch (c) {
+      case '+':
+        specs.sign = sign::plus;
+        break;
+      case '-':
+        specs.sign = sign::minus;
+        break;
+      case ' ':
+        specs.sign = sign::space;
+        break;
+      }
       ++begin;
       break;
-    default:
+    case '#':
+      enter_state(state::hash, is_arithmetic_type(arg_type));
+      specs.alt = true;
+      ++begin;
       break;
+    case '0':
+      enter_state(state::zero);
+      if (!is_arithmetic_type(arg_type))
+        throw_format_error("format specifier requires numeric argument");
+      if (specs.align == align::none) {
+        // Ignore 0 if align is specified for compatibility with std::format.
+        specs.align = align::numeric;
+        specs.fill[0] = Char('0');
+      }
+      ++begin;
+      break;
+    case '1':
+    case '2':
+    case '3':
+    case '4':
+    case '5':
+    case '6':
+    case '7':
+    case '8':
+    case '9':
+    case '{':
+      enter_state(state::width);
+      begin = parse_dynamic_spec(begin, end, specs.width, specs.width_ref, ctx);
+      break;
+    case '.':
+      enter_state(state::precision,
+                  in(arg_type, float_set | string_set | cstring_set));
+      begin = parse_precision(begin, end, specs.precision, specs.precision_ref,
+                              ctx);
+      break;
+    case 'L':
+      enter_state(state::locale, is_arithmetic_type(arg_type));
+      specs.localized = true;
+      ++begin;
+      break;
+    case '}':
+      return begin;
+    default: {
+      if (is_ascii_letter(c) || c == '?') {
+        specs.type = parse_presentation_type(c, arg_type);
+        return begin + 1;
+      }
+      if (*begin == '}') return begin;
+      // Parse fill and alignment.
+      auto fill_end = begin + code_point_length(begin);
+      if (end - fill_end <= 0) {
+        throw_format_error("invalid format specifier");
+        return begin;
+      }
+      if (*begin == '{') {
+        throw_format_error("invalid fill character '{'");
+        return begin;
+      }
+      auto align = parse_align(to_ascii(*fill_end));
+      enter_state(state::align, align != align::none);
+      specs.fill = {begin, to_unsigned(fill_end - begin)};
+      specs.align = align;
+      begin = fill_end + 1;
+    }
     }
     if (begin == end) return begin;
+    c = to_ascii(*begin);
   }
-
-  if (*begin == '#' && is_arithmetic_type(arg_type)) {
-    specs.alt = true;
-    if (++begin == end) return begin;
-  }
-
-  if (*begin == '0') {  // Parse zero flag.
-    if (!is_arithmetic_type(arg_type))
-      throw_format_error("format specifier requires numeric argument");
-    if (specs.align == align::none) {
-      // Ignore 0 if align is specified for compatibility with std::format.
-      specs.align = align::numeric;
-      specs.fill[0] = Char('0');
-    }
-    if (++begin == end) return begin;
-  }
-
-  begin = parse_dynamic_spec(begin, end, specs.width, specs.width_ref, ctx);
-  if (begin == end) return begin;
-
-  if (*begin == '.' && in(arg_type, float_set | string_set | cstring_set)) {
-    begin =
-        parse_precision(begin, end, specs.precision, specs.precision_ref, ctx);
-    if (begin == end) return begin;
-  }
-
-  if (*begin == 'L' && is_arithmetic_type(arg_type)) {
-    specs.localized = true;
-    if (++begin == end) return begin;
-  }
-
-  if (*begin != '}')
-    specs.type = parse_presentation_type(to_ascii(*begin++), arg_type);
-  return begin;
 }
 
 template <typename Char, typename Handler>
@@ -2661,7 +2674,7 @@ FMT_CONSTEXPR auto parse_format_specs(ParseContext& ctx)
   return f.parse(ctx);
 }
 
-// Checks char specs and returns true if the type spec is char (and not int).
+// Checks char specs and returns true iff the presentation type is char-like.
 template <typename Char>
 FMT_CONSTEXPR auto check_char_specs(const format_specs<Char>& specs) -> bool {
   if (specs.type != presentation_type::none &&
@@ -2715,14 +2728,10 @@ template <typename Char, typename... Args> class format_string_checker {
   type types_[num_args > 0 ? static_cast<size_t>(num_args) : 1];
 
  public:
-  explicit FMT_CONSTEXPR format_string_checker(
-      basic_string_view<Char> format_str)
-      : context_(format_str, num_args, types_),
+  explicit FMT_CONSTEXPR format_string_checker(basic_string_view<Char> fmt)
+      : context_(fmt, num_args, types_),
         parse_funcs_{&parse_format_specs<Args, parse_context_type>...},
-        types_{
-            mapped_type_constant<Args,
-                                 basic_format_context<Char*, Char>>::value...} {
-  }
+        types_{mapped_type_constant<Args, buffer_context<Char>>::value...} {}
 
   FMT_CONSTEXPR void on_text(const Char*, const Char*) {}
 
@@ -2775,11 +2784,16 @@ void check_format_string(S format_str) {
   ignore_unused(error);
 }
 
-// Don't use type_identity for args to simplify symbols.
+template <typename Char = char> struct vformat_args {
+  using type = basic_format_args<
+      basic_format_context<std::back_insert_iterator<buffer<Char>>, Char>>;
+};
+template <> struct vformat_args<char> { using type = format_args; };
+
+// Use vformat_args and avoid type_identity to keep symbols short.
 template <typename Char>
 void vformat_to(buffer<Char>& buf, basic_string_view<Char> fmt,
-                basic_format_args<FMT_BUFFER_CONTEXT(Char)> args,
-                locale_ref loc = {});
+                typename vformat_args<Char>::type args, locale_ref loc = {});
 
 FMT_API void vprint_mojibake(std::FILE*, string_view, format_args);
 #ifndef _WIN32
@@ -2979,8 +2993,7 @@ template <typename... T>
 FMT_NODISCARD FMT_INLINE auto formatted_size(format_string<T...> fmt,
                                              T&&... args) -> size_t {
   auto buf = detail::counting_buffer<>();
-  detail::vformat_to(buf, string_view(fmt),
-                     format_args(fmt::make_format_args(args...)), {});
+  detail::vformat_to<char>(buf, fmt, fmt::make_format_args(args...), {});
   return buf.count();
 }
 
