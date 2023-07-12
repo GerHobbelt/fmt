@@ -462,7 +462,6 @@ auto write(OutputIt out, const std::tm& time, const std::locale& loc,
 
 FMT_MODULE_EXPORT_BEGIN
 
-#if FMT_USE_LOCAL_TIME
 /**
   Converts given time since epoch as ``std::time_t`` value into calendar time,
   expressed in local time. Unlike ``std::localtime``, this function is
@@ -504,10 +503,11 @@ inline std::tm localtime(std::time_t time) {
   return lt.tm_;
 }
 
-template<class Duration>
-inline std::tm localtime(
-    std::chrono::local_time<Duration> time_point) {
-  return localtime(std::chrono::system_clock::to_time_t(std::chrono::current_zone()->to_sys(time_point)));
+#if FMT_USE_LOCAL_TIME
+template <class Duration>
+inline auto localtime(std::chrono::local_time<Duration> time) -> std::tm {
+  return localtime(std::chrono::system_clock::to_time_t(
+      std::chrono::current_zone()->to_sys(time)));
 }
 #endif
 
@@ -626,6 +626,8 @@ template <typename Char, typename Handler>
 FMT_CONSTEXPR const Char* parse_chrono_format(const Char* begin,
                                               const Char* end,
                                               Handler&& handler) {
+  if (begin == end || *begin == '}') return begin;
+  if (*begin != '%') FMT_THROW(format_error("invalid format"));
   auto ptr = begin;
   while (ptr != end) {
     auto c = *ptr;
@@ -2018,10 +2020,6 @@ struct formatter<std::chrono::duration<Rep, Period>, Char> {
     }
 
     void on_error(const char* msg) { FMT_THROW(format_error(msg)); }
-    FMT_CONSTEXPR void on_fill(basic_string_view<Char> fill) {
-      f.specs.fill = fill;
-    }
-    FMT_CONSTEXPR void on_align(align_t align) { f.specs.align = align; }
     FMT_CONSTEXPR void on_width(int width) { f.specs.width = width; }
     FMT_CONSTEXPR void on_precision(int _precision) {
       f.precision = _precision;
@@ -2046,8 +2044,11 @@ struct formatter<std::chrono::duration<Rep, Period>, Char> {
   FMT_CONSTEXPR parse_range do_parse(basic_format_parse_context<Char>& ctx) {
     auto begin = ctx.begin(), end = ctx.end();
     if (begin == end || *begin == '}') return {begin, begin};
-    spec_handler handler{*this, ctx, format_str};
-    begin = detail::parse_align(begin, end, handler);
+    auto handler = spec_handler{*this, ctx, format_str};
+    auto result = detail::parse_align(begin, end);
+    begin = result.end;
+    specs.align = result.align;
+    if (result.fill.size() != 0) specs.fill = result.fill;
     if (begin == end) return {begin, begin};
     begin = detail::parse_width(begin, end, handler);
     if (begin == end) return {begin, begin};
@@ -2122,20 +2123,19 @@ struct formatter<std::chrono::time_point<std::chrono::system_clock, Duration>,
           epoch - std::chrono::duration_cast<std::chrono::seconds>(epoch));
 
       return formatter<std::tm, Char>::do_format(
-          gmtime(std::chrono::time_point_cast<std::chrono::seconds>(val)),
-          ctx, &subsecs);
+          gmtime(std::chrono::time_point_cast<std::chrono::seconds>(val)), ctx,
+          &subsecs);
     }
 
     return formatter<std::tm, Char>::format(
-        gmtime(std::chrono::time_point_cast<std::chrono::seconds>(val)),
-        ctx);
+        gmtime(std::chrono::time_point_cast<std::chrono::seconds>(val)), ctx);
   }
 };
 
 #if FMT_USE_LOCAL_TIME
 template <typename Char, typename Duration>
-struct formatter<std::chrono::local_time<Duration>,
-                 Char> : formatter<std::tm, Char> {
+struct formatter<std::chrono::local_time<Duration>, Char>
+    : formatter<std::tm, Char> {
   FMT_CONSTEXPR formatter() {
     basic_string_view<Char> default_specs =
         detail::string_literal<Char, '%', 'F', ' ', '%', 'T'>{};
@@ -2143,8 +2143,8 @@ struct formatter<std::chrono::local_time<Duration>,
   }
 
   template <typename FormatContext>
-  auto format(std::chrono::local_time<Duration> val,
-              FormatContext& ctx) const -> decltype(ctx.out()) {
+  auto format(std::chrono::local_time<Duration> val, FormatContext& ctx) const
+      -> decltype(ctx.out()) {
     using period = typename Duration::period;
     if (period::num != 1 || period::den != 1 ||
         std::is_floating_point<typename Duration::rep>::value) {

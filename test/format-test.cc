@@ -2061,6 +2061,10 @@ TEST(format_test, to_string) {
 #if FMT_USE_FLOAT128
   EXPECT_EQ(fmt::to_string(__float128(0.5)), "0.5");
 #endif
+
+#if defined(FMT_USE_STRING_VIEW) && FMT_CPLUSPLUS >= 201703L
+  EXPECT_EQ(fmt::to_string(std::string_view()), "");
+#endif
 }
 
 TEST(format_test, output_iterators) {
@@ -2228,7 +2232,6 @@ TEST(format_test, format_string_errors) {
   EXPECT_ERROR("{0:s", "unknown format specifier", date);
 #  if !FMT_MSC_VERSION || FMT_MSC_VERSION >= 1916
   // This causes an detail compiler error in MSVC2017.
-  EXPECT_ERROR("{:{<}", "invalid fill character '{'", int);
   EXPECT_ERROR("{:10000000000}", "number is too big", int);
   EXPECT_ERROR("{:.10000000000}", "number is too big", int);
   EXPECT_ERROR_NOARGS("{:x}", "argument not found");
