@@ -87,9 +87,10 @@
 #    elif FMT_MSC_VERSION >= 1929  // VS2019 v16.10 and later
 #      define FMT_NO_UNIQUE_ADDRESS [[msvc::no_unique_address]]
 #    endif
-#  else
-#    define FMT_NO_UNIQUE_ADDRESS
 #  endif
+#endif
+#ifndef FMT_NO_UNIQUE_ADDRESS
+#  define FMT_NO_UNIQUE_ADDRESS
 #endif
 
 #if FMT_GCC_VERSION || defined(__clang__)
@@ -3300,7 +3301,7 @@ FMT_CONSTEXPR20 auto format_float(Float value, int precision, float_specs specs,
       significand <<= 1;
     } else {
       // Normalize subnormal inputs.
-      FMT_ASSERT(significand != 0, "zeros should not appear hear");
+      FMT_ASSERT(significand != 0, "zeros should not appear here");
       int shift = countl_zero(significand);
       FMT_ASSERT(shift >= num_bits<uint64_t>() - num_significand_bits<double>(),
                  "");
