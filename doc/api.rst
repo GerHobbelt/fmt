@@ -82,6 +82,8 @@ Compile-time checks are enabled by default on compilers that support C++20
 
 .. doxygenfunction:: fmt::runtime(string_view) -> runtime_format_string<>
 
+.. _udt:
+
 Formatting User-Defined Types
 -----------------------------
 
@@ -319,8 +321,6 @@ Format API
 ``fmt/format.h`` defines the full format API providing additional formatting
 functions and locale support.
 
-.. _udt:
-
 Literal-Based API
 -----------------
 
@@ -332,7 +332,7 @@ Utilities
 ---------
 
 .. doxygenfunction:: fmt::ptr(T p) -> const void*
-.. doxygenfunction:: fmt::ptr(const std::unique_ptr<T> &p) -> const void*
+.. doxygenfunction:: fmt::ptr(const std::unique_ptr<T, Deleter> &p) -> const void*
 .. doxygenfunction:: fmt::ptr(const std::shared_ptr<T> &p) -> const void*
 
 .. doxygenfunction:: fmt::underlying(Enum e) -> typename std::underlying_type<Enum>::type
