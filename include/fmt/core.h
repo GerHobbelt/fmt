@@ -273,7 +273,9 @@ template <typename T>
 using remove_const_t = typename std::remove_const<T>::type;
 template <typename T>
 using remove_cvref_t = typename std::remove_cv<remove_reference_t<T>>::type;
-template <typename T> struct type_identity { using type = T; };
+template <typename T> struct type_identity {
+  using type = T;
+};
 template <typename T> using type_identity_t = typename type_identity<T>::type;
 template <typename T>
 using underlying_t = typename std::underlying_type<T>::type;

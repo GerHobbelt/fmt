@@ -11,11 +11,22 @@ obtained from https://github.com/settings/tokens.
 """
 
 from __future__ import print_function
-import datetime, docopt, errno, fileinput, json, os
-import re, requests, shutil, sys, tempfile
+
+import datetime
+import errno
+import fileinput
+import json
+import os
+import re
+import shutil
+import sys
+import tempfile
 from contextlib import contextmanager
 from distutils.version import LooseVersion
 from subprocess import check_call
+
+import docopt
+import requests
 
 
 class Git:
@@ -259,10 +270,10 @@ def release(args):
     script = os.path.join('doc', 'build.py')
     script_path = os.path.join(fmt_repo.dir, script)
     for line in fileinput.input(script_path, inplace=True):
-      m = re.match(r'( *versions = )\[(.+)\]', line)
-      if m:
-        line = '{}[{}, \'{}\']\n'.format(m.group(1), m.group(2), version)
-      sys.stdout.write(line)
+        m = re.match(r'( *versions = )\[(.+)\]', line)
+        if m:
+            line = '{}[{}, \'{}\']\n'.format(m.group(1), m.group(2), version)
+        sys.stdout.write(line)
 
     fmt_repo.checkout('-B', 'release')
     fmt_repo.add(changelog, cmakelists, script)

@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 # reStructuredText (RST) to GitHub-flavored Markdown converter
 
-import re, sys
+import re
+import sys
+
 from docutils import core, nodes, writers
 
 
@@ -33,7 +35,8 @@ class Translator(nodes.NodeVisitor):
         raise nodes.StopTraversal
 
     def visit_title(self, node):
-        self.version = re.match(r'(\d+\.\d+\.\d+).*', node.children[0]).group(1)
+        self.version = re.match(r'(\d+\.\d+\.\d+).*',
+                                node.children[0]).group(1)
         raise nodes.SkipChildren
 
     def visit_title_reference(self, node):
@@ -137,6 +140,7 @@ class Translator(nodes.NodeVisitor):
 
     def depart_table(self, node):
         pass
+
 
 class MDWriter(writers.Writer):
     """GitHub-flavored markdown writer"""
