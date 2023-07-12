@@ -15,19 +15,25 @@ module;
 #include <cstring>
 #include <ctime>
 #include <exception>
+#include <filesystem>
+#include <fstream>
 #include <functional>
 #include <iterator>
 #include <limits>
 #include <locale>
 #include <memory>
+#include <optional>
 #include <ostream>
 #include <stdexcept>
 #include <string>
 #include <string_view>
 #include <system_error>
+#include <thread>
 #include <type_traits>
 #include <utility>
+#include <variant>
 #include <vector>
+#include <version>
 
 #if _MSC_VER
 #  include <intrin.h>
@@ -87,6 +93,7 @@ export module fmt;
 #include "fmt/printf.h"
 #include "fmt/ranges.h"
 #include "fmt/xchar.h"
+#include "fmt/std.h"
 
 // gcc doesn't yet implement private module fragments
 #if !FMT_GCC_VERSION
