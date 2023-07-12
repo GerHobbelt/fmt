@@ -49,6 +49,31 @@
 
 #include "core.h"
 
+#if FMT_HAS_CPP17_ATTRIBUTE(fallthrough)
+#  define FMT_FALLTHROUGH [[fallthrough]]
+#elif defined(__clang__)
+#  define FMT_FALLTHROUGH [[clang::fallthrough]]
+#elif FMT_GCC_VERSION >= 700 && \
+    (!defined(__EDG_VERSION__) || __EDG_VERSION__ >= 520)
+#  define FMT_FALLTHROUGH [[gnu::fallthrough]]
+#else
+#  define FMT_FALLTHROUGH
+#endif
+
+#ifndef FMT_DEPRECATED
+#  if FMT_HAS_CPP14_ATTRIBUTE(deprecated) || FMT_MSC_VERSION >= 1900
+#    define FMT_DEPRECATED [[deprecated]]
+#  else
+#    if (defined(__GNUC__) && !defined(__LCC__)) || defined(__clang__)
+#      define FMT_DEPRECATED __attribute__((deprecated))
+#    elif FMT_MSC_VERSION
+#      define FMT_DEPRECATED __declspec(deprecated)
+#    else
+#      define FMT_DEPRECATED /* deprecated */
+#    endif
+#  endif
+#endif
+
 #if FMT_GCC_VERSION
 #  define FMT_GCC_VISIBILITY_HIDDEN __attribute__((visibility("hidden")))
 #else
@@ -798,6 +823,16 @@ using is_integer =
     bool_constant<is_integral<T>::value && !std::is_same<T, bool>::value &&
                   !std::is_same<T, char>::value &&
                   !std::is_same<T, wchar_t>::value>;
+
+#ifndef FMT_USE_FLOAT
+#  define FMT_USE_FLOAT 1
+#endif
+#ifndef FMT_USE_DOUBLE
+#  define FMT_USE_DOUBLE 1
+#endif
+#ifndef FMT_USE_LONG_DOUBLE
+#  define FMT_USE_LONG_DOUBLE 1
+#endif
 
 #ifndef FMT_USE_FLOAT128
 #  ifdef __clang__
@@ -3310,7 +3345,7 @@ FMT_CONSTEXPR20 inline void format_dragon(basic_fp<uint128_t> value,
 }
 
 // Formats a floating-point number using the hexfloat format.
-template <typename Float>
+template <typename Float, FMT_ENABLE_IF(!is_double_double<Float>::value)>
 FMT_CONSTEXPR20 void format_hexfloat(Float value, int precision,
                                      float_specs specs, buffer<char>& buf) {
   // float is passed as double to reduce the number of instantiations and to
@@ -3389,6 +3424,12 @@ FMT_CONSTEXPR20 void format_hexfloat(Float value, int precision,
     abs_e = static_cast<uint32_t>(f.e);
   }
   format_decimal<char>(appender(buf), abs_e, detail::count_digits(abs_e));
+}
+
+template <typename Float, FMT_ENABLE_IF(is_double_double<Float>::value)>
+FMT_CONSTEXPR20 void format_hexfloat(Float value, int precision,
+                                     float_specs specs, buffer<char>& buf) {
+  format_hexfloat(static_cast<double>(value), precision, specs, buf);
 }
 
 template <typename Float>

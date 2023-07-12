@@ -378,6 +378,7 @@ file file::open_windows_file(wcstring_view path, int oflag) {
 }
 #  endif
 
+#if !defined(__MSDOS__)
 long getpagesize() {
 #  ifdef _WIN32
   SYSTEM_INFO si;
@@ -390,6 +391,7 @@ long getpagesize() {
   return size;
 #  endif
 }
+#endif
 
 FMT_BEGIN_DETAIL_NAMESPACE
 
