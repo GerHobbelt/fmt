@@ -935,9 +935,9 @@ TEST(format_test, precision) {
                    "number is too big");
 
   EXPECT_THROW_MSG((void)fmt::format(runtime("{0:."), 0), format_error,
-                   "missing precision specifier");
+                   "missing precision");
   EXPECT_THROW_MSG((void)fmt::format(runtime("{0:.}"), 0), format_error,
-                   "missing precision specifier");
+                   "missing precision");
 
   EXPECT_THROW_MSG((void)fmt::format(runtime("{0:.2"), 0), format_error,
                    "precision not allowed for this argument type");
@@ -2304,11 +2304,11 @@ class format_facet : public fmt::format_facet<std::locale> {
   };
 
   auto do_put(fmt::appender out, fmt::loc_value val,
-              const fmt::format_specs&) const -> bool override;
+              const fmt::format_specs<>&) const -> bool override;
 };
 
 auto format_facet::do_put(fmt::appender out, fmt::loc_value val,
-                          const fmt::format_specs&) const -> bool {
+                          const fmt::format_specs<>&) const -> bool {
   return val.visit(int_formatter{out});
 }
 
