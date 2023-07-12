@@ -15,10 +15,6 @@
 #  define FMT_HIDE_MODULE_BUGS
 #endif
 
-#if ( defined(__STDC_VERSION__) && (__STDC_VERSION__ > 201710L) )
-#define FMT_MODULE_TEST
-#endif
-
 #if defined(_MSC_VER) && (_MSC_VER <= 1929)
 #define IGNORE_FOR_ME    1
 #else
@@ -69,11 +65,8 @@
 #else
 #  define FMT_POSIX(call) call
 #endif
-#define FMT_OS_H_  // don't pull in os.h directly or indirectly
 
-#if defined(__STDC_VERSION__) && (__STDC_VERSION__ > 201710L)
 import fmt;
-#endif
 
 // check for macros leaking from BMI
 static bool macro_leaked =
@@ -83,13 +76,8 @@ static bool macro_leaked =
     false;
 #endif
 
-// Include sources to pick up functions and classes from the module rather than
-// from the non-modular library which is baked into the 'test-main' library.
-// This averts linker problems:
-// - strong ownership model: missing linker symbols
-// - weak ownership model: duplicate linker symbols
-#include "gtest-extra.cc"
-#include "util.cc"
+#define FMT_OS_H_  // don't pull in os.h, neither directly nor indirectly
+#include "gtest-extra.h"
 
 // an implicitly exported namespace must be visible [module.interface]/2.2
 TEST(module_test, namespace) {
@@ -104,12 +92,9 @@ bool oops_detail_namespace_is_visible;
 
 namespace fmt {
 bool namespace_detail_invisible() {
-#if defined(FMT_HIDE_MODULE_BUGS) && defined(_MSC_FULL_VER) &&       \
-    ((_MSC_VER == 1929 && _MSC_FULL_VER <= 192930136) ||             \
-     (_MSC_VER == 1930 && _MSC_FULL_VER <= 193030704) ||             \
-    !( defined(__STDC_VERSION__) && (__STDC_VERSION__ > 201710L) )   \
-    )
-  // bug in msvc up to 16.11.5 / 17.0-pre5:
+#if defined(FMT_HIDE_MODULE_BUGS) && defined(_MSC_FULL_VER) && \
+    _MSC_FULL_VER <= 193700000
+  // bug in msvc up to at least 17.7:
 
   // the namespace is visible even when it is neither
   // implicitly nor explicitly exported
@@ -184,7 +169,7 @@ TEST(module_test, format_to) {
   EXPECT_EQ(L"42", std::wstring_view(wbuffer));
 
   fmt::wmemory_buffer wb;
-  fmt::format_to(std::back_inserter(mb), L"{}", 42);
+  fmt::format_to(std::back_inserter(wb), L"{}", 42);
   EXPECT_EQ(L"42", std::wstring_view(wbuffer));
 }
 
@@ -248,10 +233,8 @@ TEST(module_test, dynamic_format_args) {
 
 TEST(module_test, vformat) {
   EXPECT_EQ("42", fmt::vformat("{}", fmt::make_format_args(42)));
-#if !IGNORE_FOR_ME
-  EXPECT_EQ(L"42", fmt::vformat(fmt::datail::to_string_view(L"{}"),
-                                fmt::make_wformat_args(42)));
-#endif
+  EXPECT_EQ(L"42",
+            fmt::vformat(fmt::wstring_view(L"{}"), fmt::make_wformat_args(42)));
 }
 
 TEST(module_test, vformat_to) {
@@ -284,9 +267,9 @@ TEST(module_test, vformat_to_n) {
   auto wstore = fmt::make_wformat_args(12345);
   std::wstring w;
   auto wresult = fmt::vformat_to_n(std::back_inserter(w), 1,
-                                   fmt::detail::to_string_view(L"{}"), wstore);
+                                   fmt::wstring_view(L"{}"), wstore);
   wchar_t wbuffer[4] = {0};
-  fmt::vformat_to_n(wbuffer, 3, fmt::detail::to_string_view(L"{:}"), wstore);
+  fmt::vformat_to_n(wbuffer, 3, fmt::wstring_view(L"{:}"), wstore);
 }
 
 std::string as_string(std::wstring_view text) {
@@ -297,22 +280,18 @@ std::string as_string(std::wstring_view text) {
 TEST(module_test, print) {
   EXPECT_WRITE(stdout, fmt::print("{}µ", 42), "42µ");
   EXPECT_WRITE(stderr, fmt::print(stderr, "{}µ", 4.2), "4.2µ");
-  if (false) {
-    EXPECT_WRITE(stdout, fmt::print(L"{}µ", 42), as_string(L"42µ"));
-    EXPECT_WRITE(stderr, fmt::print(stderr, L"{}µ", 4.2), as_string(L"4.2µ"));
-  }
+  EXPECT_WRITE(stdout, fmt::print(L"{}µ", 42), as_string(L"42µ"));
+  EXPECT_WRITE(stderr, fmt::print(stderr, L"{}µ", 4.2), as_string(L"4.2µ"));
 }
 
 TEST(module_test, vprint) {
   EXPECT_WRITE(stdout, fmt::vprint("{:}µ", fmt::make_format_args(42)), "42µ");
   EXPECT_WRITE(stderr, fmt::vprint(stderr, "{}", fmt::make_format_args(4.2)),
                "4.2");
-  if (false) {
-    EXPECT_WRITE(stdout, fmt::vprint(L"{:}µ", fmt::make_wformat_args(42)),
-                 as_string(L"42µ"));
-    EXPECT_WRITE(stderr, fmt::vprint(stderr, L"{}", fmt::make_wformat_args(42)),
-                 as_string(L"42"));
-  }
+  EXPECT_WRITE(stdout, fmt::vprint(L"{:}µ", fmt::make_wformat_args(42)),
+               as_string(L"42µ"));
+  EXPECT_WRITE(stderr, fmt::vprint(stderr, L"{}", fmt::make_wformat_args(42)),
+               as_string(L"42"));
 }
 
 TEST(module_test, named_args) {
@@ -320,17 +299,11 @@ TEST(module_test, named_args) {
   EXPECT_EQ(L"42", fmt::format(L"{answer}", fmt::arg(L"answer", 42)));
 }
 
-#if !IGNORE_FOR_ME
-
 TEST(module_test, literals) {
   using namespace fmt::literals;
   EXPECT_EQ("42", fmt::format("{answer}", "answer"_a = 42));
-  EXPECT_EQ("42", "{}"_format(42));
   EXPECT_EQ(L"42", fmt::format(L"{answer}", L"answer"_a = 42));
-  EXPECT_EQ(L"42", L"{}"_format(42));
 }
-
-#endif
 
 TEST(module_test, locale) {
   auto store = fmt::make_format_args(4.2);
@@ -438,27 +411,20 @@ struct test_formatter : fmt::formatter<char> {
   bool check() { return true; }
 };
 
-struct test_dynamic_formatter : fmt::dynamic_formatter<> {
-  bool check() { return true; }
-};
-
-TEST(module_test, formatter) {
-  EXPECT_TRUE(test_formatter{}.check());
-  EXPECT_TRUE(test_dynamic_formatter{}.check());
-}
+TEST(module_test, formatter) { EXPECT_TRUE(test_formatter{}.check()); }
 
 TEST(module_test, join) {
   int arr[3] = {1, 2, 3};
   std::vector<double> vec{1.0, 2.0, 3.0};
   std::initializer_list<int> il{1, 2, 3};
-  auto sep = fmt::detail::to_string_view(", ");
+  auto sep = fmt::string_view(", ");
   EXPECT_EQ("1, 2, 3", to_string(fmt::join(arr + 0, arr + 3, sep)));
   EXPECT_EQ("1, 2, 3", to_string(fmt::join(arr, sep)));
   EXPECT_EQ("1, 2, 3", to_string(fmt::join(vec.begin(), vec.end(), sep)));
   EXPECT_EQ("1, 2, 3", to_string(fmt::join(vec, sep)));
   EXPECT_EQ("1, 2, 3", to_string(fmt::join(il, sep)));
 
-  auto wsep = fmt::detail::to_string_view(L", ");
+  auto wsep = fmt::wstring_view(L", ");
   EXPECT_EQ(L"1, 2, 3", fmt::format(L"{}", fmt::join(arr + 0, arr + 3, wsep)));
   EXPECT_EQ(L"1, 2, 3", fmt::format(L"{}", fmt::join(arr, wsep)));
   EXPECT_EQ(L"1, 2, 3", fmt::format(L"{}", fmt::join(il, wsep)));
@@ -469,7 +435,6 @@ TEST(module_test, time) {
   EXPECT_TRUE(fmt::localtime(time_now).tm_year > 120);
   EXPECT_TRUE(fmt::gmtime(time_now).tm_year > 120);
   auto chrono_now = std::chrono::system_clock::now();
-  EXPECT_TRUE(fmt::localtime(chrono_now).tm_year > 120);
   EXPECT_TRUE(fmt::gmtime(chrono_now).tm_year > 120);
 }
 
@@ -496,39 +461,17 @@ TEST(module_test, weekday) {
   EXPECT_EQ("Mon", fmt::format(std::locale::classic(), "{}", fmt::weekday(1)));
 }
 
-TEST(module_test, to_string_view) {
-  using fmt::detail::to_string_view;
-  fmt::string_view nsv{to_string_view("42")};
-  EXPECT_EQ("42", nsv);
-  fmt::wstring_view wsv{to_string_view(L"42")};
-  EXPECT_EQ(L"42", wsv);
-}
-
 TEST(module_test, printf) {
   EXPECT_WRITE(stdout, fmt::printf("%f", 42.123456), "42.123456");
   EXPECT_WRITE(stdout, fmt::printf("%d", 42), "42");
-  if (false) {
-    EXPECT_WRITE(stdout, fmt::printf(L"%f", 42.123456),
-                 as_string(L"42.123456"));
-    EXPECT_WRITE(stdout, fmt::printf(L"%d", 42), as_string(L"42"));
-  }
+  EXPECT_WRITE(stdout, fmt::printf(L"%f", 42.123456), as_string(L"42.123456"));
+  EXPECT_WRITE(stdout, fmt::printf(L"%d", 42), as_string(L"42"));
 }
-
-#if !IGNORE_FOR_ME
 
 TEST(module_test, fprintf) {
   EXPECT_WRITE(stderr, fmt::fprintf(stderr, "%d", 42), "42");
-  std::ostringstream os;
-  fmt::fprintf(os, "%s", "bla");
-  EXPECT_EQ("bla", os.str());
-
   EXPECT_WRITE(stderr, fmt::fprintf(stderr, L"%d", 42), as_string(L"42"));
-  std::wostringstream ws;
-  fmt::fprintf(ws, L"%s", L"bla");
-  EXPECT_EQ(L"bla", ws.str());
 }
-
-#endif
 
 TEST(module_test, sprintf) {
   EXPECT_EQ("42", fmt::sprintf("%d", 42));
@@ -537,30 +480,16 @@ TEST(module_test, sprintf) {
 
 TEST(module_test, vprintf) {
   EXPECT_WRITE(stdout, fmt::vprintf("%d", fmt::make_printf_args(42)), "42");
-  if (false) {
-    EXPECT_WRITE(stdout, fmt::vprintf(L"%d", fmt::make_wprintf_args(42)),
-                 as_string(L"42"));
-  }
+  EXPECT_WRITE(stdout, fmt::vprintf(L"%d", fmt::make_wprintf_args(42)),
+               as_string(L"42"));
 }
-
-#if !IGNORE_FOR_ME
 
 TEST(module_test, vfprintf) {
   auto args = fmt::make_printf_args(42);
   EXPECT_WRITE(stderr, fmt::vfprintf(stderr, "%d", args), "42");
-  std::ostringstream os;
-  fmt::vfprintf(os, "%d", args);
-  EXPECT_EQ("42", os.str());
   auto wargs = fmt::make_wprintf_args(42);
-  if (false) {
-    EXPECT_WRITE(stderr, fmt::vfprintf(stderr, L"%d", wargs), as_string(L"42"));
-  }
-  std::wostringstream ws;
-  fmt::vfprintf(ws, L"%d", wargs);
-  EXPECT_EQ(L"42", ws.str());
+  EXPECT_WRITE(stderr, fmt::vfprintf(stderr, L"%d", wargs), as_string(L"42"));
 }
-
-#endif
 
 TEST(module_test, vsprintf) {
   EXPECT_EQ("42", fmt::vsprintf("%d", fmt::make_printf_args(42)));
@@ -589,8 +518,13 @@ TEST(module_test, buffered_file) {
 }
 
 TEST(module_test, output_file) {
+#ifdef __clang__
+  fmt::println("\033[0;33m[=disabled=] {}\033[0;0m",
+               "Clang 16.0 emits multiple copies of vtables");
+#else
   fmt::ostream out = fmt::output_file("module-test", fmt::buffer_size = 1);
   out.close();
+#endif
 }
 
 struct custom_context {
@@ -603,23 +537,17 @@ TEST(module_test, custom_context) {
   EXPECT_TRUE(!custom_arg);
 }
 
-struct disabled_formatter {};
-
-TEST(module_test, has_formatter) {
-  EXPECT_FALSE(
-      (fmt::has_formatter<disabled_formatter, fmt::format_context>::value));
-}
-
-TEST(module_test, is_formattable) {
-  EXPECT_FALSE(fmt::is_formattable<disabled_formatter>::value);
-}
-
 TEST(module_test, compile_format_string) {
   using namespace fmt::literals;
+#ifdef __clang__
+  fmt::println("\033[0;33m[=disabled=] {}\033[0;0m",
+               "Clang 16.0 fails to import user-defined literals");
+#else
   EXPECT_EQ("42", fmt::format("{0:x}"_cf, 0x42));
   EXPECT_EQ(L"42", fmt::format(L"{:}"_cf, 42));
   EXPECT_EQ("4.2", fmt::format("{arg:3.1f}"_cf, "arg"_a = 4.2));
   EXPECT_EQ(L" 42", fmt::format(L"{arg:>3}"_cf, L"arg"_a = L"42"));
+#endif
 }
 
 TEST(module_test, range_api) {

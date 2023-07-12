@@ -10,11 +10,7 @@
 #include <locale>
 #include <string>
 
-#if defined( FMT_MODULE_TEST ) && defined(__STDC_VERSION__) && (__STDC_VERSION__ > 201710L)
-import fmt;
-#else
-#  include "fmt/os.h"
-#endif  // FMT_MODULE_TEST
+#include "fmt/os.h"
 
 #ifdef _MSC_VER
 #  define FMT_VSNPRINTF vsprintf_s
