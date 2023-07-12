@@ -1,4 +1,6 @@
+#if !defined(_MSC_VER)
 module;
+#endif
 
 // Put all implementation-provided headers into the global module fragment
 // to prevent attachment to this module.
@@ -70,11 +72,23 @@ module;
 #  include <windows.h>
 #endif
 
+#if !defined(_MSC_VER)
 export module fmt;
 
 #define FMT_EXPORT export
 #define FMT_BEGIN_EXPORT export {
 #define FMT_END_EXPORT }
+#else
+#  define FMT_EXPORT 
+#  define FMT_BEGIN_EXPORT 
+#  define FMT_END_EXPORT
+
+#  define FMT_MODULE_EXPORT
+#  define FMT_MODULE_EXPORT_BEGIN
+#  define FMT_MODULE_EXPORT_END
+#  define FMT_BEGIN_DETAIL_NAMESPACE namespace detail {
+#  define FMT_END_DETAIL_NAMESPACE }
+#endif
 
 // If you define FMT_ATTACH_TO_GLOBAL_MODULE
 //  - all declarations are detached from module 'fmt'
@@ -104,9 +118,8 @@ extern "C++" {
 #endif
 
 // gcc doesn't yet implement private module fragments
-#if !FMT_GCC_VERSION
+#if !FMT_GCC_VERSION && !defined(_MSC_VER)
 module :private;
-#endif
 #endif
 
 #define AMALGAMATED_SOURCECODE
