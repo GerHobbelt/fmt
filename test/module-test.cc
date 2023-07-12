@@ -15,12 +15,6 @@
 #  define FMT_HIDE_MODULE_BUGS
 #endif
 
-#if defined(_MSC_VER) && (_MSC_VER <= 1929)
-#define IGNORE_FOR_ME    1
-#else
-#define IGNORE_FOR_ME    0
-#endif
-
 #include <bit>
 #include <chrono>
 #include <exception>
@@ -212,8 +206,6 @@ TEST(module_test, wformat_args) {
   EXPECT_TRUE(args.get(0));
 }
 
-#if !IGNORE_FOR_ME
-
 TEST(module_test, dynamic_format_args) {
   fmt::dynamic_format_arg_store<fmt::format_context> dyn_store;
   dyn_store.push_back(fmt::arg("a42", 42));
@@ -227,9 +219,6 @@ TEST(module_test, dynamic_format_args) {
   EXPECT_FALSE(wargs.get(3));
   EXPECT_TRUE(wargs.get(fmt::wstring_view(L"a42")));
 }
-
-#endif
-
 
 TEST(module_test, vformat) {
   EXPECT_EQ("42", fmt::vformat("{}", fmt::make_format_args(42)));

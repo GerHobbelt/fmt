@@ -34,8 +34,7 @@ for i, exp in enumerate(range(min_exponent, max_exponent + 1, step)):
         for j in range(-result.e):
             actual /= 2
     expected = 10 ** (exp_offset10 + exp)
-    precision = len('{}'.format(expected)) - \
-        len('{}'.format(actual - expected))
+    precision = len('{}'.format(expected)) - len('{}'.format(actual - expected))
     if precision < 19:
         print('low precision:', precision)
         exit(1)
