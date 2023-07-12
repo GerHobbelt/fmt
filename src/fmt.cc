@@ -1,4 +1,3 @@
-#if defined(__STDC_VERSION__) && (__STDC_VERSION__ > 201710L)
 module;
 
 // Put all implementation-provided headers into the global module fragment
@@ -61,7 +60,6 @@ module;
 #  include <windows.h>
 #endif
 
-#if defined(__STDC_VERSION__) && (__STDC_VERSION__ > 201710L)
 export module fmt;
 
 #define FMT_MODULE_EXPORT export
@@ -73,12 +71,13 @@ export module fmt;
 #define FMT_END_DETAIL_NAMESPACE \
   }                              \
   export {
-#else
-#define FMT_MODULE_EXPORT 
-#define FMT_MODULE_EXPORT_BEGIN 
-#define FMT_MODULE_EXPORT_END 
-#define FMT_BEGIN_DETAIL_NAMESPACE namespace detail {
-#define FMT_END_DETAIL_NAMESPACE }
+// If you define FMT_ATTACH_TO_GLOBAL_MODULE
+//  - all declarations are detached from module 'fmt'
+//  - the module behaves like a traditional static library, too
+//  - all library symbols are mangled traditionally
+//  - you can mix TUs with either importing or #including the {fmt} API
+#ifdef FMT_ATTACH_TO_GLOBAL_MODULE
+extern "C++" {
 #endif
 
 // All library-provided declarations and definitions must be in the module
@@ -91,13 +90,17 @@ export module fmt;
 #include "fmt/os.h"
 #include "fmt/ostream.h"
 #include "fmt/printf.h"
+#include "fmt/std.h"
 #include "fmt/ranges.h"
 #include "fmt/xchar.h"
-#include "fmt/std.h"
+
+#ifdef FMT_ATTACH_TO_GLOBAL_MODULE
+}
+#endif
 
 // gcc doesn't yet implement private module fragments
 #if !FMT_GCC_VERSION
-module : private;
+module :private;
 #endif
 #endif
 
