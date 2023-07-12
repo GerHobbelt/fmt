@@ -259,6 +259,7 @@ TEST(chrono_test, system_clock_time_point) {
       std::chrono::system_clock::now());
   EXPECT_EQ(strftime_full_utc(t1), fmt::format("{:%Y-%m-%d %H:%M:%S}", t1));
   EXPECT_EQ(strftime_full_utc(t1), fmt::format("{}", t1));
+  EXPECT_EQ(strftime_full_utc(t1), fmt::format("{:}", t1));
   using time_point =
       std::chrono::time_point<std::chrono::system_clock, std::chrono::seconds>;
   auto t2 = time_point(std::chrono::seconds(42));
@@ -365,6 +366,7 @@ TEST(chrono_test, local_system_clock_time_point) {
       std::chrono::current_zone()->to_local(std::chrono::system_clock::now()));
   EXPECT_EQ(strftime_full_local(t1), fmt::format("{:%Y-%m-%d %H:%M:%S}", t1));
   EXPECT_EQ(strftime_full_local(t1), fmt::format("{}", t1));
+  EXPECT_EQ(strftime_full_local(t1), fmt::format("{:}", t1));
   using time_point = std::chrono::local_time<std::chrono::seconds>;
   auto t2 = time_point(std::chrono::seconds(86400 + 42));
   EXPECT_EQ(strftime_full_local(t2), fmt::format("{:%Y-%m-%d %H:%M:%S}", t2));
@@ -908,4 +910,14 @@ TEST(chrono_test, timestamps_sub_seconds) {
       t10(std::chrono::milliseconds(2000));
 
   EXPECT_EQ(fmt::format("{:%S}", t10), "02.000");
+
+  {
+    const auto epoch = std::chrono::time_point<std::chrono::system_clock,
+                                               std::chrono::milliseconds>();
+    const auto d = std::chrono::milliseconds(250);
+
+    EXPECT_EQ("59.750", fmt::format("{:%S}", epoch - d));
+    EXPECT_EQ("00.000", fmt::format("{:%S}", epoch));
+    EXPECT_EQ("00.250", fmt::format("{:%S}", epoch + d));
+  }
 }
