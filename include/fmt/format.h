@@ -2250,14 +2250,13 @@ FMT_CONSTEXPR auto write(OutputIt out,
                          basic_string_view<type_identity_t<Char>> s,
                          const format_specs<Char>& specs, locale_ref)
     -> OutputIt {
-  check_string_type_spec(specs.type);
   return write(out, s, specs);
 }
 template <typename Char, typename OutputIt>
 FMT_CONSTEXPR auto write(OutputIt out, const Char* s,
                          const format_specs<Char>& specs, locale_ref)
     -> OutputIt {
-  return check_cstring_type_spec(specs.type)
+  return specs.type != presentation_type::pointer
              ? write(out, basic_string_view<Char>(s), specs, {})
              : write_ptr<Char>(out, bit_cast<uintptr_t>(s), &specs);
 }
@@ -2282,6 +2281,68 @@ FMT_CONSTEXPR auto write(OutputIt out, T value) -> OutputIt {
   if (negative) *it++ = static_cast<Char>('-');
   it = format_decimal<Char>(it, abs_value, num_digits).end;
   return base_iterator(out, it);
+}
+
+// A floating-point presentation format.
+enum class float_format : unsigned char {
+  general,  // General: exponent notation or fixed point based on magnitude.
+  exp,      // Exponent notation with the default precision of 6, e.g. 1.2e-3.
+  fixed,    // Fixed point with the default precision of 6, e.g. 0.0012.
+  hex
+};
+
+struct float_specs {
+  int precision;
+  float_format format : 8;
+  sign_t sign : 8;
+  bool upper : 1;
+  bool locale : 1;
+  bool binary32 : 1;
+  bool showpoint : 1;
+};
+
+template <typename ErrorHandler = error_handler, typename Char>
+FMT_CONSTEXPR auto parse_float_type_spec(const format_specs<Char>& specs,
+                                         ErrorHandler&& eh = {})
+    -> float_specs {
+  auto result = float_specs();
+  result.showpoint = specs.alt;
+  result.locale = specs.localized;
+  switch (specs.type) {
+  case presentation_type::none:
+    result.format = float_format::general;
+    break;
+  case presentation_type::general_upper:
+    result.upper = true;
+    FMT_FALLTHROUGH;
+  case presentation_type::general_lower:
+    result.format = float_format::general;
+    break;
+  case presentation_type::exp_upper:
+    result.upper = true;
+    FMT_FALLTHROUGH;
+  case presentation_type::exp_lower:
+    result.format = float_format::exp;
+    result.showpoint |= specs.precision != 0;
+    break;
+  case presentation_type::fixed_upper:
+    result.upper = true;
+    FMT_FALLTHROUGH;
+  case presentation_type::fixed_lower:
+    result.format = float_format::fixed;
+    result.showpoint |= specs.precision != 0;
+    break;
+  case presentation_type::hexfloat_upper:
+    result.upper = true;
+    FMT_FALLTHROUGH;
+  case presentation_type::hexfloat_lower:
+    result.format = float_format::hex;
+    break;
+  default:
+    eh.on_error("invalid format specifier");
+    break;
+  }
+  return result;
 }
 
 template <typename Char, typename OutputIt>
@@ -3457,11 +3518,8 @@ FMT_CONSTEXPR auto write(OutputIt out, Char value) -> OutputIt {
 template <typename Char, typename OutputIt>
 FMT_CONSTEXPR_CHAR_TRAITS auto write(OutputIt out, const Char* value)
     -> OutputIt {
-  if (!value) {
-    throw_format_error("string pointer is null");
-  } else {
-    out = write(out, basic_string_view<Char>(value));
-  }
+  if (value) return write(out, basic_string_view<Char>(value));
+  throw_format_error("string pointer is null");
   return out;
 }
 
@@ -3469,7 +3527,6 @@ template <typename Char, typename OutputIt, typename T,
           FMT_ENABLE_IF(std::is_same<T, void>::value)>
 auto write(OutputIt out, const T* value, const format_specs<Char>& specs = {},
            locale_ref = {}) -> OutputIt {
-  check_pointer_type_spec(specs.type, error_handler());
   return write_ptr<Char>(out, bit_cast<uintptr_t>(value), &specs);
 }
 
@@ -3892,11 +3949,9 @@ template <> struct formatter<bytes> {
 
  public:
   template <typename ParseContext>
-  FMT_CONSTEXPR auto parse(ParseContext& ctx) -> decltype(ctx.begin()) {
-    auto end = parse_format_specs(ctx.begin(), ctx.end(), specs_, ctx,
-                                  detail::type::string_type);
-    detail::check_string_type_spec(specs_.type, detail::error_handler());
-    return end;
+  FMT_CONSTEXPR auto parse(ParseContext& ctx) -> const char* {
+    return parse_format_specs(ctx.begin(), ctx.end(), specs_, ctx,
+                              detail::type::string_type);
   }
 
   template <typename FormatContext>
@@ -3933,11 +3988,9 @@ template <typename T> struct formatter<group_digits_view<T>> : formatter<T> {
 
  public:
   template <typename ParseContext>
-  FMT_CONSTEXPR auto parse(ParseContext& ctx) -> decltype(ctx.begin()) {
-    auto end = parse_format_specs(ctx.begin(), ctx.end(), specs_, ctx,
-                                  detail::type::int_type);
-    detail::check_string_type_spec(specs_.type, detail::error_handler());
-    return end;
+  FMT_CONSTEXPR auto parse(ParseContext& ctx) -> const char* {
+    return parse_format_specs(ctx.begin(), ctx.end(), specs_, ctx,
+                              detail::type::int_type);
   }
 
   template <typename FormatContext>
@@ -3953,6 +4006,7 @@ template <typename T> struct formatter<group_digits_view<T>> : formatter<T> {
   }
 };
 
+// DEPRECATED! join_view will be moved to ranges.h.
 template <typename It, typename Sentinel, typename Char = char>
 struct join_view : detail::view {
   It begin;
@@ -3995,7 +4049,7 @@ struct formatter<join_view<It, Sentinel, Char>, Char> {
 
  public:
   template <typename ParseContext>
-  FMT_CONSTEXPR auto parse(ParseContext& ctx) -> decltype(ctx.begin()) {
+  FMT_CONSTEXPR auto parse(ParseContext& ctx) -> const Char* {
     return value_formatter_.parse(ctx);
   }
 
@@ -4149,8 +4203,7 @@ void vformat_to(buffer<Char>& buf, basic_string_view<Char> fmt,
         -> const Char* {
       auto arg = get_arg(context, id);
       if (arg.type() == type::custom_type) {
-        parse_context.advance_to(parse_context.begin() +
-                                 (begin - &*parse_context.begin()));
+        parse_context.advance_to(begin);
         visit_format_arg(custom_formatter<Char>{parse_context, context}, arg);
         return parse_context.begin();
       }
