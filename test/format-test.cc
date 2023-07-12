@@ -1788,6 +1788,9 @@ TEST(format_test, print) {
   EXPECT_WRITE(stdout, fmt::print("Don't {}!", "panic"), "Don't panic!");
   EXPECT_WRITE(stderr, fmt::print(stderr, "Don't {}!", "panic"),
                "Don't panic!");
+  EXPECT_WRITE(stdout, fmt::println("Don't {}!", "panic"), "Don't panic!\n");
+  EXPECT_WRITE(stderr, fmt::println(stderr, "Don't {}!", "panic"),
+               "Don't panic!\n");
 }
 
 TEST(format_test, variadic) {
