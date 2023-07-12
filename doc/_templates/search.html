@@ -10,10 +10,10 @@ extrahead %}
 </script>
 {# this is used when loading the search index using $.ajax fails, such as on
 Chrome for documents on localhost #}
-<script type="text/javascript" id="searchindexloader"></script>
+<script id="searchindexloader" type="text/javascript"></script>
 {{ super() }} {% endblock %} {% block body %}
 <h1 id="search-documentation">{{ _('Search') }}</h1>
-<div id="fallback" class="admonition warning">
+<div class="admonition warning" id="fallback">
 	<script type="text/javascript">
 		$("#fallback").hide();
 	</script>

@@ -1,8 +1,8 @@
 {% extends "!layout.html" %} {% block extrahead %}
-<meta name="description" content="Small, safe and fast formatting library" />
-<meta name="keywords" content="C++, formatting, printf, string, library" />
-<meta name="author" content="Victor Zverovich" />
-<link rel="stylesheet" href="_static/fmt.css" />
+<meta content="Small, safe and fast formatting library" name="description" />
+<meta content="C++, formatting, printf, string, library" name="keywords" />
+<meta content="Victor Zverovich" name="author" />
+<link href="_static/fmt.css" rel="stylesheet" />
 {# Google Analytics #}
 <script
 	async
@@ -18,18 +18,18 @@
 </script>
 {% endblock %} {%- macro searchform(classes, button) %}
 <form
-	class="{{classes}}"
-	role="search"
 	action="{{ pathto('search') }}"
-	method="get">
+	class="{{classes}}"
+	method="get"
+	role="search">
 	<div class="form-group">
 		<input type="text" name="q" class="form-control" {{
 		'placeholder="Search"' if not button }} >
 	</div>
-	<input type="hidden" name="check_keywords" value="yes" />
-	<input type="hidden" name="area" value="default" />
+	<input name="check_keywords" type="hidden" value="yes" />
+	<input name="area" type="hidden" value="default" />
 	{% if button %}
-	<input type="submit" class="btn btn-default" value="search" />
+	<input class="btn btn-default" type="submit" value="search" />
 	{% endif %}
 </form>
 {%- endmacro %} {% block header %}
@@ -40,10 +40,10 @@
 				{# Brand and toggle get grouped for better mobile display #}
 				<div class="navbar-header">
 					<button
-						type="button"
 						class="navbar-toggle collapsed"
-						data-toggle="collapse"
-						data-target=".navbar-collapse">
+						type="button"
+						data-target=".navbar-collapse"
+						data-toggle="collapse">
 						<span class="sr-only">Toggle navigation</span>
 						<span class="icon-bar"></span>
 						<span class="icon-bar"></span>
@@ -58,11 +58,11 @@
 					<ul class="nav navbar-nav">
 						<li class="dropdown">
 							<a
-								href="#"
-								class="dropdown-toggle"
-								data-toggle="dropdown"
-								role="button"
 								aria-expanded="false"
+								class="dropdown-toggle"
+								href="#"
+								role="button"
+								data-toggle="dropdown"
 								>{{ version }} <span class="caret"></span
 							></a>
 							<ul class="dropdown-menu" role="menu">
@@ -111,8 +111,8 @@
 				<span class="glyphicon glyphicon-download"></span> Download
 			</a>
 			<button
-				type="button"
 				class="btn btn-success dropdown-toggle"
+				type="button"
 				data-toggle="dropdown">
 				<span class="caret"></span>
 			</button>
@@ -136,17 +136,17 @@ endblock %} {% block relbar2 %} {% endblock %} {% block content %}
 		{# Sidebar is currently disabled.
 		<div class="bs-sidebar">
 			<div
+				aria-label="main navigation"
 				class="sphinxsidebar"
-				role="navigation"
-				aria-label="main navigation">
+				role="navigation">
 				<div class="sphinxsidebarwrapper">
 					{%- block sidebarlogo %} {%- if logo %}
 					<p class="logo">
 						<a href="{{ pathto(master_doc) }}">
 							<img
+								alt="Logo"
 								class="logo"
-								src="{{ pathto('_static/' + logo, 1) }}"
-								alt="Logo" />
+								src="{{ pathto('_static/' + logo, 1) }}" />
 						</a>
 					</p>
 					{%- endif %} {%- endblock %} {%- for sidebartemplate in
