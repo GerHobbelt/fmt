@@ -6,9 +6,123 @@
   `#3561 <https://github.com/fmtlib/fmt/pull/3561>`_).
   Thanks `@5chmidti <https://github.com/5chmidti>`_.
 
-* Improved build configuration
-  (`#3563 <https://github.com/fmtlib/fmt/pull/3563>`_).
-  Thanks `@abouvier (Alexandre Bouvier) <https://github.com/abouvier>`_.
+* Fixed compilation when formatting durations not convertible from
+  ``std::chrono::seconds`` (`#3430 <https://github.com/fmtlib/fmt/pull/3430>`_).
+  Thanks `@patlkli (Patrick Geltinger) <https://github.com/patlkli>`_.
+
+* Added formatter for ``std::vector<bool>::reference`` and
+  ``std::bitset<N>::reference``.
+  (`#3570 <https://github.com/fmtlib/fmt/pull/3570>`_).
+  Thanks `@phprus (Vladislav Shchapov) <https://github.com/phprus>`_ and
+  `@felix642 (Félix-Antoine Constantin) <https://github.com/felix642>`_.
+
+* Made the ``formatter`` specialization for ``char*`` const-correct
+  (`#3432 <https://github.com/fmtlib/fmt/pull/3432>`_).
+  Thanks `@timsong-cpp <https://github.com/timsong-cpp>`_.
+
+* Disallowed passing temporaries to ``make_format_args`` to improve API safety
+  by preventing dangling references.
+
+* Made floating-point formatting tests more platform-independent
+  (`#3433 <https://github.com/fmtlib/fmt/issues/3433>`_,
+  `#3434 <https://github.com/fmtlib/fmt/pull/3434>`_).
+  Thanks `@phprus (Vladislav Shchapov) <https://github.com/phprus>`_.
+
+* Improved and fixed warnings in the floating-point formatter
+  (`#3448 <https://github.com/fmtlib/fmt/pull/3448>`_,
+  `#3450 <https://github.com/fmtlib/fmt/pull/3450>`_).
+  Thanks `@florimond-collette (Florimond Collette)
+  <https://github.com/florimond-collette>`_.
+
+* Removed remnants of the Grisu floating-point formatter that has been replaced
+  by Dragonbox in earlier versions.
+
+* Improved the compile-time error for unformattable types
+  (`#3478 <https://github.com/fmtlib/fmt/pull/3478>`_).
+  Thanks `@BRevzin (Barry Revzin) <https://github.com/BRevzin>`_.
+
+* Optimized storage of an empty allocator in ``basic_memory_buffer``
+  (`#3485 <https://github.com/fmtlib/fmt/pull/3485>`_).
+  Thanks `@Minty-Meeo <https://github.com/Minty-Meeo>`_.
+
+* Optimized format string compilation.
+
+* Added ``throw_format_error`` to the public API
+  (`#3551 <https://github.com/fmtlib/fmt/pull/3551>`_).
+  Thanks `@mjerabek (Martin Jeřábek) <https://github.com/mjerabek>`_.
+
+* Made ``FMT_THROW`` assert even if assertions are disabled when compiling with
+  exceptions disabled (`#3418 <https://github.com/fmtlib/fmt/issues/3418>`_,
+  `#3439 <https://github.com/fmtlib/fmt/pull/3439>`_).
+  Thanks `@BRevzin (Barry Revzin) <https://github.com/BRevzin>`_.
+
+* Made ``format_as`` and ``std::filesystem::path`` formatter work with exotic
+  code unit types.
+  (`#3457 <https://github.com/fmtlib/fmt/pull/3457>`_,
+  `#3476 <https://github.com/fmtlib/fmt/pull/3476>`_).
+  Thanks `@gix (Nico Rieck) <https://github.com/gix>`_,
+  `@hmbj (Hans-Martin B. Jensen) <https://github.com/hmbj>`_.
+
+* Deprecated the wide stream overload of ``printf``.
+
+* Removed unused ``basic_printf_parse_context``.
+
+* Improved RTTI detection used when formatting exceptions
+  (`#3468 <https://github.com/fmtlib/fmt/pull/3468>`_).
+  Thanks `@danakj (Dana Jansens) <https://github.com/danakj>`_.
+
+* Improved compatibility with VxWorks7
+  (`#3467 <https://github.com/fmtlib/fmt/pull/3467>`_).
+  Thanks `@wenshan1 (Bin Lan) <https://github.com/wenshan1>`_.
+
+* Improved documentation (`#3454 <https://github.com/fmtlib/fmt/pull/3454>`_,
+  `#3458 <https://github.com/fmtlib/fmt/issues/3458>`_,
+  `#3461 <https://github.com/fmtlib/fmt/pull/3461>`_,
+  `#3515 <https://github.com/fmtlib/fmt/pull/3515>`_).
+  Thanks `@zencatalyst (Kasra Hashemi) <https://github.com/zencatalyst>`_,
+  `@rlalik <https://github.com/rlalik>`_,
+  `@mikecrowe (Mike Crowe) <https://github.com/mikecrowe>`_.
+
+* Improved build and CI configurations
+  (`#3451 <https://github.com/fmtlib/fmt/pull/3451>`_,
+  `#3452 <https://github.com/fmtlib/fmt/pull/3452>`_,
+  `#3453 <https://github.com/fmtlib/fmt/pull/3453>`_,
+  `#3459 <https://github.com/fmtlib/fmt/pull/3459>`_,
+  `#3486 <https://github.com/fmtlib/fmt/pull/3486>`_,
+  `#3517 <https://github.com/fmtlib/fmt/issues/3517>`_,
+  `#3523 <https://github.com/fmtlib/fmt/pull/3523>`_,
+  `#3563 <https://github.com/fmtlib/fmt/pull/3563>`_).
+  Thanks `@joycebrum (Joyce) <https://github.com/joycebrum>`_,
+  `@glebm (Gleb Mazovetskiy) <https://github.com/glebm>`_,
+  `@phprus (Vladislav Shchapov) <https://github.com/phprus>`_,
+  `@setoye (Alta) <https://github.com/setoye>`_,
+  `@abouvier (Alexandre Bouvier) <https://github.com/abouvier>`_.
+
+* Fixed various warnings and compilation issues
+  (`#3444 <https://github.com/fmtlib/fmt/issues/3444>`_,
+  `#3446 <https://github.com/fmtlib/fmt/pull/3446>`_,
+  `#3475 <https://github.com/fmtlib/fmt/pull/3475>`_,
+  `#3482 <https://github.com/fmtlib/fmt/pull/3482>`_,
+  `#3492 <https://github.com/fmtlib/fmt/issues/3492>`_,
+  `#3493 <https://github.com/fmtlib/fmt/pull/3493>`_,
+  `#3496 <https://github.com/fmtlib/fmt/pull/3496>`_,
+  `#3508 <https://github.com/fmtlib/fmt/pull/3508>`_,
+  `#3542 <https://github.com/fmtlib/fmt/pull/3542>`_,
+  `#3544 <https://github.com/fmtlib/fmt/pull/3544>`_,
+  `#3549 <https://github.com/fmtlib/fmt/pull/3549>`_,
+  `#3550 <https://github.com/fmtlib/fmt/pull/3550>`_,
+  `#3552 <https://github.com/fmtlib/fmt/pull/3552>`_).
+  Thanks `@adesitter (Arnaud Desitter) <https://github.com/adesitter>`_,
+  `@hmbj (Hans-Martin B. Jensen) <https://github.com/hmbj>`_,
+  `@Minty-Meeo <https://github.com/Minty-Meeo>`_,
+  `@phprus (Vladislav Shchapov) <https://github.com/phprus>`_,
+  `@petrmanek (Petr Mánek) <https://github.com/petrmanek>`_,
+  `@TobiSchluter (Tobias Schlüter) <https://github.com/TobiSchluter>`_,
+  `@kieranclancy (Kieran Clancy) <https://github.com/kieranclancy>`_,
+  `@alexeedm (Dmitry Alexeev) <https://github.com/alexeedm>`_,
+  `@jurihock (Jürgen Hock) <https://github.com/jurihock>`_,
+  `@Ozomahtli <https://github.com/Ozomahtli>`_,
+  `@razaqq <https://github.com/razaqq>`_.
 
 10.0.0 - 2023-05-09
 -------------------
