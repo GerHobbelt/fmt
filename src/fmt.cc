@@ -78,17 +78,6 @@ export module fmt;
 #define FMT_EXPORT export
 #define FMT_BEGIN_EXPORT export {
 #define FMT_END_EXPORT }
-#else
-#  define FMT_EXPORT 
-#  define FMT_BEGIN_EXPORT 
-#  define FMT_END_EXPORT
-
-#  define FMT_MODULE_EXPORT
-#  define FMT_MODULE_EXPORT_BEGIN
-#  define FMT_MODULE_EXPORT_END
-#  define FMT_BEGIN_DETAIL_NAMESPACE namespace detail {
-#  define FMT_END_DETAIL_NAMESPACE }
-#endif
 
 #define FMT_MODULE_EXPORT
 #define FMT_MODULE_EXPORT_BEGIN
