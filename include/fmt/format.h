@@ -570,8 +570,8 @@ template <typename Container, FMT_ENABLE_IF(is_contiguous<Container>::value)>
 __attribute__((no_sanitize("undefined")))
 #endif
 inline auto
-reserve(std::back_insert_iterator<Container> it, size_t n)
-    -> typename Container::value_type* {
+reserve(std::back_insert_iterator<Container> it, size_t n) ->
+    typename Container::value_type* {
   Container& c = get_container(it);
   size_t size = c.size();
   c.resize(size + n);
@@ -1413,6 +1413,8 @@ class utf8_to_utf16 {
   auto str() const -> std::wstring { return {&buffer_[0], size()}; }
 };
 
+enum class to_utf8_error_policy { abort, replace };
+
 // A converter from UTF-16/UTF-32 (host endian) to UTF-8.
 template <typename WChar, typename Buffer = memory_buffer> class to_utf8 {
  private:
@@ -1441,16 +1443,20 @@ template <typename WChar, typename Buffer = memory_buffer> class to_utf8 {
     buffer_.push_back(0);
     return true;
   }
-  static bool convert(Buffer& buf, basic_string_view<WChar> s) {
+  static bool convert(
+      Buffer& buf, basic_string_view<WChar> s,
+      to_utf8_error_policy policy = to_utf8_error_policy::abort) {
     for (auto p = s.begin(); p != s.end(); ++p) {
       uint32_t c = static_cast<uint32_t>(*p);
       if (sizeof(WChar) == 2 && c >= 0xd800 && c <= 0xdfff) {
-        // surrogate pair
+        // Handle a surrogate pair.
         ++p;
         if (p == s.end() || (c & 0xfc00) != 0xd800 || (*p & 0xfc00) != 0xdc00) {
-          return false;
+          if (policy == to_utf8_error_policy::abort) return false;
+          buf.append(string_view("�"));
+        } else {
+          c = (c << 10) + static_cast<uint32_t>(*p) - 0x35fdc00;
         }
-        c = (c << 10) + static_cast<uint32_t>(*p) - 0x35fdc00;
       }
       if (c < 0x80) {
         buf.push_back(static_cast<char>(c));
@@ -2379,6 +2385,49 @@ FMT_CONSTEXPR auto write(OutputIt out, T value) -> OutputIt {
   if (negative) *it++ = static_cast<Char>('-');
   it = format_decimal<Char>(it, abs_value, num_digits).end;
   return base_iterator(out, it);
+}
+
+// DEPRECATED!
+template <typename Char>
+FMT_CONSTEXPR auto parse_align(const Char* begin, const Char* end,
+                               format_specs<Char>& specs) -> const Char* {
+  FMT_ASSERT(begin != end, "");
+  auto align = align::none;
+  auto p = begin + code_point_length(begin);
+  if (end - p <= 0) p = begin;
+  for (;;) {
+    switch (to_ascii(*p)) {
+    case '<':
+      align = align::left;
+      break;
+    case '>':
+      align = align::right;
+      break;
+    case '^':
+      align = align::center;
+      break;
+    }
+    if (align != align::none) {
+      if (p != begin) {
+        auto c = *begin;
+        if (c == '}') return begin;
+        if (c == '{') {
+          throw_format_error("invalid fill character '{'");
+          return begin;
+        }
+        specs.fill = {begin, to_unsigned(p - begin)};
+        begin = p + 1;
+      } else {
+        ++begin;
+      }
+      break;
+    } else if (p == begin) {
+      break;
+    }
+    p = begin;
+  }
+  specs.align = align;
+  return begin;
 }
 
 // A floating-point presentation format.
