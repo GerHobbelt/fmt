@@ -19,7 +19,7 @@ using fmt::format;
 using fmt::format_error;
 using fmt::detail::max_value;
 
-const unsigned big_num = INT_MAX + 1u;
+static const unsigned big_num = INT_MAX + 1u;
 
 // Makes format string argument positional.
 static std::string make_positional(fmt::string_view format) {
@@ -499,7 +499,7 @@ TEST(printf_test, pointer) {
 }
 
 enum test_enum { answer = 42 };
-auto format_as(test_enum e) -> int { return e; }
+static auto format_as(test_enum e) -> int { return e; }
 
 TEST(printf_test, enum) {
   EXPECT_PRINTF("42", "%d", answer);

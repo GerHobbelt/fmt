@@ -139,7 +139,7 @@ TEST(util_test, bit_cast) {
 }
 
 // Increment a number in a string.
-void increment(char* s) {
+static void increment(char* s) {
   for (int i = static_cast<int>(std::strlen(s)) - 1; i >= 0; --i) {
     if (s[i] != '9') {
       ++s[i];
@@ -317,7 +317,7 @@ TEST(memory_buffer_test, move_ctor_dynamic_buffer) {
   EXPECT_GT(buffer2.capacity(), 4u);
 }
 
-void check_move_assign_buffer(const char* str,
+static void check_move_assign_buffer(const char* str,
                               basic_memory_buffer<char, 5>& buffer) {
   basic_memory_buffer<char, 5> buffer2;
   buffer2 = std::move(buffer);
@@ -1193,11 +1193,11 @@ TEST(format_test, format_bin) {
 }
 
 #if FMT_USE_INT128
-constexpr auto int128_max = static_cast<__int128_t>(
+static constexpr auto int128_max = static_cast<__int128_t>(
     (static_cast<__uint128_t>(1) << ((__SIZEOF_INT128__ * CHAR_BIT) - 1)) - 1);
-constexpr auto int128_min = -int128_max - 1;
+static constexpr auto int128_min = -int128_max - 1;
 
-constexpr auto uint128_max = ~static_cast<__uint128_t>(0);
+static constexpr auto uint128_max = ~static_cast<__uint128_t>(0);
 #endif
 
 TEST(format_test, format_dec) {
@@ -1536,7 +1536,7 @@ TEST(format_test, format_cstring) {
       format_error, "string pointer is null");
 }
 
-void function_pointer_test(int, double, std::string) {}
+static void function_pointer_test(int, double, std::string) {}
 
 TEST(format_test, format_pointer) {
   check_unknown_types(reinterpret_cast<void*>(0x1234), "p", "pointer");
@@ -1780,7 +1780,7 @@ TEST(format_test, group_digits_view) {
 }
 
 enum test_enum { foo, bar };
-auto format_as(test_enum e) -> int { return e; }
+static auto format_as(test_enum e) -> int { return e; }
 
 TEST(format_test, join) {
   using fmt::join;
@@ -1816,7 +1816,7 @@ TEST(format_test, join_bytes) {
 }
 #endif
 
-std::string vformat_message(int id, const char* format, fmt::format_args args) {
+static std::string vformat_message(int id, const char* format, fmt::format_args args) {
   auto buffer = fmt::memory_buffer();
   fmt::format_to(fmt::appender(buffer), "[{}] ", id);
   fmt::vformat_to(fmt::appender(buffer), format, args);
@@ -1918,7 +1918,7 @@ TEST(format_test, formatter_not_specialized) {
 
 #if FMT_HAS_FEATURE(cxx_strong_enums)
 enum big_enum : unsigned long long { big_enum_value = 5000000000ULL };
-auto format_as(big_enum e) -> unsigned long long { return e; }
+static auto format_as(big_enum e) -> unsigned long long { return e; }
 
 TEST(format_test, strong_enum) {
   EXPECT_EQ("5000000000", fmt::format("{}", big_enum_value));
@@ -2126,16 +2126,16 @@ TEST(format_test, back_insert_slicing) {
 
 namespace test {
 enum class scoped_enum_as_int {};
-auto format_as(scoped_enum_as_int) -> int { return 42; }
+static auto format_as(scoped_enum_as_int) -> int { return 42; }
 
 enum class scoped_enum_as_string_view {};
-auto format_as(scoped_enum_as_string_view) -> fmt::string_view { return "foo"; }
+static auto format_as(scoped_enum_as_string_view) -> fmt::string_view { return "foo"; }
 
 enum class scoped_enum_as_string {};
-auto format_as(scoped_enum_as_string) -> std::string { return "foo"; }
+static auto format_as(scoped_enum_as_string) -> std::string { return "foo"; }
 
 struct struct_as_int {};
-auto format_as(struct_as_int) -> int { return 42; }
+static auto format_as(struct_as_int) -> int { return 42; }
 }  // namespace test
 
 TEST(format_test, format_as) {
@@ -2220,7 +2220,7 @@ class format_facet : public fmt::format_facet<std::locale> {
               const fmt::format_specs<>&) const -> bool override;
 };
 
-auto format_facet::do_put(fmt::appender out, fmt::loc_value val,
+static auto format_facet::do_put(fmt::appender out, fmt::loc_value val,
                           const fmt::format_specs<>&) const -> bool {
   return val.visit(int_formatter{out});
 }
