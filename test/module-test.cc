@@ -60,7 +60,9 @@
 #  define FMT_POSIX(call) call
 #endif
 
+#if !defined(_MSC_VER)
 import fmt;
+#endif
 
 // check for macros leaking from BMI
 static bool macro_leaked =
@@ -94,9 +96,13 @@ bool namespace_detail_invisible() {
   // implicitly nor explicitly exported
   return true;
 #else
-  using namespace detail;
   // this fails to compile if fmt::detail is visible
+#if defined(FMT_HIDE_MODULE_BUGS)
+  return true;
+#else
+  using namespace detail;
   return !oops_detail_namespace_is_visible;
+#endif
 #endif
 }
 }  // namespace fmt
