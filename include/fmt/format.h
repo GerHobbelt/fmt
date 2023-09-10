@@ -84,7 +84,8 @@
 #  if FMT_CPLUSPLUS >= 202002L
 #    if FMT_HAS_CPP_ATTRIBUTE(no_unique_address)
 #      define FMT_NO_UNIQUE_ADDRESS [[no_unique_address]]
-#    elif FMT_MSC_VERSION >= 1929  // VS2019 v16.10 and later
+// VS2019 v16.10 and later except clang-cl (https://reviews.llvm.org/D110485)
+#    elif (FMT_MSC_VERSION >= 1929) && !FMT_CLANG_VERSION
 #      define FMT_NO_UNIQUE_ADDRESS [[msvc::no_unique_address]]
 #    endif
 #  endif
@@ -1039,6 +1040,7 @@ namespace detail {
 FMT_API bool write_console(std::FILE* f, string_view text);
 FMT_API void print(std::FILE*, string_view);
 }  // namespace detail
+
 FMT_BEGIN_EXPORT
 
 // Suppress a misleading warning in older versions of clang.
@@ -4320,6 +4322,8 @@ inline auto to_string(const T& value) -> std::string {
   return to_string(format_as(value));
 }
 
+FMT_END_EXPORT
+
 namespace detail {
 
 template <typename Char>
@@ -4390,6 +4394,8 @@ void vformat_to(buffer<Char>& buf, basic_string_view<Char> fmt,
   };
   detail::parse_format_string<false>(fmt, format_handler(out, fmt, args, loc));
 }
+
+FMT_BEGIN_EXPORT
 
 #ifndef FMT_HEADER_ONLY
 extern template FMT_API void vformat_to(buffer<char>&, string_view,

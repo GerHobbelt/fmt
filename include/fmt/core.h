@@ -1674,7 +1674,6 @@ template <typename Context> class basic_format_arg {
   \endrst
  */
 // DEPRECATED!
-FMT_EXPORT
 template <typename Visitor, typename Context>
 FMT_CONSTEXPR FMT_INLINE auto visit_format_arg(
     Visitor&& vis, const basic_format_arg<Context>& arg) -> decltype(vis(0)) {

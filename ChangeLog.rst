@@ -1,3 +1,10 @@
+10.1.1 - TBD
+------------
+
+* Fixed an error about partial specialization of ``formatter<string>``
+  after instantiation when compiled with gcc and C++20
+  (`#3584 <https://github.com/fmtlib/fmt/issues/3584>`_).
+
 10.1.0 - 2023-08-12
 -------------------
 
@@ -102,6 +109,9 @@
   `#3476 <https://github.com/fmtlib/fmt/pull/3476>`_).
   Thanks `@gix (Nico Rieck) <https://github.com/gix>`_,
   `@hmbj (Hans-Martin B. Jensen) <https://github.com/hmbj>`_.
+
+* Added support for the ``?`` format specifier to ``std::filesystem::path`` and
+  made the default unescaped for consistency with strings.
 
 * Deprecated the wide stream overload of ``printf``.
 
