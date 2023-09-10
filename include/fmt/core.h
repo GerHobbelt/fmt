@@ -183,10 +183,8 @@
 
 #ifndef FMT_BEGIN_NAMESPACE
 #  define FMT_BEGIN_NAMESPACE \
-    namespace fmt {           \
-    inline namespace v10 {
-#  define FMT_END_NAMESPACE \
-    }                       \
+    namespace fmt {
+#  define FMT_END_NAMESPACE   \
     }
 #endif
 
@@ -194,6 +192,18 @@
 #  define FMT_EXPORT
 #  define FMT_BEGIN_EXPORT
 #  define FMT_END_EXPORT
+#endif
+
+#ifndef FMT_MODULE_EXPORT
+#define FMT_MODULE_EXPORT
+#endif
+#ifndef FMT_MODULE_EXPORT_BEGIN
+#define FMT_MODULE_EXPORT_BEGIN
+#define FMT_MODULE_EXPORT_END
+#endif
+#ifndef FMT_BEGIN_DETAIL_NAMESPACE
+#define FMT_BEGIN_DETAIL_NAMESPACE namespace detail {
+#define FMT_END_DETAIL_NAMESPACE }
 #endif
 
 #if !defined(FMT_HEADER_ONLY) && defined(_WIN32)
@@ -1834,7 +1844,7 @@ class format_arg_store
  */
 // Arguments are taken by lvalue references to avoid some lifetime issues.
 template <typename Context = format_context, typename... T>
-constexpr auto make_format_args(T&... args)
+constexpr auto make_format_args(const T&... args)
     -> format_arg_store<Context, remove_cvref_t<T>...> {
   return {args...};
 }
