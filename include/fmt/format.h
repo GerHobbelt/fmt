@@ -1046,7 +1046,7 @@ struct is_contiguous<basic_memory_buffer<T, SIZE, Allocator>> : std::true_type {
 
 FMT_END_EXPORT
 namespace detail {
-FMT_API bool write_console(std::FILE* f, string_view text);
+FMT_API bool write_console(int fd, string_view text);
 FMT_API void print(std::FILE*, string_view);
 }  // namespace detail
 
@@ -3759,8 +3759,11 @@ template <typename Char, typename OutputIt, typename T,
 FMT_CONSTEXPR auto write(OutputIt out, const T& value)
     -> enable_if_t<mapped_type_constant<T, Context>::value == type::custom_type,
                    OutputIt> {
+  auto formatter = typename Context::template formatter_type<T>();
+  auto parse_ctx = typename Context::parse_context_type({});
+  formatter.parse(parse_ctx);
   auto ctx = Context(out, {}, {});
-  return typename Context::template formatter_type<T>().format(value, ctx);
+  return formatter.format(value, ctx);
 }
 
 // An argument visitor that formats the argument and writes it via the output
