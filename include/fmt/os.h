@@ -13,11 +13,13 @@
 #include <cstdio>
 #include <system_error>  // std::system_error
 
-#if defined __APPLE__ || defined(__FreeBSD__)
-#  include <xlocale.h>  // for LC_NUMERIC_MASK on OS X
-#endif
-
 #include "format.h"
+
+#if defined __APPLE__ || defined(__FreeBSD__)
+#  if FMT_HAS_INCLUDE(<xlocale.h>)
+#    include <xlocale.h>  // for LC_NUMERIC_MASK on OS X
+#  endif
+#endif
 
 #ifndef FMT_USE_FCNTL
 // UWP doesn't provide _pipe.
@@ -46,6 +48,7 @@
 
 // Calls to system functions are wrapped in FMT_SYSTEM for testability.
 #ifdef FMT_SYSTEM
+#  define FMT_HAS_SYSTEM
 #  define FMT_POSIX_CALL(call) FMT_SYSTEM(call)
 #else
 #  define FMT_SYSTEM(call) ::call
