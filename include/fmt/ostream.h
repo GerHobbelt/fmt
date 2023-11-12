@@ -43,9 +43,11 @@ auto get_file(std::filebuf&) -> FILE*;
 inline bool write_ostream_unicode(std::ostream& os, fmt::string_view data) {
   FILE* f = nullptr;
 #if FMT_MSC_VERSION
+#if defined(_CPPRTTI) && _CPPRTTI 		// MSVC /GR (RTTI enabled) compiler option is enabled
   if (auto* buf = dynamic_cast<std::filebuf*>(os.rdbuf()))
     f = get_file(*buf);
   else
+#endif
     return false;
 #elif defined(_WIN32) && defined(__GLIBCXX__)
   auto* rdbuf = os.rdbuf();
