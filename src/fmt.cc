@@ -103,6 +103,10 @@ export module fmt;
 extern "C++" {
 #endif
 
+#ifndef FMT_OS
+#  define FMT_OS 1
+#endif
+
 // All library-provided declarations and definitions must be in the module
 // purview to be exported.
 #include "fmt/args.h"
@@ -110,9 +114,9 @@ extern "C++" {
 #include "fmt/color.h"
 #include "fmt/compile.h"
 #include "fmt/format.h"
-#if !defined(FMT_OS) || FMT_OS
-# include "fmt/os.h"
-# include "fmt/ostream.h"
+#if FMT_OS
+#  include "fmt/os.h"
+#  include "fmt/ostream.h"
 #endif
 #include "fmt/printf.h"
 #include "fmt/std.h"
@@ -131,4 +135,6 @@ module :private;
 #define AMALGAMATED_SOURCECODE
 
 #include "format.cc"
-#include "os.cc"
+#if FMT_OS
+#  include "os.cc"
+#endif
