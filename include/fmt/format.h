@@ -2350,9 +2350,10 @@ template <typename Char, typename OutputIt>
 FMT_CONSTEXPR auto write(OutputIt out, const Char* s,
                          const format_specs<Char>& specs, locale_ref)
     -> OutputIt {
-  return specs.type != presentation_type::pointer
-             ? write(out, basic_string_view<Char>(s), specs, {})
-             : write_ptr<Char>(out, bit_cast<uintptr_t>(s), &specs);
+  if (specs.type == presentation_type::pointer)
+    return write_ptr<Char>(out, bit_cast<uintptr_t>(s), &specs);
+  if (!s) throw_format_error("string pointer is null");
+  return write(out, basic_string_view<Char>(s), specs, {});
 }
 
 template <typename Char, typename OutputIt, typename T,
@@ -4061,6 +4062,7 @@ struct formatter<T, Char, enable_if_t<detail::has_format_as<T>::value>>
     : private formatter<detail::format_as_t<T>, Char> {
   using base = formatter<detail::format_as_t<T>, Char>;
   using base::parse;
+  using base::set_debug_format;
 
   template <typename FormatContext>
   auto format(const T& value, FormatContext& ctx) const -> decltype(ctx.out()) {

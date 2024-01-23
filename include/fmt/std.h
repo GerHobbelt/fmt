@@ -60,7 +60,24 @@
 #  endif
 #endif
 
-#ifdef __cpp_lib_filesystem
+// For older Xcode versions, __cpp_lib_xxx flags are inaccurately defined.
+#ifndef FMT_CPP_LIB_FILESYSTEM
+#  ifdef __cpp_lib_filesystem
+#    define FMT_CPP_LIB_FILESYSTEM __cpp_lib_filesystem
+#  else
+#    define FMT_CPP_LIB_FILESYSTEM 0
+# endif
+#endif
+
+#ifndef FMT_CPP_LIB_VARIANT
+#  ifdef __cpp_lib_variant
+#    define FMT_CPP_LIB_VARIANT __cpp_lib_variant
+#  else
+#    define FMT_CPP_LIB_VARIANT 0
+#  endif
+#endif
+
+#if FMT_CPP_LIB_FILESYSTEM
 FMT_BEGIN_NAMESPACE
 
 namespace detail {
@@ -134,7 +151,7 @@ template <typename Char> struct formatter<std::filesystem::path, Char> {
   }
 };
 FMT_END_NAMESPACE
-#endif
+#endif // FMT_CPP_LIB_FILESYSTEM
 
 FMT_BEGIN_NAMESPACE
 FMT_EXPORT
@@ -212,7 +229,7 @@ struct formatter<std::optional<T>, Char,
 FMT_END_NAMESPACE
 #endif  // __cpp_lib_optional
 
-#ifdef __cpp_lib_variant
+#if FMT_CPP_LIB_VARIANT
 FMT_BEGIN_NAMESPACE
 namespace detail {
 
@@ -303,7 +320,7 @@ struct formatter<
   }
 };
 FMT_END_NAMESPACE
-#endif  // __cpp_lib_variant
+#endif  // FMT_CPP_LIB_VARIANT
 
 FMT_BEGIN_NAMESPACE
 FMT_EXPORT
