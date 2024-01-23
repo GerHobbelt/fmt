@@ -422,6 +422,12 @@ struct is_formattable_delayed
 #endif
 }  // namespace detail
 
+template <typename...> struct conjunction : std::true_type {};
+template <typename P> struct conjunction<P> : P {};
+template <typename P1, typename... Pn>
+struct conjunction<P1, Pn...>
+    : conditional_t<bool(P1::value), conjunction<Pn...>, P1> {};
+
 template <typename T, typename Char, typename Enable = void>
 struct range_formatter;
 
@@ -487,7 +493,8 @@ struct range_formatter<
     for (; it != end; ++it) {
       if (i > 0) out = detail::copy_str<Char>(separator_, out);
       ctx.advance_to(out);
-      out = underlying_.format(mapper.map(*it), ctx);
+      auto&& item = *it;
+      out = underlying_.format(mapper.map(item), ctx);
       ++i;
     }
     out = detail::copy_str<Char>(closing_bracket_, out);
