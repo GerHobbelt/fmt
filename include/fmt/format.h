@@ -875,7 +875,7 @@ enum { inline_buffer_size = 500 };
   **Example**::
 
      auto out = fmt::memory_buffer();
-     format_to(std::back_inserter(out), "The answer is {}.", 42);
+     fmt::format_to(std::back_inserter(out), "The answer is {}.", 42);
 
   This will append the following output to the ``out`` object:
 
@@ -3809,17 +3809,6 @@ template <typename Char> struct arg_formatter {
   }
 };
 
-template <typename Char> struct custom_formatter {
-  basic_format_parse_context<Char>& parse_ctx;
-  buffer_context<Char>& ctx;
-
-  void operator()(
-      typename basic_format_arg<buffer_context<Char>>::handle h) const {
-    h.format(parse_ctx, ctx);
-  }
-  template <typename T> void operator()(T) const {}
-};
-
 struct width_checker {
   template <typename T, FMT_ENABLE_IF(is_integer<T>::value)>
   FMT_CONSTEXPR auto operator()(T value) -> unsigned long long {
@@ -4416,11 +4405,9 @@ void vformat_to(buffer<Char>& buf, basic_string_view<Char> fmt,
     auto on_format_specs(int id, const Char* begin, const Char* end)
         -> const Char* {
       auto arg = get_arg(context, id);
-      if (arg.type() == type::custom_type) {
-        parse_context.advance_to(begin);
-        visit_format_arg(custom_formatter<Char>{parse_context, context}, arg);
+      // Not using a visitor for custom types gives better codegen.
+      if (arg.format_custom(begin, parse_context, context))
         return parse_context.begin();
-      }
       auto specs = detail::dynamic_format_specs<Char>();
       begin = parse_format_specs(begin, end, specs, parse_context, arg.type());
       detail::handle_dynamic_spec<detail::width_checker>(
@@ -4537,7 +4524,7 @@ formatter<T, Char,
   }
   auto specs = specs_;
   detail::handle_dynamic_spec<detail::width_checker>(specs.width,
-                                                      specs.width_ref, ctx);
+                                                     specs.width_ref, ctx);
   detail::handle_dynamic_spec<detail::precision_checker>(
       specs.precision, specs.precision_ref, ctx);
   return detail::write<Char>(ctx.out(), val, specs, ctx.locale());

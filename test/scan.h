@@ -114,19 +114,20 @@ class scan_buffer {
     auto base() const -> const char* { return buf_->ptr_; }
 
     friend auto to_contiguous(iterator it) -> maybe_contiguous_range;
-    friend void advance(iterator& it, size_t n);
+    friend auto advance(iterator it, size_t n) -> iterator;
   };
 
   friend auto to_contiguous(iterator it) -> maybe_contiguous_range {
     if (it.buf_->is_contiguous()) return {it.buf_->ptr_, it.buf_->end_};
     return {nullptr, nullptr};
   }
-  friend void advance(iterator& it, size_t n) {
+  friend auto advance(iterator it, size_t n) -> iterator {
     FMT_ASSERT(it.buf_->is_contiguous(), "");
     const char*& ptr = it.buf_->ptr_;
     ptr += n;
     it.value_ = *ptr;
     if (ptr == it.buf_->end_) it.ptr_ = iterator::sentinel();
+    return it;
   }
 
   auto begin() -> iterator { return this; }
@@ -320,76 +321,83 @@ struct custom_scan_arg {
 template <typename Context> class basic_scan_arg {
  private:
   using scan_type = detail::scan_type;
-
- public:
-  // TODO: make private
-  scan_type type;
+  scan_type type_;
   union {
-    int* int_value;
-    unsigned* uint_value;
-    long long* long_long_value;
-    unsigned long long* ulong_long_value;
-    std::string* string;
-    fmt::string_view* string_view;
-    detail::custom_scan_arg<Context> custom;
+    int* int_value_;
+    unsigned* uint_value_;
+    long long* long_long_value_;
+    unsigned long long* ulong_long_value_;
+    std::string* string_;
+    fmt::string_view* string_view_;
+    detail::custom_scan_arg<Context> custom_;
     // TODO: more types
   };
 
-  FMT_CONSTEXPR basic_scan_arg()
-      : type(scan_type::none_type), int_value(nullptr) {}
-  FMT_CONSTEXPR basic_scan_arg(int& value)
-      : type(scan_type::int_type), int_value(&value) {}
-  FMT_CONSTEXPR basic_scan_arg(unsigned& value)
-      : type(scan_type::uint_type), uint_value(&value) {}
-  FMT_CONSTEXPR basic_scan_arg(long long& value)
-      : type(scan_type::long_long_type), long_long_value(&value) {}
-  FMT_CONSTEXPR basic_scan_arg(unsigned long long& value)
-      : type(scan_type::ulong_long_type), ulong_long_value(&value) {}
-  FMT_CONSTEXPR basic_scan_arg(std::string& value)
-      : type(scan_type::string_type), string(&value) {}
-  FMT_CONSTEXPR basic_scan_arg(fmt::string_view& value)
-      : type(scan_type::string_view_type), string_view(&value) {}
-  template <typename T>
-  FMT_CONSTEXPR basic_scan_arg(T& value) : type(scan_type::custom_type) {
-    custom.value = &value;
-    custom.scan = scan_custom_arg<T>;
-  }
-
-  constexpr explicit operator bool() const noexcept {
-    return type != scan_type::none_type;
-  }
-
-  template <typename Visitor>
-  auto visit(Visitor&& vis) -> decltype(vis(std::declval<int>())) {
-    switch (type) {
-    case scan_type::none_type:
-      break;
-    case scan_type::int_type:
-      return vis(int_value);
-    case scan_type::uint_type:
-      return vis(uint_value);
-    case scan_type::long_long_type:
-      return vis(long_long_value);
-    case scan_type::ulong_long_type:
-      return vis(ulong_long_value);
-    case scan_type::string_type:
-      return vis(string);
-    case scan_type::string_view_type:
-      return vis(string_view);
-    case scan_type::custom_type:
-      // TODO: implement
-      break;
-    }
-    return vis(monostate());
-  }
-
- private:
   template <typename T>
   static void scan_custom_arg(void* arg, scan_parse_context& parse_ctx,
                               Context& ctx) {
     auto s = scanner<T>();
     parse_ctx.advance_to(s.parse(parse_ctx));
     ctx.advance_to(s.scan(*static_cast<T*>(arg), ctx));
+  }
+
+ public:
+  FMT_CONSTEXPR basic_scan_arg()
+      : type_(scan_type::none_type), int_value_(nullptr) {}
+  FMT_CONSTEXPR basic_scan_arg(int& value)
+      : type_(scan_type::int_type), int_value_(&value) {}
+  FMT_CONSTEXPR basic_scan_arg(unsigned& value)
+      : type_(scan_type::uint_type), uint_value_(&value) {}
+  FMT_CONSTEXPR basic_scan_arg(long long& value)
+      : type_(scan_type::long_long_type), long_long_value_(&value) {}
+  FMT_CONSTEXPR basic_scan_arg(unsigned long long& value)
+      : type_(scan_type::ulong_long_type), ulong_long_value_(&value) {}
+  FMT_CONSTEXPR basic_scan_arg(std::string& value)
+      : type_(scan_type::string_type), string_(&value) {}
+  FMT_CONSTEXPR basic_scan_arg(fmt::string_view& value)
+      : type_(scan_type::string_view_type), string_view_(&value) {}
+  template <typename T>
+  FMT_CONSTEXPR basic_scan_arg(T& value) : type_(scan_type::custom_type) {
+    custom_.value = &value;
+    custom_.scan = scan_custom_arg<T>;
+  }
+
+  constexpr explicit operator bool() const noexcept {
+    return type_ != scan_type::none_type;
+  }
+
+  auto type() const -> detail::scan_type { return type_; }
+
+  template <typename Visitor>
+  auto visit(Visitor&& vis) -> decltype(vis(monostate())) {
+    switch (type_) {
+    case scan_type::none_type:
+      break;
+    case scan_type::int_type:
+      return vis(*int_value_);
+    case scan_type::uint_type:
+      return vis(*uint_value_);
+    case scan_type::long_long_type:
+      return vis(*long_long_value_);
+    case scan_type::ulong_long_type:
+      return vis(*ulong_long_value_);
+    case scan_type::string_type:
+      return vis(*string_);
+    case scan_type::string_view_type:
+      return vis(*string_view_);
+    case scan_type::custom_type:
+      break;
+    }
+    return vis(monostate());
+  }
+
+  auto scan_custom(const char* parse_begin,
+                   scan_parse_context& parse_ctx,
+                   Context& ctx) const -> bool {
+    if (type_ != scan_type::custom_type) return false;
+    parse_ctx.advance_to(parse_begin);
+    custom_.scan(custom_.value, parse_ctx, ctx);
+    return true;
   }
 };
 
@@ -445,6 +453,92 @@ const char* parse_scan_specs(const char* begin, const char* end,
   return begin;
 }
 
+struct default_arg_scanner {
+  // TODO: storing a range can be more efficient
+  using iterator = scan_buffer::iterator;
+  iterator begin;
+  iterator end;
+
+  template <typename T = unsigned>
+  auto read_uint(iterator it, T& value) -> iterator {
+    if (it == end) return it;
+    char c = *it;
+    if (c < '0' || c > '9') throw_format_error("invalid input");
+
+    int num_digits = 0;
+    T n = 0, prev = 0;
+    char prev_digit = c;
+    do {
+      prev = n;
+      n = n * 10 + static_cast<unsigned>(c - '0');
+      prev_digit = c;
+      c = *++it;
+      ++num_digits;
+      if (c < '0' || c > '9') break;
+    } while (it != end);
+
+    // Check overflow.
+    if (num_digits <= std::numeric_limits<int>::digits10) {
+      value = n;
+      return it;
+    }
+    unsigned max = to_unsigned((std::numeric_limits<int>::max)());
+    if (num_digits == std::numeric_limits<int>::digits10 + 1 &&
+        prev * 10ull + unsigned(prev_digit - '0') <= max) {
+      value = n;
+    } else {
+      throw_format_error("number is too big");
+    }
+    return it;
+  }
+
+  template <typename T = int>
+  auto read_int(iterator it, T& value) -> iterator {
+    bool negative = it != end && *it == '-';
+    if (negative) {
+      ++it;
+      if (it == end) throw_format_error("invalid input");
+    }
+    using unsigned_type = typename std::make_unsigned<T>::type;
+    unsigned_type abs_value = 0;
+    it = read_uint<unsigned_type>(it, abs_value);
+    auto n = static_cast<T>(abs_value);
+    value = negative ? -n : n;
+    return it;
+  }
+
+  auto operator()(int& value) -> iterator {
+    return read_int(begin, value);
+  }
+  auto operator()(unsigned& value) -> iterator {
+    return read_uint(begin, value);
+  }
+  auto operator()(long long& value) -> iterator {
+    return read_int<long long>(begin, value);
+  }
+  auto operator()(unsigned long long& value) -> iterator {
+    return read_uint<unsigned long long>(begin, value);
+  }
+  auto operator()(std::string& value) -> iterator {
+    iterator it = begin;
+    while (it != end && *it != ' ') value.push_back(*it++);
+    return it;
+  }
+  auto operator()(fmt::string_view& value) -> iterator {
+    auto range = to_contiguous(begin);
+    // This could also be checked at compile time in scan.
+    if (!range) throw_format_error("string_view requires contiguous input");
+    auto p = range.begin;
+    while (p != range.end && *p != ' ') ++p;
+    size_t size = to_unsigned(p - range.begin);
+    value = {range.begin, size};
+    return advance(begin, size);
+  }
+  auto operator()(monostate) -> iterator {
+    return begin;
+  }
+};
+
 struct arg_scanner {
   using iterator = scan_buffer::iterator;
 
@@ -452,9 +546,9 @@ struct arg_scanner {
   iterator end;
   const format_specs<>& specs;
 
-  template <typename T, FMT_ENABLE_IF(std::is_integral<T>::value)>
-  auto operator()(T) -> iterator {
-    // TODO
+  template <typename T>
+  auto operator()(T&&) -> iterator {
+    // TODO: implement
     return begin;
   }
 };
@@ -464,48 +558,6 @@ struct scan_handler : error_handler {
   scan_parse_context parse_ctx_;
   scan_context scan_ctx_;
   int next_arg_id_;
-
-  using iterator = scan_buffer::iterator;
-
-  template <typename T = unsigned> auto read_uint(iterator& it) -> optional<T> {
-    auto end = scan_ctx_.end();
-    if (it == end) return {};
-    char c = *it;
-    if (c < '0' || c > '9') on_error("invalid input");
-
-    int num_digits = 0;
-    T value = 0, prev = 0;
-    char prev_digit = c;
-    do {
-      prev = value;
-      value = value * 10 + static_cast<unsigned>(c - '0');
-      prev_digit = c;
-      c = *++it;
-      ++num_digits;
-      if (c < '0' || c > '9') break;
-    } while (it != end);
-
-    // Check overflow.
-    if (num_digits <= std::numeric_limits<int>::digits10) return value;
-    const unsigned max = to_unsigned((std::numeric_limits<int>::max)());
-    if (num_digits == std::numeric_limits<int>::digits10 + 1 &&
-        prev * 10ull + unsigned(prev_digit - '0') <= max) {
-      return value;
-    }
-    throw format_error("number is too big");
-  }
-
-  template <typename T = int> auto read_int(iterator& it) -> optional<T> {
-    auto end = scan_ctx_.end();
-    bool negative = it != end && *it == '-';
-    if (negative) ++it;
-    if (auto abs_value = read_uint<typename std::make_unsigned<T>::type>(it)) {
-      auto value = static_cast<T>(*abs_value);
-      return negative ? -value : value;
-    }
-    if (negative) on_error("invalid input");
-    return {};
-  }
 
  public:
   FMT_CONSTEXPR scan_handler(string_view format, scan_buffer& buf,
@@ -537,56 +589,19 @@ struct scan_handler : error_handler {
     scan_arg arg = scan_ctx_.arg(arg_id);
     auto it = scan_ctx_.begin(), end = scan_ctx_.end();
     while (it != end && is_whitespace(*it)) ++it;
-    switch (arg.type) {
-    case scan_type::int_type:
-      if (auto value = read_int(it)) *arg.int_value = *value;
-      break;
-    case scan_type::uint_type:
-      if (auto value = read_uint(it)) *arg.uint_value = *value;
-      break;
-    case scan_type::long_long_type:
-      if (auto value = read_int<long long>(it)) *arg.long_long_value = *value;
-      break;
-    case scan_type::ulong_long_type:
-      if (auto value = read_uint<unsigned long long>(it))
-        *arg.ulong_long_value = *value;
-      break;
-    case scan_type::string_type:
-      while (it != end && *it != ' ') arg.string->push_back(*it++);
-      break;
-    case scan_type::string_view_type: {
-      auto range = to_contiguous(it);
-      // This could also be checked at compile time in scan.
-      if (!range) on_error("string_view requires contiguous input");
-      auto p = range.begin;
-      while (p != range.end && *p != ' ') ++p;
-      size_t size = to_unsigned(p - range.begin);
-      *arg.string_view = {range.begin, size};
-      advance(it, size);
-      break;
-    }
-    case scan_type::none_type:
-    case scan_type::custom_type:
-      assert(false);
-    }
-    scan_ctx_.advance_to(it);
+    scan_ctx_.advance_to(arg.visit(default_arg_scanner{it, end}));
   }
 
   auto on_format_specs(int arg_id, const char* begin, const char* end) -> const
       char* {
     scan_arg arg = scan_ctx_.arg(arg_id);
-    if (arg.type == scan_type::custom_type) {
-      parse_ctx_.advance_to(begin);
-      arg.custom.scan(arg.custom.value, parse_ctx_, scan_ctx_);
+    if (arg.scan_custom(begin, parse_ctx_, scan_ctx_))
       return parse_ctx_.begin();
-    }
     auto specs = format_specs<>();
-    begin = parse_scan_specs(begin, end, specs, arg.type);
+    begin = parse_scan_specs(begin, end, specs, arg.type());
     if (begin == end || *begin != '}') on_error("missing '}' in format string");
     auto s = arg_scanner{scan_ctx_.begin(), scan_ctx_.end(), specs};
-    // TODO: scan argument according to specs
-    (void)s;
-    // context.advance_to(visit_format_arg(s, arg));
+    scan_ctx_.advance_to(arg.visit(s));
     return begin;
   }
 
