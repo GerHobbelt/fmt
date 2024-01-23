@@ -1545,12 +1545,10 @@ TEST(format_test, format_cstring) {
   char nonconst[] = "nonconst";
   EXPECT_EQ("nonconst", fmt::format("{0}", nonconst));
   auto nullstr = static_cast<const char*>(nullptr);
-  EXPECT_THROW_MSG(
-      (void)fmt::format("{}", nullstr),
-      format_error, "string pointer is null");
-  EXPECT_THROW_MSG(
-      (void)fmt::format("{:s}", nullstr),
-      format_error, "string pointer is null");
+  EXPECT_THROW_MSG((void)fmt::format("{}", nullstr), format_error,
+                   "string pointer is null");
+  EXPECT_THROW_MSG((void)fmt::format("{:s}", nullstr), format_error,
+                   "string pointer is null");
 }
 
 static void function_pointer_test(int, double, std::string) {}
@@ -2295,6 +2293,14 @@ TEST(format_test, format_facet_grouping) {
 TEST(format_test, format_named_arg_with_locale) {
   EXPECT_EQ(fmt::format(std::locale(), "{answer}", fmt::arg("answer", 42)),
             "42");
+}
+
+TEST(format_test, format_locale) {
+  auto loc = std::locale({}, new fmt::format_facet<std::locale>(","));
+  EXPECT_EQ("7,5bc,d15", fmt::format(loc, "{:Lx}", 123456789));
+  EXPECT_EQ("-0b111,010,110,111,100,110,100,010,101",
+            fmt::format(loc, "{:#Lb}", -123456789));
+  EXPECT_EQ("    30,071", fmt::format(loc, "{:10Lo}", 12345));
 }
 
 #endif  // FMT_STATIC_THOUSANDS_SEPARATOR
