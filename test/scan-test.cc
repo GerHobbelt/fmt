@@ -76,7 +76,6 @@ TEST(scan_test, separator) {
   EXPECT_EQ(n2, 20);
 }
 
-#ifdef FMT_HAVE_STRPTIME
 struct num {
   int value;
 };
@@ -93,10 +92,9 @@ template <> struct scanner<num> {
   }
 
   template <class ScanContext>
-  auto scan(num&, ScanContext& ctx) const -> typename ScanContext::iterator {
-    // TODO
-    // return fmt::scan({ctx.begin(), ctx.end()}, "{}", n.value);
-    return ctx.begin();
+  auto scan(num& n, ScanContext& ctx) const -> typename ScanContext::iterator {
+    // TODO: handle specifier
+    return fmt::scan(ctx, "{}", n.value);
   }
 };
 }  // namespace fmt
@@ -105,9 +103,8 @@ TEST(scan_test, read_custom) {
   auto input = "42";
   auto n = num();
   fmt::scan(input, "{:}", n);
-  // EXPECT_EQ(n, 42);
+  EXPECT_EQ(n.value, 42);
 }
-#endif
 
 TEST(scan_test, invalid_format) {
   EXPECT_THROW_MSG(fmt::scan("", "{}"), fmt::format_error,
@@ -146,6 +143,7 @@ TEST(scan_test, file) {
 }
 
 TEST(scan_test, lock) {
+
   fmt::file read_end, write_end;
   fmt::file::pipe(read_end, write_end);
 
@@ -155,6 +153,7 @@ TEST(scan_test, lock) {
     write_end.close();
   });
 
+  std::atomic<int> count = 0;
   fmt::buffered_file f = read_end.fdopen("r");
   auto fun = [&]() {
     int value = 0;
@@ -164,6 +163,7 @@ TEST(scan_test, lock) {
         EXPECT_EQ(value, 42);
         break;
       }
+      ++count;
     }
   };
   std::thread consumer1(fun);
@@ -171,5 +171,7 @@ TEST(scan_test, lock) {
   producer.join();
   consumer1.join();
   consumer2.join();
+  EXPECT_EQ(count, 1000);
+
 }
 #endif  // FMT_USE_FCNTL
