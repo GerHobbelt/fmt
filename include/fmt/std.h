@@ -39,6 +39,10 @@
 #  endif
 #endif
 
+#if FMT_CPLUSPLUS > 201703L && FMT_HAS_INCLUDE(<source_location>)
+#  include <source_location>
+#endif
+
 // GCC 4 does not support FMT_HAS_INCLUDE.
 #if FMT_HAS_INCLUDE(<cxxabi.h>) || defined(__GLIBCXX__)
 #  include <cxxabi.h>
@@ -66,7 +70,7 @@
 #    define FMT_CPP_LIB_FILESYSTEM __cpp_lib_filesystem
 #  else
 #    define FMT_CPP_LIB_FILESYSTEM 0
-# endif
+#  endif
 #endif
 
 #ifndef FMT_CPP_LIB_VARIANT
@@ -82,8 +86,9 @@ FMT_BEGIN_NAMESPACE
 
 namespace detail {
 
-template <typename Char, typename PathChar> auto get_path_string(
-  const std::filesystem::path& p, const std::basic_string<PathChar>& native) {
+template <typename Char, typename PathChar>
+auto get_path_string(const std::filesystem::path& p,
+                     const std::basic_string<PathChar>& native) {
   if constexpr (std::is_same_v<Char, char> && std::is_same_v<PathChar, wchar_t>)
     return to_utf8<wchar_t>(native, to_utf8_error_policy::replace);
   else
@@ -94,7 +99,8 @@ template <typename Char, typename PathChar>
 void write_escaped_path(basic_memory_buffer<Char>& quoted,
                         const std::filesystem::path& p,
                         const std::basic_string<PathChar>& native) {
-  if constexpr (std::is_same_v<Char, char> && std::is_same_v<PathChar, wchar_t>) {
+  if constexpr (std::is_same_v<Char, char> &&
+                std::is_same_v<PathChar, wchar_t>) {
     auto buf = basic_memory_buffer<wchar_t>();
     write_escaped_string<wchar_t>(std::back_inserter(buf), native);
     bool valid = to_utf8<wchar_t>::convert(quoted, {buf.data(), buf.size()});
@@ -132,21 +138,19 @@ template <typename Char> struct formatter<std::filesystem::path, Char> {
       debug_ = true;
       ++it;
     }
-    if (it != end && (*it == 'g' || *it == 'n')) { 
+    if (it != end && (*it == 'g' || *it == 'n'))
       path_type_ = *it++;
-    }
     return it;
   }
 
   template <typename FormatContext>
   auto format(const std::filesystem::path& p, FormatContext& ctx) const {
     auto specs = specs_;
-    auto path_type = path_type_;
-  # ifdef _WIN32 
-    auto path_string = path_type == 'n' ? p.native() : p.generic_wstring();    
-  # else 
-    auto path_string = path_type == 'n' ? p.native() : p.generic_string();
-  # endif
+#  ifdef _WIN32
+    auto path_string = path_type_ == 'n' ? p.native() : p.generic_wstring();
+#  else
+    auto path_string = path_type_ == 'n' ? p.native() : p.generic_string();
+#  endif
 
     detail::handle_dynamic_spec<detail::width_checker>(specs.width, width_ref_,
                                                        ctx);
@@ -162,7 +166,7 @@ template <typename Char> struct formatter<std::filesystem::path, Char> {
   }
 };
 FMT_END_NAMESPACE
-#endif // FMT_CPP_LIB_FILESYSTEM
+#endif  // FMT_CPP_LIB_FILESYSTEM
 
 FMT_BEGIN_NAMESPACE
 FMT_EXPORT
@@ -226,7 +230,7 @@ struct formatter<std::optional<T>, Char,
   }
 
   template <typename FormatContext>
-  auto format(std::optional<T> const& opt, FormatContext& ctx) const
+  auto format(const std::optional<T>& opt, FormatContext& ctx) const
       -> decltype(ctx.out()) {
     if (!opt) return detail::write<Char>(ctx.out(), none);
 
@@ -239,6 +243,32 @@ struct formatter<std::optional<T>, Char,
 };
 FMT_END_NAMESPACE
 #endif  // __cpp_lib_optional
+
+#ifdef __cpp_lib_source_location
+FMT_BEGIN_NAMESPACE
+FMT_EXPORT
+template<>
+struct formatter<std::source_location> {
+  template <typename ParseContext> FMT_CONSTEXPR auto parse(ParseContext& ctx) {
+    return ctx.begin();
+  }
+
+  template <typename FormatContext>
+  auto format(const std::source_location& loc, FormatContext& ctx) const
+      -> decltype(ctx.out()) {
+    auto out = ctx.out();
+    out = detail::write(out, loc.file_name());
+    out = detail::write(out, ':');
+    out = detail::write<char>(out, loc.line());
+    out = detail::write(out, ':');
+    out = detail::write<char>(out, loc.column());
+    out = detail::write(out, ": ");
+    out = detail::write(out, loc.function_name());
+    return out;
+  }
+};
+FMT_END_NAMESPACE
+#endif
 
 #if FMT_CPP_LIB_VARIANT
 FMT_BEGIN_NAMESPACE
@@ -355,7 +385,7 @@ template <typename Char> struct formatter<std::error_code, Char> {
 FMT_EXPORT
 template <typename T, typename Char>
 struct formatter<
-    T, Char,
+    T, Char, // DEPRECATED! Mixing code unit types.
     typename std::enable_if<std::is_base_of<std::exception, T>::value>::type> {
  private:
   bool with_typename_ = false;
