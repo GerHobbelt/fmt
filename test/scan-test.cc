@@ -143,7 +143,6 @@ TEST(scan_test, file) {
 }
 
 TEST(scan_test, lock) {
-
   fmt::file read_end, write_end;
   fmt::file::pipe(read_end, write_end);
 
@@ -153,7 +152,7 @@ TEST(scan_test, lock) {
     write_end.close();
   });
 
-  std::atomic<int> count = 0;
+  std::atomic<int> count(0);
   fmt::buffered_file f = read_end.fdopen("r");
   auto fun = [&]() {
     int value = 0;
@@ -168,6 +167,7 @@ TEST(scan_test, lock) {
   };
   std::thread consumer1(fun);
   std::thread consumer2(fun);
+  
   producer.join();
   consumer1.join();
   consumer2.join();
