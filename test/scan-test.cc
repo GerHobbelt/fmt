@@ -59,6 +59,15 @@ TEST(scan_test, read_ulonglong) {
                    "invalid input");
 }
 
+TEST(scan_test, read_hex) {
+  unsigned n = 0;
+  fmt::scan("2a", "{:x}", n);
+  EXPECT_EQ(n, 42);
+  auto num_digits = std::numeric_limits<unsigned>::digits / 4;
+  EXPECT_THROW_MSG(fmt::scan(fmt::format("1{:0{}}", 0, num_digits), "{:x}", n),
+                   fmt::format_error, "number is too big");
+}
+
 TEST(scan_test, read_string) {
   std::string s;
   fmt::scan("foo", "{}", s);
