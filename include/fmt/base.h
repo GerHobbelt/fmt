@@ -1397,8 +1397,9 @@ template <typename Context> class value {
     using qualified_type =
         conditional_t<has_const_formatter<T, Context>(), const T, T>;
     // format must be const for compatibility with std::format and compilation.
-    const auto& cf = f;
-	auto x = cf.format(*static_cast<qualified_type*>(arg), ctx);
+    /* const */ auto& cf = f;
+	qualified_type& t = *static_cast<qualified_type*>(arg);
+	auto x = cf.format(t, ctx);
     ctx.advance_to(x);
   }
 };
