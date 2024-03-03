@@ -2274,7 +2274,7 @@ class format_facet : public fmt::format_facet<std::locale> {
               const fmt::format_specs&) const -> bool override;
 };
 
-static auto format_facet::do_put(fmt::appender out, fmt::loc_value val,
+auto format_facet::do_put(fmt::appender out, fmt::loc_value val,
                           const fmt::format_specs&) const -> bool {
   return val.visit(int_formatter{out});
 }
