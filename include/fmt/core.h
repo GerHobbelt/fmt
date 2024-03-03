@@ -13,8 +13,40 @@
 #include <string.h>  // strlen
 
 #include <cstddef>      // std::byte
-#include <string>       // std::string
 #include <type_traits>  // std::enable_if
+
+#if defined(_LIBCPP_VERSION)
+#  define FMT_BEGIN_NAMESPACE_STD _LIBCPP_BEGIN_NAMESPACE_STD
+#  define FMT_END_NAMESPACE_STD _LIBCPP_END_NAMESPACE_STD
+#  define FMT_STD_TEMPLATE_VIS _LIBCPP_TEMPLATE_VIS
+#  define FMT_BEGIN_NAMESPACE_CXX11
+#  define FMT_END_NAMESPACE_CXX11
+#elif defined(_GLIBCXX_RELEASE)
+#  define FMT_BEGIN_NAMESPACE_STD \
+    namespace std _GLIBCXX_VISIBILITY(default) { \
+    _GLIBCXX_BEGIN_NAMESPACE_VERSION
+#  define FMT_END_NAMESPACE_STD _GLIBCXX_END_NAMESPACE_VERSION }
+#  define FMT_STD_TEMPLATE_VIS
+#  if defined(_GLIBCXX_USE_CXX11_ABI)
+#    define FMT_BEGIN_NAMESPACE_CXX11 inline _GLIBCXX_BEGIN_NAMESPACE_CXX11
+#    define FMT_END_NAMESPACE_CXX11 _GLIBCXX_END_NAMESPACE_CXX11
+#  endif
+#else
+#  include <string>
+#endif
+
+#ifdef FMT_BEGIN_NAMESPACE_STD
+FMT_BEGIN_NAMESPACE_STD
+template <typename Char>
+struct FMT_STD_TEMPLATE_VIS char_traits;
+template <typename T>
+class FMT_STD_TEMPLATE_VIS allocator;
+FMT_BEGIN_NAMESPACE_CXX11
+template <typename Char, typename Traits, typename Allocator>
+class FMT_STD_TEMPLATE_VIS basic_string;
+FMT_END_NAMESPACE_CXX11
+FMT_END_NAMESPACE_STD
+#endif  // FMT_BEGIN_NAMESPACE_STD
 
 // macros defined by Microsoft which throw a spanner in the (chrono) works around here.
 #undef max
@@ -433,19 +465,18 @@ FMT_CONSTEXPR auto to_unsigned(Int value) ->
   return static_cast<typename std::make_unsigned<Int>::type>(value);
 }
 
+// A heuristic to detect std::string and std::[experimental::]string_view.
+// It is mainly used to avoid dependency on <[experimental/]string_view>.
 template <typename T, typename Enable = void>
-struct is_string_like : std::false_type {};
-
-// A heuristic to detect std::string and std::string_view.
+struct is_std_string_like : std::false_type {};
 template <typename T>
-struct is_string_like<T, void_t<decltype(std::declval<T>().find_first_of(
-                             typename T::value_type(), 0))>> : std::true_type {
-};
+struct is_std_string_like<T, void_t<decltype(std::declval<T>().find_first_of(
+                                 typename T::value_type(), 0))>>
+    : std::true_type {};
 
 FMT_CONSTEXPR inline auto is_utf8() -> bool {
   FMT_MSC_WARNING(suppress : 4566) constexpr unsigned char section[] = "\u00A7";
-
-  // Avoid buggy sign extensions in MSVC's constant evaluation mode (#2297).
+  // Avoid an MSVC sign extension bug: https://github.com/fmtlib/fmt/pull/2297.
   using uchar = unsigned char;
   return FMT_UNICODE || (sizeof(section) == 3 && uchar(section[0]) == 0xC2 &&
                          uchar(section[1]) == 0xA7);
@@ -517,7 +548,7 @@ template <typename Char> class basic_string_view {
     ``std::basic_string_view`` object.
   */
   template <typename S,
-            FMT_ENABLE_IF(detail::is_string_like<S>::value&& std::is_same<
+            FMT_ENABLE_IF(detail::is_std_string_like<S>::value&& std::is_same<
                           typename S::value_type, Char>::value)>
   FMT_CONSTEXPR basic_string_view(const S& s) noexcept
       : data_(s.data()), size_(s.size()) {}
@@ -591,46 +622,31 @@ template <> struct is_char<char> : std::true_type {};
 
 namespace detail {
 
-// A base class for compile-time strings.
-struct compile_string {};
-
-template <typename S>
-struct is_compile_string : std::is_base_of<compile_string, S> {};
-
+// Constructs fmt::basic_string_view<Char> from types implicitly convertible
+// to it, deducing Char. Explicitly convertible types such as the ones returned
+// from FMT_STRING are intentionally excluded.
 template <typename Char, FMT_ENABLE_IF(is_char<Char>::value)>
 FMT_INLINE auto to_string_view(const Char* s) -> basic_string_view<Char> {
   return s;
 }
-template <typename S, FMT_ENABLE_IF(is_string_like<S>::value)>
-inline auto to_string_view(const S& s)
-    -> basic_string_view<typename S::value_type> {
-  return s;  // std::basic_string[_view]
+template <typename T, FMT_ENABLE_IF(is_std_string_like<T>::value)>
+inline auto to_string_view(const T& s)
+    -> basic_string_view<typename T::value_type> {
+  return s;
 }
 template <typename Char>
 constexpr auto to_string_view(basic_string_view<Char> s)
     -> basic_string_view<Char> {
   return s;
 }
-template <typename S, FMT_ENABLE_IF(is_compile_string<S>::value)>
-constexpr auto to_string_view(const S& s)
-    -> basic_string_view<typename S::char_type> {
-  return basic_string_view<typename S::char_type>(s);
-}
-void to_string_view(...);
 
-// Specifies whether S is a string type convertible to fmt::basic_string_view.
-// It should be a constexpr function but MSVC 2017 fails to compile it in
-// enable_if and MSVC 2015 fails to compile it as an alias template.
-// ADL invocation of to_string_view is DEPRECATED!
-template <typename S>
-struct is_string
-    : std::is_class<decltype(        to_string_view(std::declval<S>()))> {};
-
-template <typename S, typename = void> struct char_t_impl {};
-template <typename S> struct char_t_impl<S, enable_if_t<is_string<S>::value>> {
-  using result = decltype(to_string_view(std::declval<S>()));
-  using type = typename result::value_type;
-};
+template <typename T, typename Enable = void>
+struct has_to_string_view : std::false_type {};
+// detail:: is intentional since to_string_view is not an extension point.
+template <typename T>
+struct has_to_string_view<
+    T, void_t<decltype(detail::to_string_view(std::declval<T>()))>>
+    : std::true_type {};
 
 enum class type {
   none_type,
@@ -710,8 +726,10 @@ enum {
 /** Throws ``format_error`` with a given message. */
 FMT_NORETURN FMT_API void throw_format_error(const char* message);
 
-/** String's character type. */
-template <typename S> using char_t = typename detail::char_t_impl<S>::type;
+/** String's character (code unit) type. */
+template <typename S,
+          typename V = decltype(detail::to_string_view(std::declval<S>()))>
+using char_t = typename V::value_type;
 
 /**
   \rst
@@ -1451,16 +1469,15 @@ template <typename Context> struct arg_mapper {
   FMT_CONSTEXPR FMT_INLINE auto map(const char_type* val) -> const char_type* {
     return val;
   }
-  template <typename T,
-            FMT_ENABLE_IF(is_string<T>::value && !std::is_pointer<T>::value &&
-                          std::is_same<char_type, char_t<T>>::value)>
-  FMT_CONSTEXPR FMT_INLINE auto map(const T& val)
-      -> basic_string_view<char_type> {
+  template <typename T, typename Char = char_t<T>,
+            FMT_ENABLE_IF(std::is_same<Char, char_type>::value &&
+                          !std::is_pointer<T>::value)>
+  FMT_CONSTEXPR FMT_INLINE auto map(const T& val) -> basic_string_view<Char> {
     return detail::to_string_view(val);
   }
-  template <typename T,
-            FMT_ENABLE_IF(is_string<T>::value && !std::is_pointer<T>::value &&
-                          !std::is_same<char_type, char_t<T>>::value)>
+  template <typename T, typename Char = char_t<T>,
+            FMT_ENABLE_IF(!std::is_same<Char, char_type>::value &&
+                          !std::is_pointer<T>::value)>
   FMT_CONSTEXPR FMT_INLINE auto map(const T&) -> unformattable_char {
     return {};
   }
@@ -1515,11 +1532,11 @@ template <typename Context> struct arg_mapper {
   }
 
   template <typename T, typename U = remove_const_t<T>,
-            FMT_ENABLE_IF(!is_string<U>::value && !is_char<U>::value &&
-                          !std::is_array<U>::value &&
-                          !std::is_pointer<U>::value &&
-                          !std::is_arithmetic<format_as_t<U>>::value &&
-                          has_formatter<U, Context>::value)>
+            FMT_ENABLE_IF((std::is_class<U>::value || std::is_enum<U>::value ||
+                           std::is_union<U>::value) &&
+                          !has_to_string_view<U>::value && !is_char<U>::value &&
+                          !is_named_arg<U>::value &&
+                          !std::is_arithmetic<format_as_t<U>>::value)>
   FMT_CONSTEXPR FMT_INLINE auto map(T& val)
       -> decltype(FMT_DECLTYPE_THIS do_map(val)) {
     return do_map(val);
@@ -2698,6 +2715,12 @@ template <typename Char, typename... Args> class format_string_checker {
   }
 };
 
+// A base class for compile-time strings.
+struct compile_string {};
+
+template <typename S>
+using is_compile_string = std::is_base_of<compile_string, S>;
+
 // Reports a compile-time error if S is not a valid format string.
 template <typename..., typename S, FMT_ENABLE_IF(!is_compile_string<S>::value)>
 FMT_INLINE void check_format_string(const S&) {
@@ -2779,9 +2802,12 @@ template <typename Char, typename... Args> class basic_format_string {
   basic_string_view<Char> str_;
 
  public:
-  template <typename S,
-            FMT_ENABLE_IF(
-                std::is_convertible<const S&, basic_string_view<Char>>::value)>
+  template <
+      typename S,
+      FMT_ENABLE_IF(
+          std::is_convertible<const S&, basic_string_view<Char>>::value ||
+          (detail::is_compile_string<S>::value &&
+           std::is_constructible<basic_string_view<Char>, const S&>::value))>
   FMT_CONSTEVAL FMT_INLINE basic_format_string(const S& s) : str_(s) {
     static_assert(
         detail::count<
@@ -2838,9 +2864,9 @@ FMT_API auto vformat(string_view fmt, format_args args) -> basic_string<char>;
     std::string message = fmt::format("The answer is {}.", 42);
   \endrst
 */
-template <typename... T>
+template <typename... T, typename Char = char>
 FMT_NODISCARD FMT_INLINE auto format(format_string<T...> fmt, T&&... args)
-    -> basic_string<char> {
+    -> basic_string<Char> {
   return vformat(fmt, fmt::make_format_args(args...));
 }
 
