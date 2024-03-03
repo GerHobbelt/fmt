@@ -1741,6 +1741,14 @@ TEST(format_test, print) {
                "Don't panic!\n");
 }
 
+TEST(format_test, big_print) {
+  enum {count = 5000};
+  auto big_print = []() {
+    for (int i = 0; i < count / 5; ++i) fmt::print("xxxxx");
+  };
+  EXPECT_WRITE(stdout, big_print(), std::string(count, 'x'));
+}
+
 TEST(format_test, variadic) {
   EXPECT_EQ(fmt::format("{}c{}", "ab", 1), "abc1");
 }
@@ -2188,11 +2196,11 @@ class format_facet : public fmt::format_facet<std::locale> {
   };
 
   auto do_put(fmt::appender out, fmt::loc_value val,
-              const fmt::format_specs<>&) const -> bool override;
+              const fmt::format_specs&) const -> bool override;
 };
 
 static auto format_facet::do_put(fmt::appender out, fmt::loc_value val,
-                          const fmt::format_specs<>&) const -> bool {
+                          const fmt::format_specs&) const -> bool {
   return val.visit(int_formatter{out});
 }
 

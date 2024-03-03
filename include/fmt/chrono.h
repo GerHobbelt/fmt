@@ -708,8 +708,8 @@ FMT_CONSTEXPR auto parse_chrono_format(const Char* begin, const Char* end,
   if (begin == end || *begin == '}') return begin;
   if (*begin != '%') FMT_THROW(format_error("invalid format"));
   auto ptr = begin;
-  pad_type pad = pad_type::unspecified;
   while (ptr != end) {
+    pad_type pad = pad_type::unspecified;
     auto c = *ptr;
     if (c == '}') break;
     if (c != '%') {
@@ -1733,7 +1733,7 @@ auto format_duration_value(OutputIt out, Rep val, int) -> OutputIt {
 template <typename Char, typename Rep, typename OutputIt,
           FMT_ENABLE_IF(std::is_floating_point<Rep>::value)>
 auto format_duration_value(OutputIt out, Rep val, int precision) -> OutputIt {
-  auto specs = format_specs<Char>();
+  auto specs = format_specs();
   specs.precision = precision;
   specs.type =
       precision >= 0 ? presentation_type::fixed : presentation_type::general;
@@ -2076,7 +2076,7 @@ template <typename Char> struct formatter<weekday, Char> {
 template <typename Rep, typename Period, typename Char>
 struct formatter<std::chrono::duration<Rep, Period>, Char> {
  private:
-  format_specs<Char> specs_;
+  format_specs specs_;
   detail::arg_ref<Char> width_ref_;
   detail::arg_ref<Char> precision_ref_;
   bool localized_ = false;
@@ -2218,7 +2218,7 @@ struct formatter<std::chrono::time_point<std::chrono::utc_clock, Duration>,
 
 template <typename Char> struct formatter<std::tm, Char> {
  private:
-  format_specs<Char> specs_;
+  format_specs specs_;
   detail::arg_ref<Char> width_ref_;
 
  protected:
