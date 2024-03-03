@@ -29,12 +29,8 @@ template <typename T> class is_map {
   template <typename> static void check(...);
 
  public:
-#ifdef FMT_FORMAT_MAP_AS_LIST  // DEPRECATED!
-  static constexpr const bool value = false;
-#else
   static constexpr const bool value =
       !std::is_void<decltype(check<T>(nullptr))>::value;
-#endif
 };
 
 template <typename T> class is_set {
@@ -42,12 +38,8 @@ template <typename T> class is_set {
   template <typename> static void check(...);
 
  public:
-#ifdef FMT_FORMAT_SET_AS_LIST  // DEPRECATED!
-  static constexpr const bool value = false;
-#else
   static constexpr const bool value =
       !std::is_void<decltype(check<T>(nullptr))>::value && !is_map<T>::value;
-#endif
 };
 
 template <typename... Ts> struct conditional_helper {};
