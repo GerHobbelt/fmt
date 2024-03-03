@@ -3564,30 +3564,6 @@ template <typename Char, typename OutputIt, typename T>
 FMT_CONSTEXPR20 auto write_float(OutputIt out, T value, format_specs specs,
                                  locale_ref loc) -> OutputIt {
   sign_t sign = specs.sign;
-  if (specs.type == presentation_type::fixed) {
-    constexpr double prevPowerOfTen[17] = {1e-1, 1,    1e1,  1e2,  1e3, 1e4,
-                                           1e5,  1e6,  1e7,  1e8,  1e9, 1e10,
-                                           1e11, 1e12, 1e13, 1e14, 1e15};
-    if (specs.precision < 0) {
-      specs.precision = 6;
-    }
-    if (specs.precision > DBL_DIG ||
-        std::abs(value) >= prevPowerOfTen[DBL_DIG - specs.precision + 1]) {
-      specs.precision = DBL_DIG;
-      fspecs.format = float_format::general;
-      fspecs.showpoint = specs.alt;
-    } else {
-#ifdef __cpp_if_constexpr
-      if constexpr (std::is_same<T, double>()) {
-#else
-      if (std::is_same<T, double>()) {
-#endif
-        if (fabs(value) < prevPowerOfTen[DBL_DIG - specs.precision]) {
-          value = static_cast<T>( std::nextafter(value, value >= 0.0 ? 1e15 : -1e15) );
-        }
-      }
-    }
-  }
   if (detail::signbit(value)) {  // value < 0 is false for NaN so use signbit.
     sign = sign::minus;
     value = -value;

@@ -2662,8 +2662,9 @@ FMT_CONSTEXPR auto parse_format_specs(ParseContext& ctx)
 
 // Checks char specs and returns true iff the presentation type is char-like.
 FMT_CONSTEXPR inline auto check_char_specs(const format_specs& specs) -> bool {
-  if (specs.type != presentation_type::none && specs.type != presentation_type::chr &&
-      specs.type != presentation_type::string && specs.type != presentation_type::any &&
+  if (specs.type != presentation_type::none &&
+      specs.type != presentation_type::chr &&
+	  specs.type != presentation_type::any &&
       specs.type != presentation_type::debug) {
     return false;
   }

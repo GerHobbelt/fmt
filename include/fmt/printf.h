@@ -259,10 +259,11 @@ class printf_arg_formatter : public arg_formatter<Char> {
       return;
     }
     format_specs s = this->specs;
-    if (fmt_specs.type != presentation_type::none &&
-        fmt_specs.type != presentation_type::chr &&
-        fmt_specs.type != presentation_type::any) {
-      fmt_specs.type = presentation_type::chr;
+    if (s.type != presentation_type::none &&
+        s.type != presentation_type::chr &&
+        s.type != presentation_type::any) {
+      return (*this)(static_cast<int>(value));
+      //s.type = presentation_type::chr;
     }
     s.sign = sign::none;
     s.alt = false;
