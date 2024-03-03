@@ -8,8 +8,9 @@
 #include <array>
 #include <cassert>
 #include <climits>
+#include <tuple>
 
-#include "fmt/format.h"
+#include "fmt/format-inl.h"
 
 FMT_BEGIN_NAMESPACE
 namespace detail {
@@ -549,25 +550,54 @@ struct scan_handler {
 
   void on_error(const char* message) { report_error(message); }
 };
+
+void vscan(detail::scan_buffer& buf, string_view fmt, scan_args args) {
+  auto h = detail::scan_handler(fmt, buf, args);
+  detail::parse_format_string<false>(fmt, h);
+}
+
+template <size_t I, typename... T, FMT_ENABLE_IF(I == sizeof...(T))>
+void make_args(std::array<scan_arg, sizeof...(T)>&, std::tuple<T...>&) {}
+
+template <size_t I, typename... T, FMT_ENABLE_IF(I < sizeof...(T))>
+void make_args(std::array<scan_arg, sizeof...(T)>& args,
+               std::tuple<T...>& values) {
+  using element_type = typename std::tuple_element<I, std::tuple<T...>>::type;
+  static_assert(std::is_same<remove_cvref_t<element_type>, element_type>::value,
+                "");
+  args[I] = std::get<I>(values);
+  make_args<I + 1>(args, values);
+}
 }  // namespace detail
+
+template <typename... T> class scan_data {
+ private:
+  std::tuple<T...> values_;
+
+ public:
+  scan_data() = default;
+  scan_data(T... values) : values_(std::move(values)...) {}
+
+  auto value() const -> decltype(std::get<0>(values_)) {
+    return std::get<0>(values_);
+  }
+
+  auto make_args() -> std::array<scan_arg, sizeof...(T)> {
+    auto args = std::array<scan_arg, sizeof...(T)>();
+    detail::make_args<0>(args, values_);
+    return args;
+  }
+};
 
 template <typename... T>
 auto make_scan_args(T&... args) -> std::array<scan_arg, sizeof...(T)> {
   return {{args...}};
 }
 
-template <typename T> class scan_value {
- private:
-  T value_;
-
- public:
-  scan_value(T value) : value_(std::move(value)) {}
-
-  auto value() const -> const T& { return value_; }
-};
+class scan_error {};
 
 // A rudimentary version of std::expected for testing the API shape.
-template <typename T> class expected {
+template <typename T, typename E> class expected {
  private:
   T value_;
 
@@ -577,43 +607,43 @@ template <typename T> class expected {
   auto operator->() const -> const T* { return &value_; }
 };
 
-template <typename T> using scan_result = expected<scan_value<T>>;
+template <typename... T>
+using scan_result = expected<scan_data<T...>, scan_error>;
 
-void vscan(detail::scan_buffer& buf, string_view fmt, scan_args args) {
-  auto h = detail::scan_handler(fmt, buf, args);
-  detail::parse_format_string<false>(fmt, h);
+auto vscan(string_view input, string_view fmt, scan_args args)
+    -> string_view::iterator {
+  auto&& buf = detail::string_scan_buffer(input);
+  detail::vscan(buf, fmt, args);
+  return input.begin() + (buf.begin().base() - input.data());
 }
 
 // Scans the input and stores the results (in)to args.
 template <typename... T>
 auto scan_to(string_view input, string_view fmt, T&... args)
     -> string_view::iterator {
-  auto&& buf = detail::string_scan_buffer(input);
-  vscan(buf, fmt, make_scan_args(args...));
-  return input.begin() + (buf.begin().base() - input.data());
+  return vscan(input, fmt, make_scan_args(args...));
 }
 
 template <typename T>
 auto scan(string_view input, string_view fmt) -> scan_result<T> {
-  static_assert(std::is_same<remove_cvref_t<T>, T>::value, "");
-  auto value = T();
-  scan_to(input, fmt, value);
-  return scan_value<T>(std::move(value));
+  auto data = scan_data<T>();
+  vscan(input, fmt, data.make_args());
+  return data;
 }
 
-template <typename InputRange, typename... T,
-          FMT_ENABLE_IF(!std::is_convertible<InputRange, string_view>::value)>
-auto scan_to(InputRange&& input, string_view fmt, T&... args)
+template <typename Range, typename... T,
+          FMT_ENABLE_IF(!std::is_convertible<Range, string_view>::value)>
+auto scan_to(Range&& input, string_view fmt, T&... args)
     -> decltype(std::begin(input)) {
   auto it = std::begin(input);
-  vscan(get_buffer(it), fmt, make_scan_args(args...));
+  detail::vscan(get_buffer(it), fmt, make_scan_args(args...));
   return it;
 }
 
 template <typename... T>
 auto scan_to(FILE* f, string_view fmt, T&... args) -> bool {
   auto&& buf = detail::file_scan_buffer(f);
-  vscan(buf, fmt, make_scan_args(args...));
+  detail::vscan(buf, fmt, make_scan_args(args...));
   return buf.begin() != buf.end();
 }
 
