@@ -13,7 +13,6 @@
 #include <cstring>   // std::strlen
 #include <iterator>  // std::back_insert_iterator
 #include <limits>    // std::numeric_limits
-#include <memory>    // std::addressof
 #include <string>
 #include <type_traits>
 
@@ -67,6 +66,12 @@
 #else
 #  define FMT_MSC_VERSION 0
 #  define FMT_MSC_WARNING(...)
+#endif
+
+#ifdef _GLIBCXX_RELEASE
+#  define FMT_GLIBCXX_RELEASE _GLIBCXX_RELEASE
+#else
+#  define FMT_GLIBCXX_RELEASE 0
 #endif
 
 #ifdef _MSVC_LANG
@@ -132,7 +137,7 @@
 
 #if (FMT_CPLUSPLUS >= 202002L ||                                \
      (FMT_CPLUSPLUS >= 201709L && FMT_GCC_VERSION >= 1002)) &&  \
-    ((!defined(_GLIBCXX_RELEASE) || _GLIBCXX_RELEASE >= 10) &&  \
+    ((!FMT_GLIBCXX_RELEASE || FMT_GLIBCXX_RELEASE >= 10) &&     \
      (!defined(_LIBCPP_VERSION) || _LIBCPP_VERSION >= 10000) && \
      (!FMT_MSC_VERSION || FMT_MSC_VERSION >= 1928)) &&          \
     defined(__cpp_lib_is_constant_evaluated)
@@ -142,15 +147,11 @@
 #endif
 
 // Check if constexpr std::char_traits<>::{compare,length} are supported.
-#if defined(__GLIBCXX__)
-#  if FMT_CPLUSPLUS >= 201703L && defined(_GLIBCXX_RELEASE) && \
-      _GLIBCXX_RELEASE >= 7  // GCC 7+ libstdc++ has _GLIBCXX_RELEASE.
-#    define FMT_CONSTEXPR_CHAR_TRAITS constexpr
-#  endif
-#elif defined(_LIBCPP_VERSION) && FMT_CPLUSPLUS >= 201703L && \
-    _LIBCPP_VERSION >= 4000
-#  define FMT_CONSTEXPR_CHAR_TRAITS constexpr
-#elif FMT_MSC_VERSION >= 1914 && FMT_CPLUSPLUS >= 201703L
+#if FMT_CPLUSPLUS < 201703L
+// Not supported.
+#elif FMT_GLIBCXX_RELEASE >= 7 ||                            \
+    (defined(_LIBCPP_VERSION) && _LIBCPP_VERSION >= 4000) || \
+    FMT_MSC_VERSION >= 1914
 #  define FMT_CONSTEXPR_CHAR_TRAITS constexpr
 #endif
 #ifndef FMT_CONSTEXPR_CHAR_TRAITS
@@ -283,7 +284,7 @@
 #  endif
 #endif
 
-// GCC < 5 requires this-> in decltype
+// GCC < 5 requires this-> in decltype.
 #ifndef FMT_DECLTYPE_THIS
 #  if FMT_GCC_VERSION && FMT_GCC_VERSION < 500
 #    define FMT_DECLTYPE_THIS this->
@@ -358,8 +359,7 @@ constexpr FMT_INLINE auto is_constant_evaluated(
 // Workaround for incompatibility between libstdc++ consteval-based
 // std::is_constant_evaluated() implementation and clang-14:
 // https://github.com/fmtlib/fmt/issues/3247.
-#if FMT_CPLUSPLUS >= 202002L && defined(_GLIBCXX_RELEASE) && \
-    _GLIBCXX_RELEASE >= 12 &&                                \
+#if FMT_CPLUSPLUS >= 202002L && FMT_GLIBCXX_RELEASE >= 12 && \
     (FMT_CLANG_VERSION >= 1400 && FMT_CLANG_VERSION < 1500)
   ignore_unused(default_value);
   return __builtin_is_constant_evaluated();
@@ -1326,7 +1326,13 @@ template <typename Context> class value {
 
   template <typename T> FMT_CONSTEXPR20 FMT_INLINE value(T& val) {
     using value_type = remove_const_t<T>;
-    custom.value = const_cast<value_type*>(std::addressof(val));
+    // T may overload operator& e.g. std::vector<bool>::reference in libc++.
+#ifdef __cpp_if_constexpr
+    if constexpr (std::is_same<decltype(&val), T*>::value)
+      custom.value = const_cast<value_type*>(&val);
+#endif
+    if (!is_constant_evaluated())
+      custom.value = const_cast<char*>(&reinterpret_cast<const char&>(val));
     // Get the formatter type through the context to allow different contexts
     // have different extension points, e.g. `formatter<T>` for `format` and
     // `printf_formatter<T>` for `printf`.
@@ -1877,7 +1883,7 @@ class format_arg_store
 // Arguments are taken by lvalue references to avoid some lifetime issues.
 template <typename Context = format_context, typename... T>
 constexpr auto make_format_args(const T&... args)
-    -> format_arg_store<Context, remove_cvref_t<T>...> {
+    -> format_arg_store<Context, remove_const_t<T>...> {
   return {args...};
 }
 
