@@ -2091,7 +2091,7 @@ enum class presentation_type : unsigned char {
 
   // Floating-point specifiers:
   exp = 1,  // 'e' or 'E' (1 since there is no FP debug presentation)
-  fixed,    // 'f' or 'F'
+  fixed = 8,  // 'f' or 'F'
   general,  // 'g' or 'G'
   hexfloat, // 'a' or 'A'
   any       // 'y'
