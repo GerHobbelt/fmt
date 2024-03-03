@@ -13,38 +13,16 @@
 #define FMT_RANGES_H_
 
 #include <initializer_list>
+#include <iterator>
 #include <tuple>
 #include <type_traits>
 
-#include "format.h"
+#include "base.h"
 
 FMT_BEGIN_NAMESPACE
 FMT_MODULE_EXPORT_BEGIN
 
 FMT_BEGIN_DETAIL_NAMESPACE
-
-template <typename Range, typename OutputIt>
-auto copy(const Range& range, OutputIt out) -> OutputIt {
-  for (auto it = range.begin(), end = range.end(); it != end; ++it)
-    *out++ = *it;
-  return out;
-}
-
-template <typename OutputIt>
-auto copy(const char* str, OutputIt out) -> OutputIt {
-  while (*str) *out++ = *str++;
-  return out;
-}
-
-template <typename OutputIt> auto copy(char ch, OutputIt out) -> OutputIt {
-  *out++ = ch;
-  return out;
-}
-
-template <typename OutputIt> auto copy(wchar_t ch, OutputIt out) -> OutputIt {
-  *out++ = ch;
-  return out;
-}
 
 template <typename T> class is_map {
   template <typename U> static auto check(U*) -> typename U::mapped_type;
@@ -293,8 +271,7 @@ template <typename FormatContext> struct format_tuple_element {
 
   template <typename T>
   void operator()(const formatter<T, char_type>& f, const T& v) {
-    if (i > 0)
-      ctx.advance_to(detail::copy_str<char_type>(separator, ctx.out()));
+    if (i > 0) ctx.advance_to(detail::copy<char_type>(separator, ctx.out()));
     ctx.advance_to(f.format(v, ctx));
     ++i;
   }
@@ -355,11 +332,11 @@ struct formatter<Tuple, Char,
   template <typename FormatContext>
   auto format(const Tuple& value, FormatContext& ctx) const
       -> decltype(ctx.out()) {
-    ctx.advance_to(detail::copy_str<Char>(opening_bracket_, ctx.out()));
+    ctx.advance_to(detail::copy<Char>(opening_bracket_, ctx.out()));
     detail::for_each2(
         formatters_, value,
         detail::format_tuple_element<FormatContext>{0, ctx, separator_});
-    return detail::copy_str<Char>(closing_bracket_, ctx.out());
+    return detail::copy<Char>(closing_bracket_, ctx.out());
   }
 };
 
@@ -467,18 +444,18 @@ struct range_formatter<
   auto format(R&& range, FormatContext& ctx) const -> decltype(ctx.out()) {
     detail::range_mapper<buffered_context<Char>> mapper;
     auto out = ctx.out();
-    out = detail::copy_str<Char>(opening_bracket_, out);
+    out = detail::copy<Char>(opening_bracket_, out);
     int i = 0;
     auto it = detail::range_begin(range);
     auto end = detail::range_end(range);
     for (; it != end; ++it) {
-      if (i > 0) out = detail::copy_str<Char>(separator_, out);
+      if (i > 0) out = detail::copy<Char>(separator_, out);
       ctx.advance_to(out);
       auto&& item = *it;
       out = underlying_.format(mapper.map(item), ctx);
       ++i;
     }
-    out = detail::copy_str<Char>(closing_bracket_, out);
+    out = detail::copy<Char>(closing_bracket_, out);
     return out;
   }
 };
@@ -596,7 +573,7 @@ struct formatter<join_view<It, Sentinel, Char>, Char> {
       out = value_formatter_.format(*it, ctx);
       ++it;
       while (it != value.end) {
-        out = detail::copy_str<Char>(value.sep.begin(), value.sep.end(), out);
+        out = detail::copy<Char>(value.sep.begin(), value.sep.end(), out);
         ctx.advance_to(out);
         out = value_formatter_.format(*it, ctx);
         ++it;
@@ -705,12 +682,10 @@ struct formatter<tuple_join_view<Char, T...>, Char> {
       typename FormatContext::iterator {
     auto out = std::get<sizeof...(T) - N>(formatters_)
                    .format(std::get<sizeof...(T) - N>(value.tuple), ctx);
-    if (N > 1) {
-      out = std::copy(value.sep.begin(), value.sep.end(), out);
-      ctx.advance_to(out);
-      return do_format(value, ctx, std::integral_constant<size_t, N - 1>());
-    }
-    return out;
+    if (N <= 1) return out;
+    out = detail::copy<Char>(value.sep, out);
+    ctx.advance_to(out);
+    return do_format(value, ctx, std::integral_constant<size_t, N - 1>());
   }
 };
 
