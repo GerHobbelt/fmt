@@ -1029,11 +1029,11 @@ template <typename OutputIt, typename Char> class generic_context {
  public:
   using char_type = Char;
   using iterator = OutputIt;
-  using format_args = basic_format_args<generic_context>;
   using parse_context_type = basic_format_parse_context<Char>;
   template <typename T> using formatter_type = formatter<T, Char>;
 
-  constexpr generic_context(OutputIt out, format_args ctx_args,
+  constexpr generic_context(OutputIt out,
+                            basic_format_args<generic_context> ctx_args,
                             detail::locale_ref loc = {})
       : out_(out), args_(ctx_args), loc_(loc) {}
   generic_context(generic_context&&) = default;
@@ -1049,7 +1049,9 @@ template <typename OutputIt, typename Char> class generic_context {
   FMT_CONSTEXPR auto arg_id(basic_string_view<Char> name) -> int {
     return args_.get_id(name);
   }
-  auto args() const -> const format_args& { return args_; }
+  auto args() const -> const basic_format_args<generic_context>& {
+    return args_;
+  }
 
   void on_error(const char* message) { throw_format_error(message); }
 
@@ -4156,12 +4158,13 @@ template <> struct formatter<bytes> {
   }
 
   template <typename FormatContext>
-  auto format(bytes b, FormatContext& ctx) -> decltype(ctx.out()) {
-    detail::handle_dynamic_spec<detail::width_checker>(specs_.width,
-                                                       specs_.width_ref, ctx);
+  auto format(bytes b, FormatContext& ctx) const -> decltype(ctx.out()) {
+    auto specs = specs_;
+    detail::handle_dynamic_spec<detail::width_checker>(specs.width,
+                                                       specs.width_ref, ctx);
     detail::handle_dynamic_spec<detail::precision_checker>(
-        specs_.precision, specs_.precision_ref, ctx);
-    return detail::write_bytes(ctx.out(), b.data_, specs_);
+        specs.precision, specs.precision_ref, ctx);
+    return detail::write_bytes(ctx.out(), b.data_, specs);
   }
 };
 
@@ -4197,15 +4200,16 @@ template <typename T> struct formatter<group_digits_view<T>> : formatter<T> {
   }
 
   template <typename FormatContext>
-  auto format(group_digits_view<T> t, FormatContext& ctx)
+  auto format(group_digits_view<T> t, FormatContext& ctx) const
       -> decltype(ctx.out()) {
-    detail::handle_dynamic_spec<detail::width_checker>(specs_.width,
-                                                       specs_.width_ref, ctx);
+    auto specs = specs_;
+    detail::handle_dynamic_spec<detail::width_checker>(specs.width,
+                                                       specs.width_ref, ctx);
     detail::handle_dynamic_spec<detail::precision_checker>(
-        specs_.precision, specs_.precision_ref, ctx);
-    return detail::write_int(
-        ctx.out(), static_cast<detail::uint64_or_128_t<T>>(t.value), 0, specs_,
-        detail::digit_grouping<char>("\3", ","));
+        specs.precision, specs.precision_ref, ctx);
+    return detail::write_int(ctx.out(),
+                             static_cast<detail::uint64_or_128_t<T>>(t.value),
+                             0, specs, detail::digit_grouping<char>("\3", ","));
   }
 };
 

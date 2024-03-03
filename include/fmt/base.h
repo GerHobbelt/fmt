@@ -12,6 +12,7 @@
 #include <stdio.h>   // FILE
 #include <string.h>  // strlen
 
+// <cstddef> is also included transitively from <type_traits>.
 #include <cstddef>      // std::byte
 #include <type_traits>  // std::enable_if
 
@@ -1353,8 +1354,9 @@ template <typename Context> class value {
     parse_ctx.advance_to(f.parse(parse_ctx));
     using qualified_type =
         conditional_t<has_const_formatter<T, Context>(), const T, T>;
-    // Calling format through a mutable reference is deprecated.
-    ctx.advance_to(f.format(*static_cast<qualified_type*>(arg), ctx));
+    // format must be const for compatibility with std::format and compilation.
+    const auto& cf = f;
+    ctx.advance_to(cf.format(*static_cast<qualified_type*>(arg), ctx));
   }
 };
 
@@ -1903,7 +1905,6 @@ class context {
 
   using iterator = appender;
   using format_arg = basic_format_arg<context>;
-  using format_args = basic_format_args<context>;
   using parse_context_type = basic_format_parse_context<char>;
   template <typename T> using formatter_type = formatter<T, char>;
 
@@ -1911,7 +1912,7 @@ class context {
     Constructs a ``basic_format_context`` object. References to the arguments
     are stored in the object so make sure they have appropriate lifetimes.
    */
-  FMT_CONSTEXPR context(iterator out, format_args ctx_args,
+  FMT_CONSTEXPR context(iterator out, basic_format_args<context> ctx_args,
                         detail::locale_ref loc = {})
       : out_(out), args_(ctx_args), loc_(loc) {}
   context(context&&) = default;
@@ -1923,7 +1924,7 @@ class context {
   FMT_CONSTEXPR auto arg_id(string_view name) -> int {
     return args_.get_id(name);
   }
-  auto args() const -> const format_args& { return args_; }
+  auto args() const -> const basic_format_args<context>& { return args_; }
 
   // This function is intentionally not constexpr to give a compile-time error.
   void on_error(const char* message) { throw_format_error(message); }
@@ -1975,6 +1976,7 @@ constexpr auto make_format_args(T&... args)
       args)...}};
 }
 
+#ifndef FMT_DOC
 template <typename Context = format_context, typename... T,
           size_t NUM_NAMED_ARGS = detail::count_named_args<T...>(),
           unsigned long long DESC =
@@ -1985,6 +1987,7 @@ constexpr auto make_format_args(const T&... args)
     -> detail::format_arg_store<Context, sizeof...(T), NUM_NAMED_ARGS, DESC> {
   return {args...};
 }
+#endif
 
 /**
   \rst
