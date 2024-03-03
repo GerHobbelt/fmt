@@ -1,4 +1,4 @@
-#include "fmt/core.h"
+#include "fmt/base.h"
 
 
 #if defined(BUILD_MONOLITHIC)
