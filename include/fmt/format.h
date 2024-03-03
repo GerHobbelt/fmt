@@ -37,10 +37,11 @@
 #include <cstdint>           // uint32_t
 #include <cstring>           // std::memcpy
 #include <initializer_list>  // std::initializer_list
-#include <limits>            // std::numeric_limits
-#include <memory>            // std::uninitialized_copy
-#include <stdexcept>         // std::runtime_error
-#include <system_error>      // std::system_error
+#include <iterator>
+#include <limits>        // std::numeric_limits
+#include <memory>        // std::uninitialized_copy
+#include <stdexcept>     // std::runtime_error
+#include <system_error>  // std::system_error
 #include <cfloat>            // DBL_DIG
 
 #ifdef __cpp_lib_bit_cast
@@ -279,6 +280,18 @@ inline auto ctzll(uint64_t x) -> int {
 FMT_END_NAMESPACE
 #endif
 
+namespace std {
+template <> struct iterator_traits<fmt::appender> {
+  using value_type = void;
+  using iterator_category = std::output_iterator_tag;
+};
+template <typename Container>
+struct iterator_traits<fmt::back_insert_iterator<Container>> {
+  using value_type = void;
+  using iterator_category = std::output_iterator_tag;
+};
+}  // namespace std
+
 FMT_BEGIN_NAMESPACE
 namespace detail {
 
@@ -507,6 +520,52 @@ FMT_INLINE void assume(bool condition) {
 #elif FMT_GCC_VERSION
   if (!condition) __builtin_unreachable();
 #endif
+}
+
+// Extracts a reference to the container from back_insert_iterator.
+template <typename Container>
+inline auto get_container(std::back_insert_iterator<Container> it)
+    -> Container& {
+  using base = std::back_insert_iterator<Container>;
+  struct accessor : base {
+    accessor(base b) : base(b) {}
+    using base::container;
+  };
+  return *accessor(it).container;
+}
+
+template <typename Char, typename InputIt, typename OutputIt>
+FMT_CONSTEXPR auto copy_str(InputIt begin, InputIt end, OutputIt out)
+    -> OutputIt {
+  while (begin != end) *out++ = static_cast<Char>(*begin++);
+  return out;
+}
+
+template <typename Char, typename T, typename U,
+          FMT_ENABLE_IF(
+              std::is_same<remove_const_t<T>, U>::value&& is_char<U>::value)>
+FMT_CONSTEXPR auto copy_str(T* begin, T* end, U* out) -> U* {
+  if (is_constant_evaluated()) return copy_str<Char, T*, U*>(begin, end, out);
+  auto size = to_unsigned(end - begin);
+  if (size > 0) memcpy(out, begin, size * sizeof(U));
+  return out + size;
+}
+
+template <typename Char, typename InputIt>
+auto copy_str(InputIt begin, InputIt end, appender out) -> appender {
+  get_container(out).append(begin, end);
+  return out;
+}
+template <typename Char, typename InputIt>
+auto copy_str(InputIt begin, InputIt end, back_insert_iterator<std::string> out)
+    -> back_insert_iterator<std::string> {
+  get_container(out).append(begin, end);
+  return out;
+}
+
+template <typename Char, typename R, typename OutputIt>
+FMT_CONSTEXPR auto copy_str(R&& rng, OutputIt out) -> OutputIt {
+  return detail::copy_str<Char>(rng.begin(), rng.end(), out);
 }
 
 // An approximation of iterator_t for pre-C++20 systems.
