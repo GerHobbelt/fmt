@@ -592,10 +592,13 @@ inline auto make_wprintf_args(const T&... args)
   return {args...};
 }
 
+template <typename Char> struct vprintf_args {
+  using type = basic_format_args<basic_printf_context<Char>>;
+};
+
 template <typename Char>
-inline auto vsprintf(
-    basic_string_view<Char> fmt,
-    basic_format_args<basic_printf_context<type_identity_t<Char>>> args)
+inline auto vsprintf(basic_string_view<Char> fmt,
+                     typename vprintf_args<Char>::type args)
     -> std::basic_string<Char> {
   auto buf = basic_memory_buffer<Char>();
   detail::vprintf(buf, fmt, args);
@@ -618,10 +621,8 @@ inline auto sprintf(const S& fmt, const T&... args) -> std::basic_string<Char> {
 }
 
 template <typename Char>
-inline auto vfprintf(
-    std::FILE* f, basic_string_view<Char> fmt,
-    basic_format_args<basic_printf_context<type_identity_t<Char>>> args)
-    -> int {
+inline auto vfprintf(std::FILE* f, basic_string_view<Char> fmt,
+                     typename vprintf_args<Char>::type args) -> int {
   auto buf = basic_memory_buffer<Char>();
   detail::vprintf(buf, fmt, args);
   size_t size = buf.size();
@@ -646,9 +647,8 @@ inline auto fprintf(std::FILE* f, const S& fmt, const T&... args) -> int {
 }
 
 template <typename Char>
-FMT_DEPRECATED inline auto vprintf(
-    basic_string_view<Char> fmt,
-    basic_format_args<basic_printf_context<type_identity_t<Char>>> args)
+FMT_DEPRECATED inline auto vprintf(basic_string_view<Char> fmt,
+                                   typename vprintf_args<Char>::type args)
     -> int {
   return vfprintf(stdout, fmt, args);
 }
