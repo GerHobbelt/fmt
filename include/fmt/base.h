@@ -1398,7 +1398,8 @@ template <typename Context> class value {
         conditional_t<has_const_formatter<T, Context>(), const T, T>;
     // format must be const for compatibility with std::format and compilation.
     const auto& cf = f;
-    ctx.advance_to(cf.format(*static_cast<qualified_type*>(arg), ctx));
+	auto x = cf.format(*static_cast<qualified_type*>(arg), ctx);
+    ctx.advance_to(x);
   }
 };
 
@@ -2034,7 +2035,7 @@ template <typename Context = format_context, typename... T,
               detail::make_descriptor<Context, T...>() |
               static_cast<unsigned long long>(detail::has_named_args_bit),
           FMT_ENABLE_IF(NUM_NAMED_ARGS != 0)>
-constexpr auto make_format_args(const T&... args)
+constexpr auto make_format_args(T&... args)
     -> detail::format_arg_store<Context, sizeof...(T), NUM_NAMED_ARGS, DESC> {
   return {args...};
 }

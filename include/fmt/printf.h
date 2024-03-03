@@ -263,7 +263,6 @@ class printf_arg_formatter : public arg_formatter<Char> {
         s.type != presentation_type::chr &&
         s.type != presentation_type::any) {
       return (*this)(static_cast<int>(value));
-      //s.type = presentation_type::chr;
     }
     s.sign = sign::none;
     s.alt = false;
