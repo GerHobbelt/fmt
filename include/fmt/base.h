@@ -1511,10 +1511,8 @@ constexpr unsigned long long make_descriptor() {
                                      : is_unpacked_bit | NUM_ARGS;
 }
 
-#if defined(__cpp_if_constexpr)
 // This type is intentionally undefined, only used for errors
 template <typename T, typename Char> struct type_is_unformattable_for;
-#endif
 
 template <bool PACKED, typename Context, typename T, FMT_ENABLE_IF(PACKED)>
 FMT_CONSTEXPR auto make_arg(T& val) -> value<Context> {
@@ -1900,11 +1898,11 @@ using basic_format_context =
 using format_context = context;
 
 template <typename Char>
-using buffer_context = basic_format_context<basic_appender<Char>, Char>;
+using buffered_context = basic_format_context<basic_appender<Char>, Char>;
 
 template <typename T, typename Char = char>
 using is_formattable = bool_constant<!std::is_base_of<
-    detail::unformattable, decltype(detail::arg_mapper<buffer_context<Char>>()
+    detail::unformattable, decltype(detail::arg_mapper<buffered_context<Char>>()
                                         .map(std::declval<T&>()))>::value>;
 
 /**
@@ -1938,11 +1936,6 @@ constexpr auto make_format_args(const T&... args)
     -> detail::format_arg_store<Context, sizeof...(T), NUM_NAMED_ARGS, DESC> {
   return {args...};
 }
-
-// DEPRECATED!
-template <typename Context, typename... T>
-using format_arg_store =
-    decltype(make_format_args<Context>(std::declval<T&>()...));
 
 /**
   \rst
@@ -2543,7 +2536,7 @@ template <typename T, typename ParseContext>
 FMT_CONSTEXPR auto parse_format_specs(ParseContext& ctx)
     -> decltype(ctx.begin()) {
   using char_type = typename ParseContext::char_type;
-  using context = buffer_context<char_type>;
+  using context = buffered_context<char_type>;
   using mapped_type = conditional_t<
       mapped_type_constant<T, context>::value != type::custom_type,
       decltype(arg_mapper<context>().map(std::declval<const T&>())),
@@ -2614,7 +2607,7 @@ template <typename Char, typename... Args> class format_string_checker {
 
  public:
   explicit FMT_CONSTEXPR format_string_checker(basic_string_view<Char> fmt)
-      : types_{mapped_type_constant<Args, buffer_context<Char>>::value...},
+      : types_{mapped_type_constant<Args, buffered_context<Char>>::value...},
         context_(fmt, num_args, types_),
         parse_funcs_{&parse_format_specs<Args, parse_context_type>...} {}
 
@@ -2677,16 +2670,15 @@ void check_format_string(S format_str) {
   ignore_unused(error);
 }
 
+// Use vformat_args and avoid type_identity to keep symbols short and workaround
+// a GCC <= 4.8 bug.
 template <typename Char = char> struct vformat_args {
-  using type =
-      basic_format_args<basic_format_context<basic_appender<Char>, Char>>;
+  using type = basic_format_args<buffered_context<Char>>;
 };
 template <> struct vformat_args<char> {
   using type = format_args;
 };
 
-// Use vformat_args and avoid type_identity, keep symbols short and workaround
-// a GCC <= 4.8 bug.
 template <typename Char>
 void vformat_to(buffer<Char>& buf, basic_string_view<Char> fmt,
                 typename vformat_args<Char>::type args, locale_ref loc = {});

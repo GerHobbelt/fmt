@@ -137,8 +137,8 @@ struct has_const_begin_end<
 
 template <typename T>
 struct has_mutable_begin_end<
-    T, void_t<decltype(detail::range_begin(std::declval<T>())),
-              decltype(detail::range_end(std::declval<T>())),
+    T, void_t<decltype(detail::range_begin(std::declval<T&>())),
+              decltype(detail::range_end(std::declval<T&>())),
               // the extra int here is because older versions of MSVC don't
               // SFINAE properly unless there are distinct types
               int>> : std::true_type {};
@@ -389,8 +389,8 @@ template <typename Context> struct range_mapper {
 
 template <typename Char, typename Element>
 using range_formatter_type =
-    formatter<remove_cvref_t<decltype(range_mapper<buffer_context<Char>>{}.map(
-                  std::declval<Element>()))>,
+    formatter<remove_cvref_t<decltype(range_mapper<buffered_context<Char>>{}
+                                          .map(std::declval<Element>()))>,
               Char>;
 
 template <typename R>
@@ -467,7 +467,7 @@ struct range_formatter<
 
   template <typename R, typename FormatContext>
   auto format(R&& range, FormatContext& ctx) const -> decltype(ctx.out()) {
-    detail::range_mapper<buffer_context<Char>> mapper;
+    detail::range_mapper<buffered_context<Char>> mapper;
     auto out = ctx.out();
     out = detail::copy_str<Char>(opening_bracket_, out);
     int i = 0;

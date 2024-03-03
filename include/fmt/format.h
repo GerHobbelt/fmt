@@ -46,6 +46,7 @@
 #include <limits>        // std::numeric_limits
 #include <memory>        // std::uninitialized_copy
 #include <stdexcept>     // std::runtime_error
+#include <string>        // std::basic_string
 #include <system_error>  // std::system_error
 #include <cfloat>            // DBL_DIG
 
@@ -286,6 +287,11 @@ template <typename T> struct iterator_traits<fmt::basic_appender<T>> {
 }  // namespace std
 
 FMT_BEGIN_NAMESPACE
+
+template <typename Char, typename Traits, typename Allocator>
+struct is_contiguous<std::basic_string<Char, Traits, Allocator>>
+    : std::true_type {};
+
 namespace detail {
 
 FMT_CONSTEXPR inline void abort_fuzzing_if(bool condition) {
@@ -3874,7 +3880,7 @@ FMT_CONSTEXPR auto write(OutputIt out, const T& value)
 // iterator. It's a class and not a generic lambda for compatibility with C++11.
 template <typename Char> struct default_arg_formatter {
   using iterator = basic_appender<Char>;
-  using context = buffer_context<Char>;
+  using context = buffered_context<Char>;
 
   iterator out;
   basic_format_args<context> args;
@@ -3893,7 +3899,7 @@ template <typename Char> struct default_arg_formatter {
 
 template <typename Char> struct arg_formatter {
   using iterator = basic_appender<Char>;
-  using context = buffer_context<Char>;
+  using context = buffered_context<Char>;
 
   iterator out;
   const format_specs<Char>& specs;
@@ -4393,10 +4399,10 @@ void vformat_to(buffer<Char>& buf, basic_string_view<Char> fmt,
 
   struct format_handler {
     basic_format_parse_context<Char> parse_context;
-    buffer_context<Char> context;
+    buffered_context<Char> context;
 
     format_handler(basic_appender<Char> p_out, basic_string_view<Char> str,
-                   basic_format_args<buffer_context<Char>> p_args,
+                   basic_format_args<buffered_context<Char>> p_args,
                    locale_ref p_loc)
         : parse_context(str), context(p_out, p_args, p_loc) {}
 
