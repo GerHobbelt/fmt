@@ -33,6 +33,11 @@
 #ifndef FMT_FORMAT_H_
 #define FMT_FORMAT_H_
 
+#ifndef _LIBCPP_REMOVE_TRANSITIVE_INCLUDES
+#  define _LIBCPP_REMOVE_TRANSITIVE_INCLUDES
+#  define FMT_REMOVE_TRANSITIVE_INCLUDES
+#endif
+
 #include <cmath>             // std::signbit
 #include <cstdint>           // uint32_t
 #include <cstring>           // std::memcpy
@@ -138,14 +143,6 @@ FMT_END_NAMESPACE
 #    define FMT_THROW(x) \
       ::fmt::detail::assert_fail(__FILE__, __LINE__, (x).what())
 #  endif
-#endif
-
-#if FMT_EXCEPTIONS
-#  define FMT_TRY try
-#  define FMT_CATCH(x) catch (x)
-#else
-#  define FMT_TRY if (true)
-#  define FMT_CATCH(x) if (false)
 #endif
 
 #ifndef FMT_MAYBE_UNUSED
@@ -935,7 +932,7 @@ enum { inline_buffer_size = 500 };
  */
 template <typename T, size_t SIZE = inline_buffer_size,
           typename Allocator = std::allocator<T>>
-class basic_memory_buffer final : public detail::buffer<T> {
+class basic_memory_buffer : public detail::buffer<T> {
  private:
   T store_[SIZE];
 
@@ -948,7 +945,6 @@ class basic_memory_buffer final : public detail::buffer<T> {
     if (data != store_) alloc_.deallocate(data, this->capacity());
   }
 
- protected:
   static FMT_CONSTEXPR20 void grow(detail::buffer<T>& buf, size_t size) {
     detail::abort_fuzzing_if(size > 5000);
     auto& self = static_cast<basic_memory_buffer&>(buf);
@@ -4533,6 +4529,11 @@ FMT_END_NAMESPACE
 #  include "format-inl.h"
 #else
 #  define FMT_FUNC
+#endif
+
+// Restore _LIBCPP_REMOVE_TRANSITIVE_INCLUDES.
+#ifdef FMT_REMOVE_TRANSITIVE_INCLUDES
+#  undef _LIBCPP_REMOVE_TRANSITIVE_INCLUDES
 #endif
 
 #endif  // FMT_FORMAT_H_
