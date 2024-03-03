@@ -153,6 +153,7 @@ option(FMT_CUDA_TEST "Generate the cuda-test target." OFF)
 option(FMT_OS "Include OS-specific APIs." ON)
 option(FMT_MODULE "Build a module instead of a traditional library." OFF)
 option(FMT_SYSTEM_HEADERS "Expose headers with marking them as system." OFF)
+option(FMT_GTEST_EXTERNAL "Use an external gtest/gmock library. Doesn't build gtest or gmock if this is enabled." OFF)
 
 if (FMT_TEST AND FMT_MODULE)
   # The tests require {fmt} to be compiled as traditional library
