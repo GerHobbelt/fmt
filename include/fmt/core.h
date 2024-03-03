@@ -8,12 +8,13 @@
 #ifndef FMT_CORE_H_
 #define FMT_CORE_H_
 
-#include <cstddef>  // std::byte
-#include <cstdio>   // std::FILE
-#include <cstring>  // std::strlen
-#include <limits>   // std::numeric_limits
-#include <string>
-#include <type_traits>
+#include <limits.h>  // CHAR_BIT
+#include <stdio.h>   // FILE
+#include <string.h>  // strlen
+
+#include <cstddef>      // std::byte
+#include <string>       // std::string
+#include <type_traits>  // std::enable_if
 
 // macros defined by Microsoft which throw a spanner in the (chrono) works around here.
 #undef max
@@ -27,7 +28,7 @@
 //#define FMT_LOCALE
 
 // The fmt library version in the form major * 10000 + minor * 100 + patch.
-#define FMT_VERSION 100201
+#define FMT_VERSION 100202
 
 #if defined(__clang__) && !defined(__ibmxl__)
 #  define FMT_CLANG_VERSION (__clang_major__ * 100 + __clang_minor__)
@@ -230,16 +231,6 @@
 #  define FMT_API
 #endif
 
-// libc++ supports string_view in pre-c++17.
-#if FMT_HAS_INCLUDE(<string_view>) && \
-    (FMT_CPLUSPLUS >= 201703L || defined(_LIBCPP_VERSION))
-#  include <string_view>
-#  define FMT_USE_STRING_VIEW
-#elif FMT_HAS_INCLUDE("experimental/string_view") && FMT_CPLUSPLUS >= 201402L
-#  include <experimental/string_view>
-#  define FMT_USE_EXPERIMENTAL_STRING_VIEW
-#endif
-
 #ifndef FMT_UNICODE
 #  define FMT_UNICODE !FMT_MSC_VERSION
 #endif
@@ -308,10 +299,15 @@ template <typename T> using type_identity_t = typename type_identity<T>::type;
 template <typename T>
 using underlying_t = typename std::underlying_type<T>::type;
 
-// Checks whether T is a container with contiguous storage.
-template <typename T> struct is_contiguous : std::false_type {};
-template <typename Char>
-struct is_contiguous<std::basic_string<Char>> : std::true_type {};
+#if FMT_GCC_VERSION && FMT_GCC_VERSION < 500
+// A workaround for gcc 4.8 to make void_t work in a SFINAE context.
+template <typename...> struct void_t_impl {
+  using type = void;
+};
+template <typename... T> using void_t = typename void_t_impl<T...>::type;
+#else
+template <typename...> using void_t = void;
+#endif
 
 struct monostate {
   constexpr monostate() {}
@@ -409,15 +405,6 @@ FMT_NORETURN FMT_API void assert_fail(const char* file, int line,
 #  endif
 #endif
 
-#if defined(FMT_USE_STRING_VIEW)
-template <typename Char> using std_string_view = std::basic_string_view<Char>;
-#elif defined(FMT_USE_EXPERIMENTAL_STRING_VIEW)
-template <typename Char>
-using std_string_view = std::experimental::basic_string_view<Char>;
-#else
-template <typename T> struct std_string_view {};
-#endif
-
 #ifdef FMT_USE_INT128
 // Do nothing.
 #elif defined(__SIZEOF_INT128__) && !defined(__NVCC__) && \
@@ -446,6 +433,15 @@ FMT_CONSTEXPR auto to_unsigned(Int value) ->
   return static_cast<typename std::make_unsigned<Int>::type>(value);
 }
 
+template <typename T, typename Enable = void>
+struct is_string_like : std::false_type {};
+
+// A heuristic to detect std::string and std::string_view.
+template <typename T>
+struct is_string_like<T, void_t<decltype(std::declval<T>().find_first_of(
+                             typename T::value_type(), 0))>> : std::true_type {
+};
+
 FMT_CONSTEXPR inline auto is_utf8() -> bool {
   FMT_MSC_WARNING(suppress : 4566) constexpr unsigned char section[] = "\u00A7";
 
@@ -471,6 +467,15 @@ FMT_CONSTEXPR auto compare(const Char* s1, const Char* s2, std::size_t n)
   return 0;
 }
 }  // namespace detail
+
+template <typename Char>
+using basic_string =
+    std::basic_string<Char, std::char_traits<Char>, std::allocator<Char>>;
+
+// Checks whether T is a container with contiguous storage.
+template <typename T> struct is_contiguous : std::false_type {};
+template <typename Char>
+struct is_contiguous<basic_string<Char>> : std::true_type {};
 
 /**
   An implementation of ``std::basic_string_view`` for pre-C++17. It provides a
@@ -504,18 +509,17 @@ template <typename Char> class basic_string_view {
       : data_(s),
         size_(detail::const_check(std::is_same<Char, char>::value &&
                                   !detail::is_constant_evaluated(false))
-                  ? std::strlen(reinterpret_cast<const char*>(s))
+                  ? strlen(reinterpret_cast<const char*>(s))
                   : detail::length(s)) {}
 
-  /** Constructs a string reference from a ``std::basic_string`` object. */
-  template <typename Traits, typename Alloc>
-  FMT_CONSTEXPR basic_string_view(
-      const std::basic_string<Char, Traits, Alloc>& s) noexcept
-      : data_(s.data()), size_(s.size()) {}
-
-  template <typename S, FMT_ENABLE_IF(std::is_same<
-                                      S, detail::std_string_view<Char>>::value)>
-  FMT_CONSTEXPR basic_string_view(S s) noexcept
+  /**
+    Constructs a string reference from a ``std::basic_string`` or a
+    ``std::basic_string_view`` object.
+  */
+  template <typename S,
+            FMT_ENABLE_IF(detail::is_string_like<S>::value&& std::is_same<
+                          typename S::value_type, Char>::value)>
+  FMT_CONSTEXPR basic_string_view(const S& s) noexcept
       : data_(s.data()), size_(s.size()) {}
 
   /** Returns a pointer to the string data. */
@@ -597,19 +601,14 @@ template <typename Char, FMT_ENABLE_IF(is_char<Char>::value)>
 FMT_INLINE auto to_string_view(const Char* s) -> basic_string_view<Char> {
   return s;
 }
-template <typename Char, typename Traits, typename Alloc>
-inline auto to_string_view(const std::basic_string<Char, Traits, Alloc>& s)
-    -> basic_string_view<Char> {
-  return s;
+template <typename S, FMT_ENABLE_IF(is_string_like<S>::value)>
+inline auto to_string_view(const S& s)
+    -> basic_string_view<typename S::value_type> {
+  return s;  // std::basic_string[_view]
 }
 template <typename Char>
 constexpr auto to_string_view(basic_string_view<Char> s)
     -> basic_string_view<Char> {
-  return s;
-}
-template <typename Char,
-          FMT_ENABLE_IF(!std::is_empty<std_string_view<Char>>::value)>
-inline auto to_string_view(std_string_view<Char> s) -> basic_string_view<Char> {
   return s;
 }
 template <typename S, FMT_ENABLE_IF(is_compile_string<S>::value)>
@@ -1006,7 +1005,7 @@ class iterator_buffer<T*, T, fixed_buffer_traits> final
       : fixed_buffer_traits(n), buffer<T>(grow, out, 0, n), out_(out) {}
   iterator_buffer(iterator_buffer&& other)
       : fixed_buffer_traits(other),
-        buffer<T>(std::move(other)),
+        buffer<T>(static_cast<iterator_buffer&&>(other)),
         out_(other.out_) {
     if (this->data() != out_) {
       this->set(data_, buffer_size);
@@ -1547,16 +1546,6 @@ enum { max_packed_args = 62 / packed_arg_bits };
 enum : unsigned long long { is_unpacked_bit = 1ULL << 63 };
 enum : unsigned long long { has_named_args_bit = 1ULL << 62 };
 
-#if FMT_GCC_VERSION && FMT_GCC_VERSION < 500
-// A workaround for gcc 4.8 to make void_t work in a SFINAE context.
-template <typename...> struct void_t_impl {
-  using type = void;
-};
-template <typename... T> using void_t = typename void_t_impl<T...>::type;
-#else
-template <typename...> using void_t = void;
-#endif
-
 template <typename It, typename T, typename Enable = void>
 struct is_output_iterator : std::false_type {};
 
@@ -1754,7 +1743,7 @@ template <typename Context> class basic_format_arg {
 template <typename Visitor, typename Context>
 FMT_DEPRECATED FMT_CONSTEXPR FMT_INLINE auto visit_format_arg(
     Visitor&& vis, const basic_format_arg<Context>& arg) -> decltype(vis(0)) {
-  return arg.visit(std::forward<Visitor>(vis));
+  return arg.visit(static_cast<Visitor&&>(vis));
 }
 
 // Formatting context.
@@ -2180,8 +2169,8 @@ FMT_CONSTEXPR auto find(Ptr first, Ptr last, T value, Ptr& out) -> bool {
 template <>
 inline auto find<false, char>(const char* first, const char* last, char value,
                               const char*& out) -> bool {
-  out = static_cast<const char*>(
-      std::memchr(first, value, to_unsigned(last - first)));
+  out =
+      static_cast<const char*>(memchr(first, value, to_unsigned(last - first)));
   return out != nullptr;
 }
 
@@ -2200,11 +2189,11 @@ FMT_CONSTEXPR auto parse_nonnegative_int(const Char*& begin, const Char* end,
   } while (p != end && '0' <= *p && *p <= '9');
   auto num_digits = p - begin;
   begin = p;
-  if (num_digits <= std::numeric_limits<int>::digits10)
-    return static_cast<int>(value);
+  int digits10 = static_cast<int>(sizeof(int) * CHAR_BIT * 3 / 10);
+  if (num_digits <= digits10) return static_cast<int>(value);
   // Check for overflow.
-  const unsigned max = to_unsigned((std::numeric_limits<int>::max)());
-  return num_digits == std::numeric_limits<int>::digits10 + 1 &&
+  unsigned max = INT_MAX;
+  return num_digits == digits10 + 1 &&
                  prev * 10ull + unsigned(p[-1] - '0') <= max
              ? static_cast<int>(value)
              : error_value;
@@ -2232,9 +2221,8 @@ FMT_CONSTEXPR auto do_parse_arg_id(const Char* begin, const Char* end,
   Char c = *begin;
   if (c >= '0' && c <= '9') {
     int index = 0;
-    constexpr int max = (std::numeric_limits<int>::max)();
     if (c != '0')
-      index = parse_nonnegative_int(begin, end, max);
+      index = parse_nonnegative_int(begin, end, INT_MAX);
     else
       ++begin;
     if (begin == end || (*begin != '}' && *begin != ':'))
@@ -2743,9 +2731,9 @@ template <typename Char>
 void vformat_to(buffer<Char>& buf, basic_string_view<Char> fmt,
                 typename vformat_args<Char>::type args, locale_ref loc = {});
 
-FMT_API void vprint_mojibake(std::FILE*, string_view, format_args);
+FMT_API void vprint_mojibake(FILE*, string_view, format_args);
 #ifndef _WIN32
-inline void vprint_mojibake(std::FILE*, string_view, format_args) {}
+inline void vprint_mojibake(FILE*, string_view, format_args) {}
 #endif
 }  // namespace detail
 
@@ -2838,7 +2826,7 @@ using format_string = basic_format_string<char, type_identity_t<Args>...>;
 inline auto runtime(string_view s) -> runtime_format_string<> { return {{s}}; }
 #endif
 
-FMT_API auto vformat(string_view fmt, format_args args) -> std::string;
+FMT_API auto vformat(string_view fmt, format_args args) -> basic_string<char>;
 
 /**
   \rst
@@ -2853,7 +2841,7 @@ FMT_API auto vformat(string_view fmt, format_args args) -> std::string;
 */
 template <typename... T>
 FMT_NODISCARD FMT_INLINE auto format(format_string<T...> fmt, T&&... args)
-    -> std::string {
+    -> basic_string<char> {
   return vformat(fmt, fmt::make_format_args(args...));
 }
 
@@ -2927,7 +2915,7 @@ FMT_NODISCARD FMT_INLINE auto formatted_size(format_string<T...> fmt,
 }
 
 FMT_API void vprint(string_view fmt, format_args args);
-FMT_API void vprint(std::FILE* f, string_view fmt, format_args args);
+FMT_API void vprint(FILE* f, string_view fmt, format_args args);
 
 /**
   \rst
@@ -2957,7 +2945,7 @@ FMT_INLINE void print(format_string<T...> fmt, T&&... args) {
   \endrst
  */
 template <typename... T>
-FMT_INLINE void print(std::FILE* f, format_string<T...> fmt, T&&... args) {
+FMT_INLINE void print(FILE* f, format_string<T...> fmt, T&&... args) {
   const auto& vargs = fmt::make_format_args(args...);
   return detail::is_utf8() ? vprint(f, fmt, vargs)
                            : detail::vprint_mojibake(f, fmt, vargs);
@@ -2968,8 +2956,8 @@ FMT_INLINE void print(std::FILE* f, format_string<T...> fmt, T&&... args) {
   output to the file ``f`` followed by a newline.
  */
 template <typename... T>
-FMT_INLINE void println(std::FILE* f, format_string<T...> fmt, T&&... args) {
-  return fmt::print(f, "{}\n", fmt::format(fmt, std::forward<T>(args)...));
+FMT_INLINE void println(FILE* f, format_string<T...> fmt, T&&... args) {
+  return fmt::print(f, "{}\n", fmt::format(fmt, static_cast<T&&>(args)...));
 }
 
 /**
@@ -2978,7 +2966,7 @@ FMT_INLINE void println(std::FILE* f, format_string<T...> fmt, T&&... args) {
  */
 template <typename... T>
 FMT_INLINE void println(format_string<T...> fmt, T&&... args) {
-  return fmt::println(stdout, fmt, std::forward<T>(args)...);
+  return fmt::println(stdout, fmt, static_cast<T&&>(args)...);
 }
 
 FMT_END_EXPORT

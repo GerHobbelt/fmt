@@ -50,6 +50,16 @@
 
 #include "core.h"
 
+// libc++ supports string_view in pre-c++17.
+#if FMT_HAS_INCLUDE(<string_view>) && \
+    (FMT_CPLUSPLUS >= 201703L || defined(_LIBCPP_VERSION))
+#  include <string_view>
+#  define FMT_USE_STRING_VIEW
+#elif FMT_HAS_INCLUDE("experimental/string_view") && FMT_CPLUSPLUS >= 201402L
+#  include <experimental/string_view>
+#  define FMT_USE_EXPERIMENTAL_STRING_VIEW
+#endif
+
 #if defined __cpp_inline_variables && __cpp_inline_variables >= 201606L
 #  define FMT_INLINE_VARIABLE inline
 #else
@@ -301,6 +311,15 @@ FMT_CONSTEXPR inline void abort_fuzzing_if(bool condition) {
   if (condition) throw std::runtime_error("fuzzing limit reached");
 #endif
 }
+
+#if defined(FMT_USE_STRING_VIEW)
+template <typename Char> using std_string_view = std::basic_string_view<Char>;
+#elif defined(FMT_USE_EXPERIMENTAL_STRING_VIEW)
+template <typename Char>
+using std_string_view = std::experimental::basic_string_view<Char>;
+#else
+template <typename T> struct std_string_view {};
+#endif
 
 template <typename CharT, CharT... C> struct string_literal {
   static constexpr CharT value[sizeof...(C)] = {C...};
@@ -794,11 +813,6 @@ FMT_CONSTEXPR inline auto compute_width(string_view s) -> size_t {
   // We could avoid branches by using utf8_decode directly.
   for_each_codepoint(s, count_code_points{&num_code_points});
   return num_code_points;
-}
-
-inline auto compute_width(basic_string_view<char8_type> s) -> size_t {
-  return compute_width(
-      string_view(reinterpret_cast<const char*>(s.data()), s.size()));
 }
 
 template <typename Char>
