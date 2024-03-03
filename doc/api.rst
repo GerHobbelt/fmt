@@ -6,7 +6,7 @@ API Reference
 
 The {fmt} library API consists of the following parts:
 
-* :ref:`fmt/core.h <core-api>`: the core API providing main formatting functions
+* :ref:`fmt/base.h <core-api>`: the core API providing main formatting functions
   for ``char``/UTF-8 with C++20 compile-time checks and minimal dependencies
 * :ref:`fmt/format.h <format-api>`: the full format API providing additional
   formatting functions and locale support
@@ -29,7 +29,7 @@ macros have prefix ``FMT_``.
 Core API
 ========
 
-``fmt/core.h`` defines the core API which provides main formatting functions
+``fmt/base.h`` defines the core API which provides main formatting functions
 for ``char``/UTF-8 with C++20 compile-time checks. It has minimal include
 dependencies for better compile times. This header is only beneficial when
 using {fmt} as a library (the default) and not in the header-only mode.
@@ -132,7 +132,7 @@ inheritance or composition. This way you can support standard format specifiers
 without implementing them yourself. For example::
 
   // color.h:
-  #include <fmt/core.h>
+  #include <fmt/base.h>
 
   enum class color {red, green, blue};
 
@@ -229,7 +229,7 @@ You can also write a formatter for a hierarchy of classes::
 
   // demo.h:
   #include <type_traits>
-  #include <fmt/core.h>
+  #include <fmt/base.h>
 
   struct A {
     virtual ~A() {}
@@ -276,7 +276,7 @@ binary footprint, for example (https://godbolt.org/z/vajfWEG4b):
 
 .. code:: c++
 
-    #include <fmt/core.h>
+    #include <fmt/base.h>
 
     void vlog(const char* file, int line, fmt::string_view format,
               fmt::format_args args) {
@@ -424,7 +424,7 @@ All formatting is locale-independent by default. Use the ``'L'`` format
 specifier to insert the appropriate number separator characters from the
 locale::
 
-  #include <fmt/core.h>
+  #include <fmt/base.h>
   #include <locale>
 
   std::locale::global(std::locale("en_US.UTF-8"));

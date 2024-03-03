@@ -30,7 +30,7 @@
 #include <utility>
 
 #if !( defined(__STDC_VERSION__) && (__STDC_VERSION__ > 201710L) )
-#include "fmt/core.h"
+#include "fmt/base.h"
 #include "fmt/os.h"
 #include "fmt/xchar.h"
 #include "fmt/format.h"

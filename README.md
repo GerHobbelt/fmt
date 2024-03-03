@@ -74,7 +74,7 @@ See the [documentation](https://fmt.dev) for more details.
 **Print to stdout** ([run](https://godbolt.org/z/Tevcjh))
 
 ``` c++
-#include <fmt/core.h>
+#include <fmt/base.h>
 
 int main() {
   fmt::print("Hello, world!\n");

@@ -2,7 +2,7 @@
 Usage
 *****
 
-To use the {fmt} library, add :file:`fmt/core.h`, :file:`fmt/format.h`,
+To use the {fmt} library, add :file:`fmt/base.h`, :file:`fmt/format.h`,
 :file:`fmt/format-inl.h`, :file:`src/format.cc` and optionally other headers
 from a `release archive <https://github.com/fmtlib/fmt/releases/latest>`_ or
 the `Git repository <https://github.com/fmtlib/fmt>`_ to your project.

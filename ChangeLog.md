@@ -1644,7 +1644,7 @@
     ([godbolt](https://godbolt.org/z/sMxcohGjz)):
 
     ```c++
-    #include <fmt/core.h>
+    #include <fmt/base.h>
 
     int main() {
       fmt::print("{:d}", "I am not a number");
@@ -1891,7 +1891,7 @@
     by default for consistency with `std::format`. For example:
 
     ```c++
-    #include <fmt/core.h>
+    #include <fmt/base.h>
 
     int main() {
       fmt::print("{0:.3}", 1.1);
@@ -1909,7 +1909,7 @@
     example:
 
     ```c++
-    #include <fmt/core.h>
+    #include <fmt/base.h>
     #include <locale>
 
     int main() {
@@ -1953,7 +1953,7 @@
     https://github.com/fmtlib/fmt/pull/2109). For example:
 
     ```c++
-    #include <fmt/core.h>
+    #include <fmt/base.h>
 
     int main() {
       fmt::print("{:s}", true);
@@ -1999,7 +1999,7 @@
     https://github.com/fmtlib/fmt/issues/2091). For example:
 
     ```c++
-    #include <fmt/core.h>
+    #include <fmt/base.h>
 
     int main() {
       fmt::print("{:-<10}{}\n", "你好", "世界");
@@ -2394,7 +2394,7 @@
     the type name directly in the error message instead of the note:
 
     ```c++
-    #include <fmt/core.h>
+    #include <fmt/base.h>
 
     struct how_about_no {};
 
@@ -2405,7 +2405,7 @@
 
     Error ([godbolt](https://godbolt.org/z/GoxM4e)):
 
-    `fmt/core.h:1438:3: error: static_assert failed due to requirement 'fmt::v7::formattable<how_about_no>()' "Cannot format an argument. To make type T formattable provide a formatter<T> specialization: https://fmt.dev/latest/api.html#udt" ...`
+    `fmt/base.h:1438:3: error: static_assert failed due to requirement 'fmt::v7::formattable<how_about_no>()' "Cannot format an argument. To make type T formattable provide a formatter<T> specialization: https://fmt.dev/latest/api.html#udt" ...`
 
 -   Added the
     [make_args_checked](https://fmt.dev/7.1.0/api.html#argument-lists)
@@ -2437,7 +2437,7 @@
     ([godbolt](https://godbolt.org/z/dPhWvj)):
 
     ```c++
-    #include <fmt/core.h>
+    #include <fmt/base.h>
 
     int main() {
       fmt::print("{:.500}\n", 4.9406564584124654E-324);
@@ -2453,7 +2453,7 @@
     ([godbolt](https://godbolt.org/z/sPjY1K)):
 
     ```c++
-    #include <fmt/core.h>
+    #include <fmt/base.h>
 
     int main() {
       char buffer[10];
@@ -2502,7 +2502,7 @@
     For example ([godbolt](https://godbolt.org/z/bhdcW9)):
 
     ```c++
-    #include <fmt/core.h>
+    #include <fmt/base.h>
 
     int main() {
       fmt::print("{:#.2g}", 0.5);
@@ -2712,7 +2712,7 @@
         % time c++ -c test.cc -I include -std=c++17
         c++ -c test.cc -I include -std=c++17  0.24s user 0.06s system 98% cpu 0.301 total
 
-    It is still recommended to use `fmt/core.h` instead of
+    It is still recommended to use `fmt/base.h` instead of
     `fmt/format.h` but the compile time difference is now smaller.
     Thanks @alex3d for the suggestion.
 
@@ -2721,7 +2721,7 @@
     For example
 
     ```c++
-    #include <fmt/core.h>
+    #include <fmt/base.h>
 
     int main() {
       fmt::print("The answer is {answer}\n", fmt::arg("answer", 42));
@@ -2776,7 +2776,7 @@
           FMT_CONSTEXPR_DECL bool invalid_format =
                                   ^
         ...
-        include/fmt/core.h:569:26: note: in call to
+        include/fmt/base.h:569:26: note: in call to
         '&checker(s, {}).context_->on_error(&"argument not found"[0])'
             if (id >= num_args_) on_error("argument not found");
                                 ^
@@ -2939,7 +2939,7 @@
 
     now gives:
 
-        include/fmt/core.h:1015:5: error: static_assert failed due to requirement
+        include/fmt/base.h:1015:5: error: static_assert failed due to requirement
         'formattable' "Cannot format argument. To make type T formattable provide a
         formatter<T> specialization:
         https://fmt.dev/latest/api.html#formatting-user-defined-types"
@@ -3146,7 +3146,7 @@
 
     ```c++
     #include <cmath>
-    #include <fmt/core.h>
+    #include <fmt/base.h>
 
     int main() {
       fmt::print("{}", M_PI);
@@ -3209,7 +3209,7 @@
 
 -   Made compile time in the header-only mode \~20% faster by reducing
     the number of template instantiations. `wchar_t` overload of
-    `vprint` was moved from `fmt/core.h` to `fmt/format.h`.
+    `vprint` was moved from `fmt/base.h` to `fmt/format.h`.
 
 -   Added an overload of `fmt::join` that works with tuples
     (https://github.com/fmtlib/fmt/issues/1322,
@@ -3379,7 +3379,7 @@
 
     ```c++
     #include <locale>
-    #include <fmt/core.h>
+    #include <fmt/base.h>
 
     int main() {
       std::locale::global(std::locale("ru_RU.UTF-8"));
@@ -4251,7 +4251,7 @@
     API](https://fmt.dev/latest/api.html#core-api):
 
     ```c++
-    #include <fmt/core.h>
+    #include <fmt/base.h>
 
     fmt::print("The answer is {}.", 42);
     ```
@@ -4326,7 +4326,7 @@
     (https://github.com/fmtlib/fmt/pull/607):
 
     ```c++
-    #include <fmt/core.h>
+    #include <fmt/base.h>
     #include <experimental/string_view>
 
     fmt::print("{}", std::experimental::string_view("foo"));

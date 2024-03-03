@@ -13,7 +13,7 @@
 #include <string>
 
 #include "fmt/os.h"
-#include "fmt/core.h"
+#include "fmt/base.h"
 #include "fmt/std.h"
 #include "fmt/ostream.h"
 
