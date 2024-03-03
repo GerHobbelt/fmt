@@ -135,17 +135,8 @@ FMT_END_NAMESPACE
 #      define FMT_THROW(x) throw x
 #    endif
 #  else
-#    ifdef _DEBUG
-#      define FMT_THROW(x)            \
-        do {                          \
-          ::printf("%s\n", x.what()); \
-        } while (false)
-#    else
-#      define FMT_THROW(x)            \
-        do {                          \
-          static_cast<void>(x);       \
-        } while (false)
-#    endif
+#    define FMT_THROW(x) \
+      ::fmt::detail::assert_fail(__FILE__, __LINE__, (x).what())
 #  endif
 #endif
 
