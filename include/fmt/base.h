@@ -2023,7 +2023,7 @@ template <typename Context = format_context, typename... T,
           size_t NUM_NAMED_ARGS = detail::count_named_args<T...>(),
           unsigned long long DESC = detail::make_descriptor<Context, T...>(),
           FMT_ENABLE_IF(NUM_NAMED_ARGS == 0)>
-constexpr FMT_ALWAYS_INLINE auto make_format_args(const T&... args)
+constexpr FMT_ALWAYS_INLINE auto make_format_args(T&... args)
     -> detail::format_arg_store<Context, NUM_ARGS, 0, DESC> {
   return {{detail::make_arg<NUM_ARGS <= detail::max_packed_args, Context>(
       args)...}};
@@ -2036,7 +2036,7 @@ template <typename Context = format_context, typename... T,
               detail::make_descriptor<Context, T...>() |
               static_cast<unsigned long long>(detail::has_named_args_bit),
           FMT_ENABLE_IF(NUM_NAMED_ARGS != 0)>
-constexpr auto make_format_args(const T&... args)
+constexpr auto make_format_args(T&... args)
     -> detail::format_arg_store<Context, sizeof...(T), NUM_NAMED_ARGS, DESC> {
   return {args...};
 }
