@@ -63,17 +63,6 @@
 #  endif
 #endif
 
-// Check if typeid is available.
-#ifndef FMT_USE_TYPEID
-// __RTTI is for EDG compilers. _CPPRTTI is for MSVC.
-#  if defined(__GXX_RTTI) || FMT_HAS_FEATURE(cxx_rtti) || defined(_CPPRTTI) || \
-      defined(__INTEL_RTTI__) || defined(__RTTI)
-#    define FMT_USE_TYPEID 1
-#  else
-#    define FMT_USE_TYPEID 0
-#  endif
-#endif
-
 // For older Xcode versions, __cpp_lib_xxx flags are inaccurately defined.
 #ifndef FMT_CPP_LIB_FILESYSTEM
 #  ifdef __cpp_lib_filesystem
@@ -444,7 +433,7 @@ struct formatter<
     if (it == end || *it == '}') return it;
     if (*it == 't') {
       ++it;
-      with_typename_ = FMT_USE_TYPEID != 0;
+      with_typename_ = FMT_USE_RTTI != 0;
     }
     return it;
   }
@@ -456,7 +445,7 @@ struct formatter<
     if (!with_typename_)
       return detail::write_bytes<Char>(out, string_view(ex.what()));
 
-#if FMT_USE_TYPEID
+#if FMT_USE_RTTI
     const std::type_info& ti = typeid(ex);
 #  ifdef FMT_HAS_ABI_CXA_DEMANGLE
     int status = 0;
