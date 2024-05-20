@@ -769,28 +769,22 @@ using is_integer =
 #  define FMT_USE_LONG_DOUBLE 1
 #endif
 
-#ifndef FMT_USE_FLOAT128
-#  ifdef __clang__
-// Clang emulates GCC, so it has to appear early.
-#    if FMT_HAS_INCLUDE(<quadmath.h>)
-#      define FMT_USE_FLOAT128 1
-#    endif
-#  elif defined(__GNUC__)
-// GNU C++:
-#    if defined(_GLIBCXX_USE_FLOAT128) && !defined(__STRICT_ANSI__)
-#      define FMT_USE_FLOAT128 1
-#    endif
-#  endif
-#  ifndef FMT_USE_FLOAT128
-#    define FMT_USE_FLOAT128 0
-#  endif
+#if defined(FMT_USE_FLOAT128)
+// Use the provided definition.
+#elif FMT_CLANG_VERSION && FMT_HAS_INCLUDE(<quadmath.h>)
+#  define FMT_USE_FLOAT128 1
+#elif FMT_GCC_VERSION && defined(_GLIBCXX_USE_FLOAT128) && \
+    !defined(__STRICT_ANSI__)
+#  define FMT_USE_FLOAT128 1
+#else
+#  define FMT_USE_FLOAT128 0
 #endif
-
 #if FMT_USE_FLOAT128
 using float128 = __float128;
 #else
 using float128 = void;
 #endif
+
 template <typename T> using is_float128 = std::is_same<T, float128>;
 
 template <typename T>
@@ -3733,7 +3727,9 @@ FMT_CONSTEXPR auto write(OutputIt out, const T& value) -> enable_if_t<
 template <typename Char, typename OutputIt, typename T,
           typename Context = basic_format_context<OutputIt, Char>>
 FMT_CONSTEXPR auto write(OutputIt out, const T& value)
-    -> enable_if_t<mapped_type_constant<T, Context>::value == type::custom_type,
+    -> enable_if_t<mapped_type_constant<T, Context>::value ==
+                           type::custom_type &&
+                       !std::is_fundamental<T>::value,
                    OutputIt> {
   auto formatter = typename Context::template formatter_type<T>();
   auto parse_ctx = typename Context::parse_context_type({});
@@ -4141,9 +4137,10 @@ template <typename T> struct formatter<group_digits_view<T>> : formatter<T> {
                                                        specs.width_ref, ctx);
     detail::handle_dynamic_spec<detail::precision_checker>(
         specs.precision, specs.precision_ref, ctx);
-    return detail::write_int(ctx.out(),
-                             static_cast<detail::uint64_or_128_t<T>>(t.value),
-                             0, specs, detail::digit_grouping<char>("\3", ","));
+    auto arg = detail::make_write_int_arg(t.value, specs.sign);
+    return detail::write_int(
+        ctx.out(), static_cast<detail::uint64_or_128_t<T>>(arg.abs_value),
+        arg.prefix, specs, detail::digit_grouping<char>("\3", ","));
   }
 };
 
