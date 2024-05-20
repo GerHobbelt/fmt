@@ -17,6 +17,7 @@
 #  include <iterator>
 #  include <tuple>
 #  include <type_traits>
+#  include <utility>
 #endif
 
 #include "format.h"
@@ -488,7 +489,7 @@ struct range_formatter<
 
   template <typename R, typename FormatContext>
   auto format(R&& range, FormatContext& ctx) const -> decltype(ctx.out()) {
-    detail::range_mapper<buffered_context<Char>> mapper;
+    auto mapper = detail::range_mapper<buffered_context<Char>>();
     auto out = ctx.out();
     auto it = detail::range_begin(range);
     auto end = detail::range_end(range);
@@ -516,37 +517,25 @@ struct range_format_kind
 template <typename R, typename Char>
 struct formatter<
     R, Char,
-    enable_if_t<conjunction<bool_constant<range_format_kind<R, Char>::value !=
-                                          range_format::disabled>
+    enable_if_t<conjunction<
+        bool_constant<range_format_kind<R, Char>::value !=
+                          range_format::disabled &&
+                      range_format_kind<R, Char>::value != range_format::map>
 // Workaround a bug in MSVC 2015 and earlier.
 #if !FMT_MSC_VERSION || FMT_MSC_VERSION >= 1910
-                            ,
-                            detail::is_formattable_delayed<R, Char>
+        ,
+        detail::is_formattable_delayed<R, Char>
 #endif
-                            >::value>> {
+        >::value>> {
  private:
   using range_type = detail::maybe_const_range<R>;
   range_formatter<detail::uncvref_type<range_type>, Char> range_formatter_;
 
-  FMT_CONSTEXPR void init(detail::range_format_constant<range_format::set>) {
-    range_formatter_.set_brackets(detail::string_literal<Char, '{'>{},
-                                  detail::string_literal<Char, '}'>{});
-  }
-
-  FMT_CONSTEXPR void init(detail::range_format_constant<range_format::map>) {
-    range_formatter_.set_brackets(detail::string_literal<Char, '{'>{},
-                                  detail::string_literal<Char, '}'>{});
-    range_formatter_.underlying().set_brackets({}, {});
-    range_formatter_.underlying().set_separator(
-        detail::string_literal<Char, ':', ' '>{});
-  }
-
-  FMT_CONSTEXPR void init(
-      detail::range_format_constant<range_format::sequence>) {}
-
  public:
   FMT_CONSTEXPR formatter() {
-    init(detail::range_format_constant<range_format_kind<R, Char>::value>());
+    if (range_format_kind<R, Char>::value != range_format::set) return;
+    range_formatter_.set_brackets(detail::string_literal<Char, '{'>{},
+                                  detail::string_literal<Char, '}'>{});
   }
 
   template <typename ParseContext>
@@ -561,6 +550,63 @@ struct formatter<
   }
 };
 
+// A map formatter.
+template <typename R, typename Char>
+struct formatter<
+    R, Char,
+    enable_if_t<range_format_kind<R, Char>::value == range_format::map>> {
+ private:
+  using map_type = detail::maybe_const_range<R>;
+  using element_type = detail::uncvref_type<map_type>;
+
+  decltype(detail::tuple::get_formatters<element_type, Char>(
+      detail::tuple_index_sequence<element_type>())) formatters_;
+  bool no_delimiters_ = false;
+
+ public:
+  FMT_CONSTEXPR formatter() {}
+
+  template <typename ParseContext>
+  FMT_CONSTEXPR auto parse(ParseContext& ctx) -> decltype(ctx.begin()) {
+    auto it = ctx.begin();
+    auto end = ctx.end();
+    if (it != end) {
+      if (detail::to_ascii(*it) == 'n') {
+        no_delimiters_ = true;
+        ++it;
+      }
+      if (it != end && *it != '}') {
+        if (*it != ':') report_error("invalid format specifier");
+        ++it;
+      }
+      ctx.advance_to(it);
+    }
+    detail::for_each(formatters_, detail::parse_empty_specs<ParseContext>{ctx});
+    return it;
+  }
+
+  template <typename FormatContext>
+  auto format(map_type& map, FormatContext& ctx) const -> decltype(ctx.out()) {
+    auto out = ctx.out();
+    basic_string_view<Char> open = detail::string_literal<Char, '{'>{};
+    if (!no_delimiters_) out = detail::copy<Char>(open, out);
+    int i = 0;
+    auto mapper = detail::range_mapper<buffered_context<Char>>();
+    basic_string_view<Char> sep = detail::string_literal<Char, ',', ' '>{};
+    for (auto&& value : map) {
+      if (i > 0) out = detail::copy<Char>(sep, out);
+      ctx.advance_to(out);
+      detail::for_each2(formatters_, mapper.map(value),
+                        detail::format_tuple_element<FormatContext>{
+                            0, ctx, detail::string_literal<Char, ':', ' '>{}});
+      ++i;
+    }
+    basic_string_view<Char> close = detail::string_literal<Char, '}'>{};
+    if (!no_delimiters_) out = detail::copy<Char>(close, out);
+    return out;
+  }
+};
+
 template <typename It, typename Sentinel, typename Char = char>
 struct join_view : detail::view {
   It begin;
@@ -568,7 +614,7 @@ struct join_view : detail::view {
   basic_string_view<Char> sep;
 
   join_view(It b, Sentinel e, basic_string_view<Char> s)
-      : begin(b), end(e), sep(s) {}
+      : begin(std::move(b)), end(e), sep(s) {}
 };
 
 template <typename It, typename Sentinel, typename Char>
@@ -588,10 +634,25 @@ struct formatter<join_view<It, Sentinel, Char>, Char> {
     return value_formatter_.parse(ctx);
   }
 
-  template <typename FormatContext>
-  auto format(const join_view<It, Sentinel, Char>& value,
+  template <typename FormatContext, typename Iter,
+            FMT_ENABLE_IF(std::is_copy_constructible<Iter>::value)>
+  auto format(const join_view<Iter, Sentinel, Char>& value,
               FormatContext& ctx) const -> decltype(ctx.out()) {
     auto it = value.begin;
+    return do_format(value, ctx, it);
+  }
+
+  template <typename FormatContext, typename Iter,
+            FMT_ENABLE_IF(!std::is_copy_constructible<Iter>::value)>
+  auto format(join_view<Iter, Sentinel, Char>& value, FormatContext& ctx) const
+      -> decltype(ctx.out()) {
+    return do_format(value, ctx, value.begin);
+  }
+
+ private:
+  template <typename FormatContext>
+  auto do_format(const join_view<It, Sentinel, Char>& value, FormatContext& ctx,
+                 It& it) const -> decltype(ctx.out()) {
     auto out = ctx.out();
     if (it != value.end) {
       out = value_formatter_.format(*it, ctx);
@@ -613,7 +674,7 @@ struct formatter<join_view<It, Sentinel, Char>, Char> {
  */
 template <typename It, typename Sentinel>
 auto join(It begin, Sentinel end, string_view sep) -> join_view<It, Sentinel> {
-  return {begin, end, sep};
+  return {std::move(begin), end, sep};
 }
 
 /**
