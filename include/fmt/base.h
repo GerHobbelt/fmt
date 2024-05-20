@@ -297,7 +297,7 @@ import std;
 #endif
 
 #ifndef FMT_UNICODE
-#  define FMT_UNICODE !FMT_MSC_VERSION
+#  define FMT_UNICODE 1
 #endif
 
 #define FMT_FWD(...) static_cast<decltype(__VA_ARGS__)&&>(__VA_ARGS__)
@@ -441,12 +441,19 @@ struct is_std_string_like<T, void_t<decltype(std::declval<T>().find_first_of(
                                  typename T::value_type(), 0))>>
     : std::true_type {};
 
-FMT_CONSTEXPR inline auto is_utf8() -> bool {
+FMT_CONSTEXPR inline auto is_utf8_enabled() -> bool {
   FMT_MSC_WARNING(suppress : 4566) constexpr unsigned char section[] = "\u00A7";
   // Avoid an MSVC sign extension bug: https://github.com/fmtlib/fmt/pull/2297.
   using uchar = unsigned char;
-  return FMT_UNICODE || (sizeof(section) == 3 && uchar(section[0]) == 0xC2 &&
-                         uchar(section[1]) == 0xA7);
+  constexpr bool utf8 = sizeof(section) == 3 && uchar(section[0]) == 0xC2 &&
+                        uchar(section[1]) == 0xA7;
+  static_assert(utf8 || !FMT_MSC_VERSION,
+                "Unicode support requires compiling with /utf-8");
+  return utf8;
+}
+
+FMT_CONSTEXPR inline auto is_utf8() -> bool {
+  return FMT_UNICODE || is_utf8_enabled();
 }
 
 template <typename Char> FMT_CONSTEXPR auto length(const Char* s) -> size_t {
