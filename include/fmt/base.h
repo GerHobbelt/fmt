@@ -152,7 +152,7 @@ import std;
 #elif defined(__NVCOMPILER)
 #  define FMT_USE_NONTYPE_TEMPLATE_ARGS 0
 #elif FMT_GCC_VERSION >= 903 && FMT_CPLUSPLUS >= 201709L
-#  define FMT_USE_NONTYPE_TEMPLATE_ARGS 0
+#  define FMT_USE_NONTYPE_TEMPLATE_ARGS 1
 #elif defined(__cpp_nontype_template_args) && \
     __cpp_nontype_template_args >= 201911L
 #  define FMT_USE_NONTYPE_TEMPLATE_ARGS 1
@@ -392,17 +392,17 @@ template <typename T> constexpr auto const_check(T value) -> T { return value; }
 FMT_NORETURN FMT_API void assert_fail(const char* file, int line,
                                       const char* message);
 
-#ifndef FMT_ASSERT
-#  ifdef NDEBUG
+#if defined(FMT_ASSERT)
+// Use the provided definition.
+#elif defined(NDEBUG)
 // FMT_ASSERT is not empty to avoid -Wempty-body.
-#    define FMT_ASSERT(condition, message) \
-      fmt::detail::ignore_unused((condition), (message))
-#  else
-#    define FMT_ASSERT(condition, message)                                    \
-      ((condition) /* void() fails with -Winvalid-constexpr on clang 4.0.1 */ \
-           ? (void)0                                                          \
-           : fmt::detail::assert_fail(__FILE__, __LINE__, (message)))
-#  endif
+#  define FMT_ASSERT(condition, message) \
+    fmt::detail::ignore_unused((condition), (message))
+#else
+#  define FMT_ASSERT(condition, message)                                    \
+    ((condition) /* void() fails with -Winvalid-constexpr on clang 4.0.1 */ \
+         ? (void)0                                                          \
+         : fmt::detail::assert_fail(__FILE__, __LINE__, (message)))
 #endif
 
 #ifdef FMT_USE_INT128
