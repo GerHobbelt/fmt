@@ -146,7 +146,8 @@ option(FMT_WERROR "Halt the compilation with an error on compiler warnings."
 
 # Options that control generation of various targets.
 option(FMT_DOC "Generate the doc target." ${FMT_MASTER_PROJECT})
-option(FMT_INSTALL "Generate the install target." ON)
+#option(FMT_INSTALL "Generate the install target." ON)
+option(FMT_INSTALL "Generate the install target." ${FMT_MASTER_PROJECT})
 option(FMT_TEST "Generate the test target." ${FMT_MASTER_PROJECT})
 option(FMT_FUZZ "Generate the fuzz target." OFF)
 option(FMT_CUDA_TEST "Generate the cuda-test target." OFF)
@@ -192,6 +193,14 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH}
 
 include(CheckCXXCompilerFlag)
 include(JoinPaths)
+
+list(FIND CMAKE_CXX_COMPILE_FEATURES "cxx_variadic_templates" index)
+if (${index} GREATER -1)
+  # Use cxx_variadic_templates instead of more appropriate cxx_std_11 for
+  # compatibility with older CMake versions.
+  set(FMT_REQUIRED_FEATURES cxx_variadic_templates)
+endif ()
+message(STATUS "Required features: ${FMT_REQUIRED_FEATURES}")
 
 if (FMT_MASTER_PROJECT AND NOT DEFINED CMAKE_CXX_VISIBILITY_PRESET)
   set_verbose(CMAKE_CXX_VISIBILITY_PRESET hidden CACHE STRING
@@ -300,11 +309,13 @@ if (FMT_PEDANTIC)
   target_compile_options(fmt PRIVATE ${PEDANTIC_COMPILE_FLAGS})
 endif ()
 
-if (cxx_std_11 IN_LIST CMAKE_CXX_COMPILE_FEATURES)
-  target_compile_features(fmt PUBLIC cxx_std_11)
-else ()
-  message(WARNING "Feature cxx_std_11 is unknown for the CXX compiler")
-endif ()
+#if (cxx_std_11 IN_LIST CMAKE_CXX_COMPILE_FEATURES)
+#  target_compile_features(fmt PUBLIC cxx_std_11)
+#else ()
+#  message(WARNING "Feature cxx_std_11 is unknown for the CXX compiler")
+#endif ()
+
+target_compile_features(fmt INTERFACE ${FMT_REQUIRED_FEATURES})
 
 target_include_directories(fmt ${FMT_SYSTEM_HEADERS_ATTRIBUTE} PUBLIC
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
@@ -343,7 +354,8 @@ add_library(fmt-header-only INTERFACE)
 add_library(fmt::fmt-header-only ALIAS fmt-header-only)
 
 target_compile_definitions(fmt-header-only INTERFACE FMT_HEADER_ONLY=1)
-target_compile_features(fmt-header-only INTERFACE cxx_std_11)
+#target_compile_features(fmt-header-only INTERFACE cxx_std_11)
+target_compile_features(fmt-header-only INTERFACE ${FMT_REQUIRED_FEATURES})
 
 target_include_directories(fmt-header-only
   ${FMT_SYSTEM_HEADERS_ATTRIBUTE} INTERFACE
