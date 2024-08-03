@@ -34,7 +34,7 @@
 //#define FMT_LOCALE
 
 // The fmt library version in the form major * 10000 + minor * 100 + patch.
-#define FMT_VERSION 110000
+#define FMT_VERSION 110001
 
 // Detect compiler versions.
 #if defined(__clang__) && !defined(__ibmxl__)
@@ -462,7 +462,8 @@ struct is_std_string_like : std::false_type {};
 template <typename T>
 struct is_std_string_like<T, void_t<decltype(std::declval<T>().find_first_of(
                                  typename T::value_type(), 0))>>
-    : std::true_type {};
+    : std::is_convertible<decltype(std::declval<T>().data()),
+                          const typename T::value_type*> {};
 
 // Returns true iff the literal encoding is UTF-8.
 constexpr auto is_utf8_enabled() -> bool {
