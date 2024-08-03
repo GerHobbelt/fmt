@@ -34,7 +34,7 @@
 //#define FMT_LOCALE
 
 // The fmt library version in the form major * 10000 + minor * 100 + patch.
-#define FMT_VERSION 110001
+#define FMT_VERSION 110002
 
 // Detect compiler versions.
 #if defined(__clang__) && !defined(__ibmxl__)
@@ -1206,20 +1206,6 @@ namespace detail {
 template <typename T>
 struct is_back_insert_iterator<basic_appender<T>> : std::true_type {};
 
-template <typename T, typename Enable = void>
-struct locking : std::true_type {};
-template <typename T>
-struct locking<T, void_t<typename formatter<remove_cvref_t<T>>::nonlocking>>
-    : std::false_type {};
-
-template <typename T = int> FMT_CONSTEXPR inline auto is_locking() -> bool {
-  return locking<T>::value;
-}
-template <typename T1, typename T2, typename... Tail>
-FMT_CONSTEXPR inline auto is_locking() -> bool {
-  return locking<T1>::value || is_locking<T2, Tail...>();
-}
-
 // An optimized version of std::copy with the output value type (T).
 template <typename T, typename InputIt, typename OutputIt,
           FMT_ENABLE_IF(is_back_insert_iterator<OutputIt>::value)>
@@ -2096,6 +2082,21 @@ enum type FMT_ENUM_UNDERLYING_TYPE(unsigned char){none, minus, plus, space};
 using sign_t = sign::type;
 
 namespace detail {
+
+template <typename T, typename Enable = void>
+struct locking : bool_constant<mapped_type_constant<T, format_context>::value ==
+                               type::custom_type> {};
+template <typename T>
+struct locking<T, void_t<typename formatter<remove_cvref_t<T>>::nonlocking>>
+    : std::false_type {};
+
+template <typename T = int> FMT_CONSTEXPR inline auto is_locking() -> bool {
+  return locking<T>::value;
+}
+template <typename T1, typename T2, typename... Tail>
+FMT_CONSTEXPR inline auto is_locking() -> bool {
+  return locking<T1>::value || is_locking<T2, Tail...>();
+}
 
 template <typename Char>
 using unsigned_char = typename conditional_t<std::is_integral<Char>::value,
