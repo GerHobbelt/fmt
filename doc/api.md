@@ -261,7 +261,7 @@ disallowed.
 
 ::: format_context
 
-### Compile-Time Format String Checks
+### Compile-Time Checks
 
 Compile-time format string checks are enabled by default on compilers
 that support C++20 `consteval`. On older compilers you can use the
@@ -333,6 +333,8 @@ formatting functions and locale support.
 
 ::: vformat(string_view, format_args)
 
+::: operator""_a()
+
 ### Utilities
 
 ::: ptr(T)
@@ -357,12 +359,6 @@ functions.
 ::: system_error
 
 ::: format_system_error
-
-### Literal-Based API
-
-The following user-defined literals are defined in `fmt/format.h`.
-
-::: operator""_a()
 
 ### Custom Allocators
 
@@ -421,7 +417,7 @@ parameter to avoid the expensive `<locale>` include.
 ::: formatted_size(const Locale&, format_string<T...>, T&&...)
 
 <a id="legacy-checks"></a>
-### Legacy Compile-Time Format String Checks
+### Legacy Compile-Time Checks
 
 `FMT_STRING` enables compile-time checks on older compilers. It requires
 C++14 or later and is a no-op in C++11.
