@@ -153,15 +153,14 @@ option(FMT_WERROR "Halt the compilation with an error on compiler warnings."
 
 # Options that control generation of various targets.
 option(FMT_DOC "Generate the doc target." ${FMT_MASTER_PROJECT})
-#option(FMT_INSTALL "Generate the install target." ON)
-option(FMT_INSTALL "Generate the install target." ${FMT_MASTER_PROJECT})
+option(FMT_INSTALL "Generate the install target." ON)
 option(FMT_TEST "Generate the test target." ${FMT_MASTER_PROJECT})
 option(FMT_FUZZ "Generate the fuzz target." OFF)
 option(FMT_CUDA_TEST "Generate the cuda-test target." OFF)
 option(FMT_OS "Include OS-specific APIs." ON)
 option(FMT_MODULE "Build a module instead of a traditional library." OFF)
 option(FMT_SYSTEM_HEADERS "Expose headers with marking them as system." OFF)
-option(FMT_GTEST_EXTERNAL "Use an external gtest/gmock library. Doesn't build gtest or gmock if this is enabled." OFF)
+option(FMT_UNICODE "Enable Unicode support." ON)
 
 if (FMT_TEST AND FMT_MODULE)
   # The tests require {fmt} to be compiled as traditional library
@@ -200,14 +199,6 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH}
 
 include(CheckCXXCompilerFlag)
 include(JoinPaths)
-
-list(FIND CMAKE_CXX_COMPILE_FEATURES "cxx_variadic_templates" index)
-if (${index} GREATER -1)
-  # Use cxx_variadic_templates instead of more appropriate cxx_std_11 for
-  # compatibility with older CMake versions.
-  set(FMT_REQUIRED_FEATURES cxx_variadic_templates)
-endif ()
-message(STATUS "Required features: ${FMT_REQUIRED_FEATURES}")
 
 if (FMT_MASTER_PROJECT AND NOT DEFINED CMAKE_CXX_VISIBILITY_PRESET)
   set_verbose(CMAKE_CXX_VISIBILITY_PRESET hidden CACHE STRING
@@ -302,8 +293,7 @@ add_module_library(fmt src/fmt.cc FALLBACK
 add_library(fmt::fmt ALIAS fmt)
 if (FMT_MODULE)
   enable_module(fmt)
-endif ()
-if (FMT_OS)
+elseif (FMT_OS)
   target_sources(fmt PRIVATE src/os.cc)
 else()
   target_compile_definitions(fmt PRIVATE FMT_OS=0)
@@ -316,13 +306,11 @@ if (FMT_PEDANTIC)
   target_compile_options(fmt PRIVATE ${PEDANTIC_COMPILE_FLAGS})
 endif ()
 
-#if (cxx_std_11 IN_LIST CMAKE_CXX_COMPILE_FEATURES)
-#  target_compile_features(fmt PUBLIC cxx_std_11)
-#else ()
-#  message(WARNING "Feature cxx_std_11 is unknown for the CXX compiler")
-#endif ()
-
-target_compile_features(fmt INTERFACE ${FMT_REQUIRED_FEATURES})
+if (cxx_std_11 IN_LIST CMAKE_CXX_COMPILE_FEATURES)
+  target_compile_features(fmt PUBLIC cxx_std_11)
+else ()
+  message(WARNING "Feature cxx_std_11 is unknown for the CXX compiler")
+endif ()
 
 target_include_directories(fmt ${FMT_SYSTEM_HEADERS_ATTRIBUTE} PUBLIC
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
@@ -360,15 +348,14 @@ endif ()
 add_library(fmt-header-only INTERFACE)
 add_library(fmt::fmt-header-only ALIAS fmt-header-only)
 
-if (MSVC)
+if (MSVC AND FMT_UNICODE)
   # Unicode support requires compiling with /utf-8.
-  target_compile_options(fmt PUBLIC /utf-8)
-  target_compile_options(fmt-header-only INTERFACE /utf-8)
+  target_compile_options(fmt PUBLIC $<$<COMPILE_LANGUAGE:CXX>:/utf-8>)
+  target_compile_options(fmt-header-only INTERFACE $<$<COMPILE_LANGUAGE:CXX>:/utf-8>)
 endif ()
 
 target_compile_definitions(fmt-header-only INTERFACE FMT_HEADER_ONLY=1)
-#target_compile_features(fmt-header-only INTERFACE cxx_std_11)
-target_compile_features(fmt-header-only INTERFACE ${FMT_REQUIRED_FEATURES})
+target_compile_features(fmt-header-only INTERFACE cxx_std_11)
 
 target_include_directories(fmt-header-only
   ${FMT_SYSTEM_HEADERS_ATTRIBUTE} INTERFACE
@@ -462,8 +449,10 @@ function(add_doc_target)
   add_custom_target(
     doc
     COMMAND
-      ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR}/support
+      ${CMAKE_COMMAND}
+        -E env PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR}/support/python
         ${MKDOCS} build -f ${CMAKE_CURRENT_SOURCE_DIR}/support/mkdocs.yml
+                        --site-dir ${CMAKE_CURRENT_BINARY_DIR}/site
                         --no-directory-urls
     SOURCES ${sources})
 
