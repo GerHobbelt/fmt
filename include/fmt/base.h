@@ -2806,6 +2806,11 @@ void check_format_string(S format_str) {
   ignore_unused(error);
 }
 
+// Report truncation to prevent silent data loss.
+inline void report_truncation(bool truncated) {
+  if (truncated) report_error("output is truncated");
+}
+
 // Use vformat_args and avoid type_identity to keep symbols short and workaround
 // a GCC <= 4.8 bug.
 template <typename Char = char> struct vformat_args {
@@ -2985,9 +2990,16 @@ struct format_to_result {
   /// Specifies if the output was truncated.
   bool truncated;
 
-  FMT_CONSTEXPR operator OutputIt&() & noexcept { return out; }
-  FMT_CONSTEXPR operator const OutputIt&() const& noexcept { return out; }
-  FMT_CONSTEXPR operator OutputIt&&() && noexcept {
+  FMT_CONSTEXPR operator OutputIt&() & {
+    detail::report_truncation(truncated);
+    return out;
+  }
+  FMT_CONSTEXPR operator const OutputIt&() const& {
+    detail::report_truncation(truncated);
+    return out;
+  }
+  FMT_CONSTEXPR operator OutputIt&&() && {
+    detail::report_truncation(truncated);
     return static_cast<OutputIt&&>(out);
   }
 };
