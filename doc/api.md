@@ -4,13 +4,13 @@ The {fmt} library API consists of the following components:
 
 - [`fmt/base.h`](#base-api): the base API providing main formatting functions
   for `char`/UTF-8 with C++20 compile-time checks and minimal dependencies
-- [`fmt/format.h`](#format-api): the full format API providing additional
-  formatting functions and locale support
+- [`fmt/format.h`](#format-api): `fmt::format` and other formatting functions
+  as well as locale support
 - [`fmt/ranges.h`](#ranges-api): formatting of ranges and tuples
 - [`fmt/chrono.h`](#chrono-api): date and time formatting
 - [`fmt/std.h`](#std-api): formatters for standard library types
 - [`fmt/compile.h`](#compile-api): format string compilation
-- [`fmt/color.h`](#color-api): terminal color and text style
+- [`fmt/color.h`](#color-api): terminal colors and text styles
 - [`fmt/os.h`](#os-api): system APIs
 - [`fmt/ostream.h`](#ostream-api): `std::ostream` support
 - [`fmt/args.h`](#args-api): dynamic argument lists
@@ -28,11 +28,12 @@ dependencies for better compile times. This header is only beneficial when
 using {fmt} as a library (the default) and not in the header-only mode.
 It also provides `formatter` specializations for the following types:
 
-- `int`, `unsigned`, `long long`, `unsigned long long`
+- `int`, `long long`,
+- `unsigned`, `unsigned long long`
 - `float`, `double`, `long double`
 - `bool`
 - `char`
-- `const char*`, `fmt::string_view`
+- `const char*`, [`fmt::string_view`](#basic_string_view)
 - `const void*`
 
 The following functions use [format string syntax](syntax.md) similar to that
@@ -41,10 +42,10 @@ in Python. They take *fmt* and *args* as arguments.
 
 *fmt* is a format string that contains literal text and replacement fields
 surrounded by braces `{}`. The fields are replaced with formatted arguments
-in the resulting string. [\~fmt::format_string]{.title-ref} is a format string
-which can be implicitly constructed from a string literal or a `constexpr`
-string and is checked at compile time in C++20. To pass a runtime format
-string wrap it in [fmt::runtime]{.title-ref}.
+in the resulting string. [`fmt::format_string`](#format_string) is a format
+string which can be implicitly constructed from a string literal or a
+`constexpr` string and is checked at compile time in C++20. To pass a runtime
+format string wrap it in [`fmt::runtime`](#runtime).
 
 *args* is an argument list representing objects to be formatted.
 
@@ -52,7 +53,6 @@ I/O errors are reported as [`std::system_error`](
 https://en.cppreference.com/w/cpp/error/system_error) exceptions unless
 specified otherwise.
 
-<a id="print"></a>
 ::: print(format_string<T...>, T&&...)
 
 ::: print(FILE*, format_string<T...>, T&&...)
@@ -100,7 +100,7 @@ Example ([run](https://godbolt.org/z/nvME4arz8)):
     }
 
     int main() {
-      fmt::print("{}\n", kevin_namespacy::film::se7en); // prints "7"
+      fmt::print("{}\n", kevin_namespacy::film::se7en); // Output: 7
     }
 
 Using specialization is more complex but gives you full control over
@@ -154,7 +154,7 @@ fmt::format("{:>10}", color::blue)
 
 will return `"      blue"`.
 
-The experimental `nested_formatter` provides an easy way of applying a
+<!-- The experimental `nested_formatter` provides an easy way of applying a
 formatter to one or more subobjects.
 
 For example:
@@ -185,7 +185,7 @@ prints:
 
 Notice that fill, align and width are applied to the whole object which
 is the recommended behavior while the remaining specifiers apply to
-elements.
+elements. -->
 
 In general the formatter has the following form:
 
@@ -232,10 +232,10 @@ struct B : A {
 };
 
 template <typename T>
-struct fmt::formatter<T, std::enable_if_t<std::is_base_of<A, T>::value, char>> :
+struct fmt::formatter<T, std::enable_if_t<std::is_base_of_v<A, T>, char>> :
     fmt::formatter<std::string> {
   auto format(const A& a, format_context& ctx) const {
-    return fmt::formatter<std::string>::format(a.name(), ctx);
+    return formatter<std::string>::format(a.name(), ctx);
   }
 };
 ```
@@ -248,18 +248,24 @@ struct fmt::formatter<T, std::enable_if_t<std::is_base_of<A, T>::value, char>> :
 int main() {
   B b;
   A& a = b;
-  fmt::print("{}", a); // prints "B"
+  fmt::print("{}", a); // Output: B
 }
 ```
 
-Providing both a `formatter` specialization and a `format_as` overload
-is disallowed.
+Providing both a `formatter` specialization and a `format_as` overload is
+disallowed.
+
+::: basic_format_parse_context
+
+::: context
+
+::: format_context
 
 ### Compile-Time Format String Checks
 
 Compile-time format string checks are enabled by default on compilers
 that support C++20 `consteval`. On older compilers you can use the
-[FMT_STRING](legacy-checks>) macro defined in `fmt/format.h` instead.
+[FMT_STRING](#legacy-checks) macro defined in `fmt/format.h` instead.
 
 Unused arguments are allowed as in Python's `str.format` and ordinary functions.
 
@@ -275,7 +281,7 @@ Unused arguments are allowed as in Python's `str.format` and ordinary functions.
 
 Named arguments are not supported in compile-time checks at the moment.
 
-### Argument Lists
+### Type Erasure
 
 You can create your own formatting function with compile-time checks and
 small binary footprint, for example ([run](https://godbolt.org/z/b9Pbasvzc)):
@@ -310,12 +316,6 @@ parameterized version.
 ::: format_args
 
 ::: basic_format_arg
-
-::: basic_format_parse_context
-
-::: context
-
-::: format_context
 
 ### Compatibility
 
@@ -368,7 +368,7 @@ The following user-defined literals are defined in `fmt/format.h`.
 
 The {fmt} library supports custom dynamic memory allocators. A custom
 allocator class can be specified as a template argument to
-`fmt::basic_memory_buffer`{.interpreted-text role="class"}:
+[`fmt::basic_memory_buffer`](#basic_memory_buffer):
 
     using custom_memory_buffer = 
       fmt::basic_memory_buffer<char, fmt::inline_buffer_size, custom_allocator>;
@@ -394,7 +394,7 @@ allocator:
     }
 
 The allocator will be used for the output container only. Formatting
-functions normally don\'t do any allocations for built-in and string
+functions normally don't do any allocations for built-in and string
 types except for non-default floating-point formatting that occasionally
 falls back on `sprintf`.
 
@@ -426,9 +426,7 @@ parameter to avoid the expensive `<locale>` include.
 `FMT_STRING` enables compile-time checks on older compilers. It requires
 C++14 or later and is a no-op in C++11.
 
-:: {.doxygendefine}
-FMT_STRING
-::
+::: FMT_STRING
 
 To force the use of legacy compile-time checks, define the preprocessor
 variable `FMT_ENFORCE_COMPILE_STRING`. When set, functions accepting
@@ -437,35 +435,36 @@ variable `FMT_ENFORCE_COMPILE_STRING`. When set, functions accepting
 <a id="ranges-api"></a>
 ## Range and Tuple Formatting
 
-The library also supports convenient formatting of ranges and tuples:
+`fmt/ranges.h` provides formatting support for ranges and tuples:
 
     #include <fmt/ranges.h>
 
-    std::tuple<char, int, float> t{'a', 1, 2.0f};
-    // Prints "('a', 1, 2.0)"
-    fmt::print("{}", t);
+    fmt::print("{}", std::tuple<char, int>{'a', 42});
+    // Output: ('a', 42)
 
-Using `fmt::join`, you can separate tuple elements with a custom
-separator:
+Using `fmt::join`, you can separate tuple elements with a custom separator:
 
     #include <fmt/ranges.h>
 
-    std::tuple<int, char> t = {1, 'a'};
-    // Prints "1, a"
+    auto t = std::tuple<int, char>{1, 'a'};
     fmt::print("{}", fmt::join(t, ", "));
+    // Output: 1, a
 
 ::: join(Range&&, string_view)
 
 ::: join(It, Sentinel, string_view)
+
+::: join(std::initializer_list<T>, string_view)
 
 <a id="chrono-api"></a>
 ## Date and Time Formatting
 
 `fmt/chrono.h` provides formatters for
 
-- [std::chrono::duration](https://en.cppreference.com/w/cpp/chrono/duration)
-- [std::chrono::time_point](https://en.cppreference.com/w/cpp/chrono/time_point)
-- [std::tm](https://en.cppreference.com/w/cpp/chrono/c/tm)
+- [`std::chrono::duration`](https://en.cppreference.com/w/cpp/chrono/duration)
+- [`std::chrono::time_point`](
+  https://en.cppreference.com/w/cpp/chrono/time_point)
+- [`std::tm`](https://en.cppreference.com/w/cpp/chrono/c/tm)
 
 The format syntax is described in [Chrono Format Specifications](syntax.md#
 chrono-format-specifications).
@@ -477,23 +476,25 @@ chrono-format-specifications).
     int main() {
       std::time_t t = std::time(nullptr);
 
-      // Prints "The date is 2020-11-07." (with the current date):
       fmt::print("The date is {:%Y-%m-%d}.", fmt::localtime(t));
+      // Output: The date is 2020-11-07.
+      // (with 2020-11-07 replaced by the current date)
 
       using namespace std::literals::chrono_literals;
 
-      // Prints "Default format: 42s 100ms":
       fmt::print("Default format: {} {}\n", 42s, 100ms);
+      // Output: Default format: 42s 100ms
 
-      // Prints "strftime-like format: 03:15:30":
       fmt::print("strftime-like format: {:%H:%M:%S}\n", 3h + 15min + 30s);
+      // Output: strftime-like format: 03:15:30
     }
 
 ::: localtime(std::time_t)
 
 ::: gmtime(std::time_t)
 
-## Standard Library Types Formatting {#std-api}
+<a id="std-api"></a>
+## Standard Library Types Formatting
 
 `fmt/std.h` provides formatters for:
 
@@ -550,13 +551,12 @@ Format string compilation can generate more binary code compared to the
 default API and is only recommended in places where formatting is a
 performance bottleneck.
 
-:: {.doxygendefine}
-FMT_COMPILE
-::
+::: FMT_COMPILE
 
 ::: operator""_cf
 
-## Terminal Color and Text Style {#color-api}
+<a id="color-api"></a>
+## Terminal Colors and Text Styles
 
 `fmt/color.h` provides support for terminal color and text style output.
 
@@ -568,13 +568,15 @@ FMT_COMPILE
 
 ::: styled(const T&, text_style)
 
-## System APIs {#os-api}
+<a id="os-api"></a>
+## System APIs
 
 ::: ostream
 
 ::: windows_error
 
-## `std::ostream` Support {#ostream-api}
+<a id="ostream-api"></a>
+## `std::ostream` Support
 
 `fmt/ostream.h` provides `std::ostream` support including formatting of
 user-defined types that have an overloaded insertion operator
@@ -601,21 +603,23 @@ you should provide a `formatter` specialization inherited from
 
 ::: print(std::ostream&, format_string<T...>, T&&...)
 
-## Dynamic Argument Lists {#args-api}
+<a id="args-api"></a>
+## Dynamic Argument Lists
 
 The header `fmt/args.h` provides `dynamic_format_arg_store`, a builder-like API
 that can be used to construct format argument lists dynamically.
 
 ::: dynamic_format_arg_store
 
-## `printf` Formatting {#printf-api}
+<a id="printf-api"></a>
+## `printf` Formatting
 
 The header `fmt/printf.h` provides `printf`-like formatting
 functionality. The following functions use [printf format string
 syntax](https://pubs.opengroup.org/onlinepubs/009695399/functions/fprintf.html)
 with the POSIX extension for positional arguments. Unlike their standard
 counterparts, the `fmt` functions are type-safe and throw an exception
-if an argument type doesn\'t match its format specification.
+if an argument type doesn't match its format specification.
 
 ::: printf(string_view, const T&...)
 
@@ -645,5 +649,5 @@ following differences:
 
 - Names are defined in the `fmt` namespace instead of `std` to avoid
   collisions with standard library implementations.
-- Width calculation doesn\'t use grapheme clusterization. The latter has
-  been implemented in a separate branch but hasn\'t been integrated yet.
+- Width calculation doesn't use grapheme clusterization. The latter has
+  been implemented in a separate branch but hasn't been integrated yet.

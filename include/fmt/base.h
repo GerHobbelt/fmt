@@ -909,14 +909,14 @@ template <typename T> class buffer {
   /// Clears this buffer.
   void clear() { size_ = 0; }
 
-  // Tries resizing the buffer to contain *count* elements. If T is a POD type
+  // Tries resizing the buffer to contain `count` elements. If T is a POD type
   // the new elements may not be initialized.
   FMT_CONSTEXPR void try_resize(size_t count) {
     try_reserve(count);
     size_ = count <= capacity_ ? count : capacity_;
   }
 
-  // Tries increasing the buffer capacity to *new_capacity*. It can increase the
+  // Tries increasing the buffer capacity to `new_capacity`. It can increase the
   // capacity by a smaller amount than requested but guarantees there is space
   // for at least one additional element either by increasing the capacity or by
   // flushing the buffer if it is full.
@@ -3020,7 +3020,7 @@ FMT_API void vprintln(FILE* f, string_view fmt, format_args args);
  * to `stdout`.
  *
  * **Example**:
- * 
+ *
  *     fmt::print("The answer is {}.", 42);
  */
 template <typename... T>
