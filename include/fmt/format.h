@@ -821,25 +821,17 @@ FMT_BEGIN_EXPORT
 enum { inline_buffer_size = 500 };
 
 /**
-  \rst
-  A dynamically growing memory buffer for trivially copyable/constructible types
-  with the first ``SIZE`` elements stored in the object itself.
-
-  You can use the ``memory_buffer`` type alias for ``char`` instead.
-
-  **Example**::
-
-     auto out = fmt::memory_buffer();
-     fmt::format_to(std::back_inserter(out), "The answer is {}.", 42);
-
-  This will append the following output to the ``out`` object:
-
-  .. code-block:: none
-
-     The answer is 42.
-
-  The output can be converted to an ``std::string`` with ``to_string(out)``.
-  \endrst
+ * A dynamically growing memory buffer for trivially copyable/constructible
+ * types with the first `SIZE` elements stored in the object itself. Most
+ * commonly used via the `memory_buffer` alias for `char`.
+ *
+ * **Example**::
+ *
+ *     auto out = fmt::memory_buffer();
+ *     fmt::format_to(std::back_inserter(out), "The answer is {}.", 42);
+ *
+ * This will append "The answer is 42." to `out`. The buffer content can be
+ * converted to `std::string` with `to_string(out)`.
  */
 template <typename T, size_t SIZE = inline_buffer_size,
           typename Allocator = std::allocator<T>>
@@ -912,22 +904,14 @@ class basic_memory_buffer : public detail::buffer<T> {
   }
 
  public:
-  /**
-    \rst
-    Constructs a :class:`fmt::basic_memory_buffer` object moving the content
-    of the other object to it.
-    \endrst
-   */
+  /// Constructs a `basic_memory_buffer` object moving the content of the other
+  /// object to it.
   FMT_CONSTEXPR20 basic_memory_buffer(basic_memory_buffer&& other) noexcept
       : detail::buffer<T>(grow) {
     move(other);
   }
 
-  /**
-    \rst
-    Moves the content of the other ``basic_memory_buffer`` object to this one.
-    \endrst
-   */
+  /// Moves the content of the other `basic_memory_buffer` object to this one.
   auto operator=(basic_memory_buffer&& other) noexcept -> basic_memory_buffer& {
     FMT_ASSERT(this != &other, "");
     deallocate();
@@ -938,13 +922,11 @@ class basic_memory_buffer : public detail::buffer<T> {
   // Returns a copy of the allocator associated with this buffer.
   auto get_allocator() const -> Allocator { return alloc_; }
 
-  /**
-    Resizes the buffer to contain *count* elements. If T is a POD type new
-    elements may not be initialized.
-   */
+  /// Resizes the buffer to contain *count* elements. If T is a POD type new
+  /// elements may not be initialized.
   FMT_CONSTEXPR20 void resize(size_t count) { this->try_resize(count); }
 
-  /** Increases the buffer capacity to *new_capacity*. */
+  /// Increases the buffer capacity to *new_capacity*.
   void reserve(size_t new_capacity) { this->try_reserve(new_capacity); }
 
   using detail::buffer<T>::append;
@@ -974,7 +956,7 @@ FMT_BEGIN_EXPORT
 #  pragma clang diagnostic ignored "-Wweak-vtables"
 #endif
 
-/** An error reported from a formatting function. */
+/// An error reported from a formatting function.
 class FMT_SO_VISIBILITY("default") format_error : public std::runtime_error {
  public:
   using std::runtime_error::runtime_error;
@@ -1837,14 +1819,12 @@ inline auto find_escape(const char* begin, const char* end)
   }()
 
 /**
-  \rst
-  Constructs a compile-time format string from a string literal *s*.
-
-  **Example**::
-
-    // A compile-time error because 'd' is an invalid specifier for strings.
-    std::string s = fmt::format(FMT_STRING("{:d}"), "foo");
-  \endrst
+ * Constructs a compile-time format string from a string literal *s*.
+ *
+ * **Example**::
+ *
+ *     // A compile-time error because 'd' is an invalid specifier for strings.
+ *     std::string s = fmt::format(FMT_STRING("{:d}"), "foo");
  */
 #define FMT_STRING(s) FMT_STRING_IMPL(s, fmt::detail::compile_string, )
 
@@ -3900,21 +3880,19 @@ FMT_API auto vsystem_error(int error_code, string_view format_str,
                            format_args args) -> std::system_error;
 
 /**
-  \rst
-  Constructs :class:`std::system_error` with a message formatted with
-  ``fmt::format(fmt, args...)``.
-  *error_code* is a system error code as given by ``errno``.
-
-  **Example**::
-
-    // This throws std::system_error with the description
-    //   cannot open file 'madeup': No such file or directory
-    // or similar (system message may vary).
-    const char* filename = "madeup";
-    std::FILE* file = std::fopen(filename, "r");
-    if (!file)
-      throw fmt::system_error(errno, "cannot open file '{}'", filename);
-  \endrst
+ * Constructs `std::system_error` with a message formatted with
+ * `fmt::format(fmt, args...)`.
+ * *error_code* is a system error code as given by `errno`.
+ *
+ * **Example**::
+ *
+ *     // This throws std::system_error with the description
+ *     //   cannot open file 'madeup': No such file or directory
+ *     // or similar (system message may vary).
+ *     const char* filename = "madeup";
+ *     std::FILE* file = std::fopen(filename, "r");
+ *     if (!file)
+ *       throw fmt::system_error(errno, "cannot open file '{}'", filename);
  */
 template <typename... T>
 auto system_error(int error_code, format_string<T...> fmt, T&&... args)
@@ -4039,13 +4017,11 @@ template <typename Char, size_t N>
 struct formatter<Char[N], Char> : formatter<basic_string_view<Char>, Char> {};
 
 /**
-  \rst
-  Converts ``p`` to ``const void*`` for pointer formatting.
-
-  **Example**::
-
-    auto s = fmt::format("{}", fmt::ptr(p));
-  \endrst
+ * Converts `p` to `const void*` for pointer formatting.
+ *
+ * **Example**::
+ *
+ *     auto s = fmt::format("{}", fmt::ptr(p));
  */
 template <typename T> auto ptr(T p) -> const void* {
   static_assert(std::is_pointer<T>::value, "");
@@ -4053,14 +4029,12 @@ template <typename T> auto ptr(T p) -> const void* {
 }
 
 /**
-  \rst
-  Converts ``e`` to the underlying type.
-
-  **Example**::
-
-    enum class color { red, green, blue };
-    auto s = fmt::format("{}", fmt::underlying(color::red));
-  \endrst
+ * Converts `e` to the underlying type.
+ *
+ * **Example**::
+ *
+ *     enum class color { red, green, blue };
+ *     auto s = fmt::format("{}", fmt::underlying(color::red));
  */
 template <typename Enum>
 constexpr auto underlying(Enum e) noexcept -> underlying_t<Enum> {
@@ -4210,15 +4184,11 @@ template <typename T, typename Char = char> struct nested_formatter {
 };
 
 /**
-  \rst
-  Converts *value* to ``std::string`` using the default format for type *T*.
-
-  **Example**::
-
-    #include <fmt/format.h>
-
-    std::string answer = fmt::to_string(42);
-  \endrst
+ * Converts *value* to ``std::string`` using the default format for type *T*.
+ *
+ * **Example**::
+ *
+ *     std::string answer = fmt::to_string(42);
  */
 template <typename T, FMT_ENABLE_IF(!std::is_integral<T>::value &&
                                     !detail::has_format_as<T>::value)>
@@ -4392,15 +4362,13 @@ constexpr auto operator""_a(const char* s, size_t) -> detail::udl_arg<char> {
 FMT_API auto vformat(string_view fmt, format_args args) -> std::string;
 
 /**
-  \rst
-  Formats ``args`` according to specifications in ``fmt`` and returns the result
-  as a string.
-
-  **Example**::
-
-    #include <fmt/core.h>
-    std::string message = fmt::format("The answer is {}.", 42);
-  \endrst
+ * Formats `args` according to specifications in `fmt` and returns the result
+ * as a string.
+ *
+ * **Example**::
+ *
+ *     #include <fmt/core.h>
+ *     std::string message = fmt::format("The answer is {}.", 42);
 */
 template <typename... T>
 FMT_NODISCARD FMT_INLINE auto format(format_string<T...> fmt, T&&... args)
