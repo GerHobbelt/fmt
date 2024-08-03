@@ -510,7 +510,7 @@ TEST(ranges_test, format_join_adl_begin_end) {
 
 #endif  // FMT_RANGES_TEST_ENABLE_JOIN
 
-#if defined(__cpp_lib_ranges) && __cpp_lib_ranges >= 202302L
+#if defined(__cpp_lib_ranges) && __cpp_lib_ranges >= 202207L
 TEST(ranges_test, nested_ranges) {
   auto l = std::list{1, 2, 3};
   auto r = std::views::iota(0, 3) | std::views::transform([&l](auto i) {
@@ -746,3 +746,9 @@ TEST(ranges_test, movable_only_istream_iter_join) {
   EXPECT_EQ("1, 2, 3, 4, 5",
             fmt::format("{}", fmt::join(std::move(first), last, ", ")));
 }
+
+struct not_range {
+  void begin() const {}
+  void end() const {}
+};
+static_assert(!fmt::is_formattable<not_range>{}, "");

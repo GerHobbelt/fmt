@@ -25,6 +25,7 @@
 FMT_BEGIN_NAMESPACE
 FMT_MODULE_EXPORT_BEGIN
 
+FMT_EXPORT
 enum class range_format { disabled, map, set, sequence, string, debug_string };
 
 FMT_BEGIN_DETAIL_NAMESPACE
@@ -73,7 +74,7 @@ template <typename T, typename Enable = void>
 struct has_member_fn_begin_end_t : std::false_type {};
 
 template <typename T>
-struct has_member_fn_begin_end_t<T, void_t<decltype(std::declval<T>().begin()),
+struct has_member_fn_begin_end_t<T, void_t<decltype(*std::declval<T>().begin()),
                                            decltype(std::declval<T>().end())>>
     : std::true_type {};
 
@@ -104,15 +105,15 @@ struct has_mutable_begin_end : std::false_type {};
 
 template <typename T>
 struct has_const_begin_end<
-    T,
-    void_t<
-        decltype(detail::range_begin(std::declval<const remove_cvref_t<T>&>())),
-        decltype(detail::range_end(std::declval<const remove_cvref_t<T>&>()))>>
+    T, void_t<decltype(*detail::range_begin(
+                  std::declval<const remove_cvref_t<T>&>())),
+              decltype(detail::range_end(
+                  std::declval<const remove_cvref_t<T>&>()))>>
     : std::true_type {};
 
 template <typename T>
 struct has_mutable_begin_end<
-    T, void_t<decltype(detail::range_begin(std::declval<T&>())),
+    T, void_t<decltype(*detail::range_begin(std::declval<T&>())),
               decltype(detail::range_end(std::declval<T&>())),
               // the extra int here is because older versions of MSVC don't
               // SFINAE properly unless there are distinct types
@@ -500,7 +501,8 @@ struct range_formatter<
     for (; it != end; ++it) {
       if (i > 0) out = detail::copy<Char>(separator_, out);
       ctx.advance_to(out);
-      out = underlying_.format(mapper.map(*it), ctx);
+      auto&& item = *it;  // Need an lvalue
+      out = underlying_.format(mapper.map(item), ctx);
       ++i;
     }
     out = detail::copy<Char>(closing_bracket_, out);
@@ -508,6 +510,7 @@ struct range_formatter<
   }
 };
 
+FMT_EXPORT
 template <typename T, typename Char, typename Enable = void>
 struct range_format_kind
     : conditional_t<
