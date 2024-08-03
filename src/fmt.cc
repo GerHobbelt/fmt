@@ -151,9 +151,17 @@ module :private;
 
 #define AMALGAMATED_SOURCECODE
 
+#ifdef FMT_ATTACH_TO_GLOBAL_MODULE
+extern "C++" {
+#endif
+
 #if FMT_HAS_INCLUDE("format.cc")
 #  include "format.cc"
 #endif
 #if FMT_OS && FMT_HAS_INCLUDE("os.cc")
 #  include "os.cc"
+#endif
+
+#ifdef FMT_ATTACH_TO_GLOBAL_MODULE
+}
 #endif
