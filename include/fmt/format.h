@@ -38,7 +38,9 @@
 #  define FMT_REMOVE_TRANSITIVE_INCLUDES
 #endif
 
-#ifndef FMT_IMPORT_STD
+#include "base.h"
+
+#ifndef FMT_MODULE
 #  include <cmath>             // std::signbit
 #  include <cstdint>           // uint32_t
 #  include <cstring>           // std::memcpy
@@ -51,25 +53,20 @@
 #  include <stdexcept>     // std::runtime_error
 #  include <string>        // std::string
 #  include <system_error>  // std::system_error
-#  include <cfloat>            // DBL_DIG
-#endif
-
-#include "base.h"
+#  include <cfloat>        // DBL_DIG
 
 // Checking FMT_CPLUSPLUS for warning suppression in MSVC.
-#if FMT_HAS_INCLUDE(<bit>) && FMT_CPLUSPLUS > 201703L && \
-    !defined(FMT_IMPORT_STD)
-#  include <bit>  // std::bit_cast
-#endif
+#  if FMT_HAS_INCLUDE(<bit>) && FMT_CPLUSPLUS > 201703L
+#    include <bit>  // std::bit_cast
+#  endif
 
 // libc++ supports string_view in pre-c++17.
-#if FMT_HAS_INCLUDE(<string_view>) && \
-    (FMT_CPLUSPLUS >= 201703L || defined(_LIBCPP_VERSION))
-#  ifndef FMT_IMPORT_STD
+#  if FMT_HAS_INCLUDE(<string_view>) && \
+      (FMT_CPLUSPLUS >= 201703L || defined(_LIBCPP_VERSION))
 #    include <string_view>
+#    define FMT_USE_STRING_VIEW
 #  endif
-#  define FMT_USE_STRING_VIEW
-#endif
+#endif  // FMT_MODULE
 
 #if defined __cpp_inline_variables && __cpp_inline_variables >= 201606L
 #  define FMT_INLINE_VARIABLE inline
@@ -4333,7 +4330,7 @@ inline namespace literals {
  * **Example**:
  *
  *     using namespace fmt::literals;
- *     fmt::print("Elapsed time: {s:.2f} seconds", "s"_a=1.23);
+ *     fmt::print("The answer is {answer}.", "answer"_a=42);
  */
 #  if FMT_USE_NONTYPE_TEMPLATE_ARGS
 template <detail_exported::fixed_string Str> constexpr auto operator""_a() {

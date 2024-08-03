@@ -6,6 +6,7 @@ module;
 // to prevent attachment to this module.
 #ifndef FMT_IMPORT_STD
 #  include <algorithm>
+#  include <bitset>
 #  include <chrono>
 #  include <cmath>
 #  include <complex>
@@ -82,6 +83,10 @@ module;
 
 #if !defined(_MSC_VER)
 export module fmt;
+
+#ifdef FMT_IMPORT_STD
+import std;
+#endif
 
 #define FMT_EXPORT export
 #define FMT_BEGIN_EXPORT export {
