@@ -8,6 +8,7 @@ module;
 #  include <algorithm>
 #  include <chrono>
 #  include <cmath>
+#  include <complex>
 #  include <cstddef>
 #  include <cstdint>
 #  include <cstdio>
@@ -15,6 +16,7 @@ module;
 #  include <cstring>
 #  include <ctime>
 #  include <exception>
+#  include <expected>
 #  include <filesystem>
 #  include <fstream>
 #  include <functional>
@@ -24,6 +26,7 @@ module;
 #  include <memory>
 #  include <optional>
 #  include <ostream>
+#  include <source_location>
 #  include <stdexcept>
 #  include <string>
 #  include <string_view>
@@ -125,7 +128,9 @@ extern "C++" {
 #  include "fmt/os.h"
 #  include "fmt/ostream.h"
 #endif
+#include "fmt/ostream.h"
 #include "fmt/printf.h"
+#include "fmt/ranges.h"
 #include "fmt/std.h"
 #include "fmt/ranges.h"
 #include "fmt/xchar.h"

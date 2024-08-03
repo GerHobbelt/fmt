@@ -8,9 +8,12 @@
 #ifndef FMT_BASE_H_
 #define FMT_BASE_H_
 
-#include <limits.h>  // CHAR_BIT
-#include <stdio.h>   // FILE
-#include <string.h>  // strlen
+// c headers are preferable for performance reasons
+#ifndef FMT_MODULE
+#  include <limits.h>  // CHAR_BIT
+#  include <stdio.h>   // FILE
+#  include <string.h>  // strlen
+#endif
 
 #ifndef FMT_IMPORT_STD
 // <cstddef> is also included transitively from <type_traits>.
@@ -155,6 +158,9 @@ import std;
 #  define FMT_USE_NONTYPE_TEMPLATE_ARGS 1
 #elif defined(__cpp_nontype_template_args) && \
     __cpp_nontype_template_args >= 201911L
+#  define FMT_USE_NONTYPE_TEMPLATE_ARGS 1
+#elif FMT_CLANG_VERSION >= 1200 && FMT_CPLUSPLUS >= 202002L
+// clang 12 already has enough support for {fmt} to use.
 #  define FMT_USE_NONTYPE_TEMPLATE_ARGS 1
 #else
 #  define FMT_USE_NONTYPE_TEMPLATE_ARGS 0
