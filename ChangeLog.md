@@ -168,7 +168,7 @@
   #include <fmt/chrono.h>
   #include <fmt/color.h>
 
-  int main() {
+  int main(void) {
     fmt::print(fg(fmt::color::green), "{}\n", std::chrono::day(7));
   }
   ```
@@ -396,7 +396,7 @@
   ```c++
   #include <fmt/chrono.h>
 
-  int main() {
+  int main(void) {
     fmt::print("{}\n", std::chrono::days(42)); // prints "42d"
   }
   ```
@@ -415,7 +415,7 @@
   #include <source_location>
   #include <fmt/std.h>
 
-  int main() {
+  int main(void) {
     fmt::print("{}\n", std::source_location::current());
   }
   ```
@@ -423,7 +423,7 @@
   prints
 
   ```
-  /app/example.cpp:5:51: int main()
+  /app/example.cpp:5:51: int main(void)
   ```
 
   Thanks @felix642.
@@ -436,7 +436,7 @@
   #include <bitset>
   #include <fmt/std.h>
 
-  int main() {
+  int main(void) {
     fmt::print("{}\n", std::bitset<6>(42)); // prints "101010"
   }
   ```
@@ -463,7 +463,7 @@
     }
   };
 
-  int main() {
+  int main(void) {
     fmt::print("[{:>20.2f}]", point{1, 2});
   }
   ```
@@ -482,7 +482,7 @@
   #include <filesystem>
   #include <fmt/std.h>
 
-  int main() {
+  int main(void) {
     fmt::print("{:g}\n", std::filesystem::path("C:\\foo"));
   }
   ```
@@ -700,7 +700,7 @@
   #include <vector>
   #include <fmt/std.h>
 
-  int main() {
+  int main(void) {
     auto v = std::vector<bool>{true};
     fmt::print("{}", v[0]);
   }
@@ -881,7 +881,7 @@
 
   auto format_as(floaty_mc_floatface f) { return f.value; }
 
-  int main() {
+  int main(void) {
     fmt::print("{:8}\n", floaty_mc_floatface{0.42}); // prints "    0.42"
   }
   ```
@@ -899,7 +899,7 @@
   ```c++
   #include <fmt/chrono.h>
 
-  int main() {
+  int main(void) {
     // prints "    2023"
     fmt::print("{:>8%Y}\n", std::chrono::system_clock::now());
   }
@@ -919,7 +919,7 @@
   ```c++
   #include <fmt/chrono.h>
 
-  int main() {
+  int main(void) {
     // prints 01.234567
     fmt::print("{:%S}\n", std::chrono::microseconds(1234567));
   }
@@ -955,7 +955,7 @@
   ```c++
   #include <fmt/chrono.h>
 
-  int main() {
+  int main(void) {
     auto t = std::chrono::system_clock::from_time_t(0) -
              std::chrono::milliseconds(250);
     fmt::print("{:%S}\n", t); // prints 59.750000000
@@ -981,7 +981,7 @@
   #include <fmt/std.h>
   #include <vector>
 
-  int main() {
+  int main(void) {
     try {
       std::vector<bool>().at(0);
     } catch(const std::exception& e) {
@@ -1010,7 +1010,7 @@
   #include <stack>
   #include <vector>
 
-  int main() {
+  int main(void) {
     auto s = std::stack<bool, std::vector<bool>>();
     for (auto b: {true, false, true}) s.push(b);
     fmt::print("{}\n", s); // prints [true, false, true]
@@ -1214,7 +1214,7 @@
   ```c++
   #include <fmt/compile.h>
 
-  int main() {
+  int main(void) {
     using namespace fmt::literals;
     constexpr size_t n = fmt::formatted_size("{}"_cf, 42);
     fmt::print("{}\n", n); // prints 2
@@ -1250,7 +1250,7 @@
   #include <fmt/ranges.h>
   #include <vector>
 
-  int main() {
+  int main(void) {
     auto v = std::vector{1, 2, 3};
     fmt::print("{:n}\n", v); // prints 1, 2, 3
   }
@@ -1388,7 +1388,7 @@
   #include <thread>
   #include <fmt/ostream.h>
 
-  int main() {
+  int main(void) {
     fmt::print("Current thread id: {}\n",
                fmt::streamed(std::this_thread::get_id()));
   }
@@ -1412,7 +1412,7 @@
   #include <variant>
   #include <fmt/std.h>
 
-  int main() {
+  int main(void) {
     auto v = std::variant<int, std::string>(42);
     fmt::print("{}\n", v);
   }
@@ -1435,7 +1435,7 @@
   #include <filesystem>
   #include <fmt/std.h>
 
-  int main() {
+  int main(void) {
     fmt::print("There is no place like {}.", std::filesystem::path("/home"));
   }
   ```
@@ -1453,7 +1453,7 @@
   #include <thread>
   #include <fmt/std.h>
 
-  int main() {
+  int main(void) {
     fmt::print("Current thread id: {}\n", std::this_thread::get_id());
   }
   ```
@@ -1466,7 +1466,7 @@
   #include <fmt/chrono.h>
   #include <fmt/color.h>
 
-  int main() {
+  int main(void) {
     auto now = std::chrono::system_clock::now();
     fmt::print(
       "[{}] {}: {}\n",
@@ -1496,7 +1496,7 @@
   #include <vector>
   #include <fmt/ranges.h>
 
-  int main() {
+  int main(void) {
     fmt::print("{::#x}\n", std::vector{10, 20, 30});
   }
   ```
@@ -1721,7 +1721,7 @@
   ```c++
   #include <fmt/chrono.h>
 
-  int main() {
+  int main(void) {
     fmt::print("{:%S}", std::chrono::milliseconds(1234));
   }
   ```
@@ -1744,7 +1744,7 @@
   ```c++
   #include <fmt/format.h>
 
-  int main() {
+  int main(void) {
     fmt::print("{} dollars", fmt::group_digits(1000000));
   }
   ```
@@ -1771,7 +1771,7 @@
   ```c++
   #include <fmt/format.h>
 
-  int main() {
+  int main(void) {
     using namespace fmt::literals;
     fmt::print("{answer:s}", "answer"_a=42);
   }
@@ -1790,7 +1790,7 @@
   #include <fmt/ranges.h>
   #include <vector>
 
-  int main() {
+  int main(void) {
     fmt::print("{}", std::vector<std::string>{"\naan"});
   }
   ```
@@ -1815,7 +1815,7 @@
   #include <fmt/ranges.h>
   #include <map>
 
-  int main() {
+  int main(void) {
     fmt::print("{}", std::map<std::string, int>{{"answer", 42}});
   }
   ```
@@ -2029,7 +2029,7 @@
   ```c++
   #include <fmt/core.h>
 
-  int main() {
+  int main(void) {
     fmt::print("{:d}", "I am not a number");
   }
   ```
@@ -2200,7 +2200,7 @@
   #include <cstddef>
   #include <vector>
 
-  int main() {
+  int main(void) {
     auto bytes = std::vector{std::byte(4), std::byte(2)};
     fmt::print("{}", fmt::join(bytes, ""));
   }
@@ -2217,7 +2217,7 @@
   ```c++
   #include <fmt/chrono.h>
 
-  int main() {
+  int main(void) {
     fmt::print("{}", std::chrono::system_clock::now());
   }
   ```
@@ -2231,7 +2231,7 @@
   ```c++
   #include <fmt/chrono.h>
 
-  int main() {
+  int main(void) {
     std::locale::global(std::locale("ru_RU.UTF-8"));
     auto monday = std::chrono::weekday(1);
     fmt::print("{}\n", monday);   // prints "Mon"
@@ -2261,7 +2261,7 @@
   ```c++
   #include <fmt/chrono.h>
 
-  int main() {
+  int main(void) {
     using tp = std::chrono::time_point<
       std::chrono::system_clock, std::chrono::seconds>;
     fmt::print("{:%S}", tp(std::chrono::seconds(42)));
@@ -2276,7 +2276,7 @@
   ```c++
   #include <fmt/core.h>
 
-  int main() {
+  int main(void) {
     fmt::print("{0:.3}", 1.1);
   }
   ```
@@ -2295,7 +2295,7 @@
   #include <fmt/core.h>
   #include <locale>
 
-  int main() {
+  int main(void) {
     std::locale::global(std::locale("fr_FR.UTF-8"));
     fmt::print("{0:.2Lf}", 0.42);
   }
@@ -2338,7 +2338,7 @@
   ```c++
   #include <fmt/core.h>
 
-  int main() {
+  int main(void) {
     fmt::print("{:s}", true);
   }
   ```
@@ -2351,7 +2351,7 @@
   ```c++
   #include <fmt/format.h>
 
-  int main() {
+  int main(void) {
     fmt::print("My main: {}\n", fmt::ptr(main));
   }
   ```
@@ -2384,7 +2384,7 @@
   ```c++
   #include <fmt/core.h>
 
-  int main() {
+  int main(void) {
     fmt::print("{:-<10}{}\n", "你好", "世界");
     fmt::print("{:-<10}{}\n", "hello", "world");
   }
@@ -2403,7 +2403,7 @@
   ```c++
   #include <fmt/os.h>
 
-  int main() {
+  int main(void) {
     fmt::ostream out1 = fmt::output_file("guide");
     out1.print("Zaphod");
     out1.close();

@@ -171,7 +171,7 @@ include(CheckCXXSourceCompiles)
 set(CMAKE_REQUIRED_FLAGS ${CXX_STANDARD_FLAG})
 check_cxx_source_compiles("
   void operator\"\" _udl(long double);
-  int main() {}"
+  int main(void) {}"
   SUPPORTS_USER_DEFINED_LITERALS)
 set(CMAKE_REQUIRED_FLAGS )
 if (NOT SUPPORTS_USER_DEFINED_LITERALS)

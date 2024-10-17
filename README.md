@@ -76,7 +76,7 @@ See the [documentation](https://fmt.dev) for more details.
 ``` c++
 #include <fmt/base.h>
 
-int main() {
+int main(void) {
   fmt::print("Hello, world!\n");
 }
 ```
@@ -101,7 +101,7 @@ std::string s = fmt::format("I'd rather be {1} than {0}.", "right", "happy");
 ``` c++
 #include <fmt/chrono.h>
 
-int main() {
+int main(void) {
   auto now = std::chrono::system_clock::now();
   fmt::print("Date and time: {}\n", now);
   fmt::print("Time: {:%H:%M}\n", now);
@@ -119,7 +119,7 @@ Output:
 #include <vector>
 #include <fmt/ranges.h>
 
-int main() {
+int main(void) {
   std::vector<int> v = {1, 2, 3};
   fmt::print("{}\n", v);
 }
@@ -143,7 +143,7 @@ format specifier for a string.
 ``` c++
 #include <fmt/os.h>
 
-int main() {
+int main(void) {
   auto out = fmt::output_file("guide.txt");
   out.print("Don't {}", "Panic");
 }
@@ -157,7 +157,7 @@ fprintf](http://www.zverovich.net/2020/08/04/optimal-file-buffer-size.html).
 ``` c++
 #include <fmt/color.h>
 
-int main() {
+int main(void) {
   fmt::print(fg(fmt::color::crimson) | fmt::emphasis::bold,
              "Hello, {}!\n", "world");
   fmt::print(fg(fmt::color::floral_white) | bg(fmt::color::slate_gray) |

@@ -99,7 +99,7 @@ Example ([run](https://godbolt.org/z/nvME4arz8)):
 
     }
 
-    int main() {
+    int main(void) {
       fmt::print("{}\n", kevin_namespacy::film::se7en); // Output: 7
     }
 
@@ -175,7 +175,7 @@ For example:
       }
     };
 
-    int main() {
+    int main(void) {
       fmt::print("[{:>20.2f}]", point{1, 2});
     }
 
@@ -245,7 +245,7 @@ struct fmt::formatter<T, std::enable_if_t<std::is_base_of_v<A, T>, char>> :
 #include "demo.h"
 #include <fmt/format.h>
 
-int main() {
+int main(void) {
   B b;
   A& a = b;
   fmt::print("{}", a); // Output: B
@@ -469,7 +469,7 @@ chrono-format-specifications).
 
     #include <fmt/chrono.h>
 
-    int main() {
+    int main(void) {
       std::time_t t = std::time(nullptr);
 
       fmt::print("The date is {:%Y-%m-%d}.", fmt::localtime(t));

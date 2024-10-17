@@ -62,7 +62,7 @@ void test_range() {
 #define main      fmt_test_enforce_checks_main
 #endif
 
-int main() {
+int main(void) {
   test_format_api();
   test_chrono();
   test_text_style();

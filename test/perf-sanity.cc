@@ -7,7 +7,7 @@
 
 #include "fmt/format.h"
 
-int main() {
+int main(void) {
   const int n = 10000000;
 
   auto start = std::chrono::steady_clock::now();

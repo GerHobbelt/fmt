@@ -3,4 +3,4 @@
 
 extern std::string foo();
 
-int main() { std::cout << foo() << std::endl; }
+int main(void) { std::cout << foo() << std::endl; }

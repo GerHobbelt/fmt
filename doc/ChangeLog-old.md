@@ -65,7 +65,7 @@
   ```c++
   #include <fmt/os.h>
 
-  int main() {
+  int main(void) {
     auto f = fmt::output_file("guide");
     f.print("The answer is {}.", 42);
   }
@@ -79,7 +79,7 @@
   ```c++
   #include <fmt/chrono.h>
 
-  int main() {
+  int main(void) {
     auto now = std::chrono::system_clock::now();
     fmt::print("The time is {:%H:%M:%S}.\n", now);
   }
@@ -96,7 +96,7 @@
   #include <fmt/ranges.h>
   #include <range/v3/view/filter.hpp>
 
-  int main() {
+  int main(void) {
     using std::literals::string_literals::operator""s;
     auto strs = std::array{"a"s, "bb"s, "ccc"s};
     auto range = strs | ranges::views::filter(
@@ -155,7 +155,7 @@
 
   struct how_about_no {};
 
-  int main() {
+  int main(void) {
     fmt::print("{}", how_about_no());
   }
   ```
@@ -196,7 +196,7 @@
   ```c++
   #include <fmt/core.h>
 
-  int main() {
+  int main(void) {
     fmt::print("{:.500}\n", 4.9406564584124654E-324);
   }
   ```
@@ -212,7 +212,7 @@
   ```c++
   #include <fmt/core.h>
 
-  int main() {
+  int main(void) {
     char buffer[10];
     auto result = fmt::format_to_n(buffer, sizeof(buffer), "{}", 42);
   }
@@ -227,7 +227,7 @@
   ```c++
   #include <fmt/compile.h>
 
-  int main() {
+  int main(void) {
     char buffer[8];
     fmt::format_to_n(buffer, sizeof(buffer), FMT_COMPILE("{}"), 42);
   }
@@ -244,7 +244,7 @@
   ```c++
   #include <fmt/color.h>
 
-  int main() {
+  int main(void) {
     std::string out;
     fmt::format_to(std::back_inserter(out),
                    fmt::emphasis::bold | fg(fmt::color::red),
@@ -261,7 +261,7 @@
   ```c++
   #include <fmt/core.h>
 
-  int main() {
+  int main(void) {
     fmt::print("{:#.2g}", 0.5);
   }
   ```
@@ -480,7 +480,7 @@
   ```c++
   #include <fmt/core.h>
 
-  int main() {
+  int main(void) {
     fmt::print("The answer is {answer}\n", fmt::arg("answer", 42));
   }
   ```
@@ -520,7 +520,7 @@
   ```c++
   #include <fmt/format.h>
 
-  int main() {
+  int main(void) {
     fmt::print(FMT_STRING("{0:{1}}"), 42);
   }
   ```
@@ -905,7 +905,7 @@
   #include <cmath>
   #include <fmt/core.h>
 
-  int main() {
+  int main(void) {
     fmt::print("{}", M_PI);
   }
   ```
@@ -976,7 +976,7 @@
   #include <tuple>
   #include <fmt/ranges.h>
 
-  int main() {
+  int main(void) {
     std::tuple<char, int, float> t{'a', 1, 2.0f};
     fmt::print("{}", t);
   }
@@ -1009,7 +1009,7 @@
     return os << s.value;
   }
 
-  int main() {
+  int main(void) {
     auto s = fmt::format(std::locale("fr_FR.UTF-8"), "{}", S{0.42});
     // s == "0,42"
   }
@@ -1138,7 +1138,7 @@
   #include <locale>
   #include <fmt/core.h>
 
-  int main() {
+  int main(void) {
     std::locale::global(std::locale("ru_RU.UTF-8"));
     fmt::print("value = {}", 4.2);
   }
@@ -1200,7 +1200,7 @@
     }
   };
 
-  int main() {
+  int main(void) {
     std::cout << S() << "\n"; // prints 1 using operator<<
     fmt::print("{}\n", S());  // prints 2 using formatter
   }
@@ -1497,7 +1497,7 @@
   ```c++
   #include <fmt/chrono.h>
 
-  int main() {
+  int main(void) {
     using namespace std::literals::chrono_literals;
     fmt::print("Default format: {} {}\n", 42s, 100ms);
     fmt::print("strftime-like format: {:%H:%M:%S}\n", 3h + 15min + 30s);
@@ -1519,7 +1519,7 @@
   ```c++
   #include <fmt/color.h>
 
-  int main() {
+  int main(void) {
     fmt::print(fg(fmt::color::crimson) | fmt::emphasis::bold,
                "Hello, {}!\n", "world");
     fmt::print(fg(fmt::color::floral_white) | bg(fmt::color::slate_gray) |
@@ -1542,7 +1542,7 @@
   ```c++
   #include <fmt/color.h>
 
-  int main() {
+  int main(void) {
     print(fg(fmt::terminal_color::red), "stop\n");
   }
   ```
@@ -1599,7 +1599,7 @@
   ```c++
   #include <fmt/color.h>
 
-  int main() {
+  int main(void) {
     print(fg(fmt::color::red), L"{}\n", 42);
   }
   ```
