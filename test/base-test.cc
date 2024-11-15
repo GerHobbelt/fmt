@@ -516,19 +516,19 @@ template <size_t N> constexpr auto parse_test_specs(const char (&s)[N]) {
 }
 
 TEST(base_test, constexpr_parse_format_specs) {
-  static_assert(parse_test_specs("<").align == fmt::align::left, "");
-  static_assert(parse_test_specs("*^").fill.get<char>() == '*', "");
-  static_assert(parse_test_specs("+").sign == fmt::sign::plus, "");
-  static_assert(parse_test_specs("-").sign == fmt::sign::none, "");
-  static_assert(parse_test_specs(" ").sign == fmt::sign::space, "");
-  static_assert(parse_test_specs("#").alt, "");
-  static_assert(parse_test_specs("0").align == fmt::align::numeric, "");
-  static_assert(parse_test_specs("L").localized, "");
+  static_assert(parse_test_specs("<").align() == fmt::align::left, "");
+  static_assert(parse_test_specs("*^").fill_unit<char>() == '*', "");
+  static_assert(parse_test_specs("+").sign() == fmt::sign::plus, "");
+  static_assert(parse_test_specs("-").sign() == fmt::sign::none, "");
+  static_assert(parse_test_specs(" ").sign() == fmt::sign::space, "");
+  static_assert(parse_test_specs("#").alt(), "");
+  static_assert(parse_test_specs("0").align() == fmt::align::numeric, "");
+  static_assert(parse_test_specs("L").localized(), "");
   static_assert(parse_test_specs("42").width == 42, "");
-  static_assert(parse_test_specs("{42}").width_ref.val.index == 42, "");
+  static_assert(parse_test_specs("{42}").width_ref.index == 42, "");
   static_assert(parse_test_specs(".42").precision == 42, "");
-  static_assert(parse_test_specs(".{42}").precision_ref.val.index == 42, "");
-  static_assert(parse_test_specs("f").type == fmt::presentation_type::fixed,
+  static_assert(parse_test_specs(".{42}").precision_ref.index == 42, "");
+  static_assert(parse_test_specs("f").type() == fmt::presentation_type::fixed,
                 "");
 }
 
@@ -890,4 +890,25 @@ TEST(base_test, trappy_conversion) {
   auto s = std::string();
   fmt::format_to(std::back_inserter(s), "{}", its_a_trap());
   EXPECT_EQ(s, "x");
+}
+
+struct custom_container {
+  char data;
+
+  using value_type = char;
+
+  size_t size() const { return 0; }
+  void resize(size_t) {}
+
+  void push_back(char) {}
+  char& operator[](size_t) { return data; }
+};
+
+FMT_BEGIN_NAMESPACE
+template <> struct is_contiguous<custom_container> : std::true_type {};
+FMT_END_NAMESPACE
+
+TEST(base_test, format_to_custom_container) {
+  auto c = custom_container();
+  fmt::format_to(std::back_inserter(c), "");
 }

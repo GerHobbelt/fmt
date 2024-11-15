@@ -897,23 +897,23 @@ TEST(format_test, runtime_width) {
                    "invalid format string");
 
   EXPECT_THROW_MSG((void)fmt::format(runtime("{0:{1}}"), 0, -1), format_error,
-                   "negative width");
+                   "width/precision is out of range");
   EXPECT_THROW_MSG((void)fmt::format(runtime("{0:{1}}"), 0, (INT_MAX + 1u)),
-                   format_error, "number is too big");
+                   format_error, "width/precision is out of range");
   EXPECT_THROW_MSG((void)fmt::format(runtime("{0:{1}}"), 0, -1l), format_error,
-                   "negative width");
+                   "width/precision is out of range");
   if (fmt::detail::const_check(sizeof(long) > sizeof(int))) {
     long value = INT_MAX;
     EXPECT_THROW_MSG((void)fmt::format(runtime("{0:{1}}"), 0, (value + 1)),
-                     format_error, "number is too big");
+                     format_error, "width/precision is out of range");
   }
   EXPECT_THROW_MSG((void)fmt::format(runtime("{0:{1}}"), 0, (INT_MAX + 1ul)),
-                   format_error, "number is too big");
+                   format_error, "width/precision is out of range");
 
   EXPECT_THROW_MSG((void)fmt::format(runtime("{0:{1}}"), 0, '0'), format_error,
-                   "width is not integer");
+                   "width/precision is not integer");
   EXPECT_THROW_MSG((void)fmt::format(runtime("{0:{1}}"), 0, 0.0), format_error,
-                   "width is not integer");
+                   "width/precision is not integer");
 
   EXPECT_EQ(fmt::format("{0:{1}}", -42, 4), " -42");
   EXPECT_EQ(fmt::format("{0:{1}}", 42u, 5), "   42");
@@ -928,6 +928,11 @@ TEST(format_test, runtime_width) {
   EXPECT_EQ(fmt::format("{0:{1}}", 'x', 11), "x          ");
   EXPECT_EQ(fmt::format("{0:{1}}", "str", 12), "str         ");
   EXPECT_EQ(fmt::format("{:{}}", 42, short(4)), "  42");
+}
+
+TEST(format_test, exponent_range) {
+  for (int e = -1074; e <= 1023; ++e)
+    (void)fmt::format("{}", std::ldexp(1, e));
 }
 
 TEST(format_test, precision) {
@@ -1118,23 +1123,23 @@ TEST(format_test, runtime_precision) {
                    "invalid format string");
 
   EXPECT_THROW_MSG((void)fmt::format(runtime("{0:.{1}}"), 0.0, -1),
-                   format_error, "negative precision");
+                   format_error, "width/precision is out of range");
   EXPECT_THROW_MSG((void)fmt::format(runtime("{0:.{1}}"), 0.0, (INT_MAX + 1u)),
-                   format_error, "number is too big");
+                   format_error, "width/precision is out of range");
   EXPECT_THROW_MSG((void)fmt::format(runtime("{0:.{1}}"), 0.0, -1l),
-                   format_error, "negative precision");
+                   format_error, "width/precision is out of range");
   if (fmt::detail::const_check(sizeof(long) > sizeof(int))) {
     long value = INT_MAX;
     EXPECT_THROW_MSG((void)fmt::format(runtime("{0:.{1}}"), 0.0, (value + 1)),
-                     format_error, "number is too big");
+                     format_error, "width/precision is out of range");
   }
   EXPECT_THROW_MSG((void)fmt::format(runtime("{0:.{1}}"), 0.0, (INT_MAX + 1ul)),
-                   format_error, "number is too big");
+                   format_error, "width/precision is out of range");
 
   EXPECT_THROW_MSG((void)fmt::format(runtime("{0:.{1}}"), 0.0, '0'),
-                   format_error, "precision is not integer");
+                   format_error, "width/precision is not integer");
   EXPECT_THROW_MSG((void)fmt::format(runtime("{0:.{1}}"), 0.0, 0.0),
-                   format_error, "precision is not integer");
+                   format_error, "width/precision is not integer");
 
   EXPECT_THROW_MSG((void)fmt::format(runtime("{0:.{1}}"), 42, 2), format_error,
                    "invalid format specifier");
@@ -2477,4 +2482,28 @@ FMT_END_NAMESPACE
 
 TEST(format_test, ustring) {
   EXPECT_EQ(fmt::format("{}", ustring()), "ustring");
+}
+
+TEST(format_test, writer) {
+  auto write_to_stdout = []() {
+    auto w = fmt::writer(stdout);
+    w.print("{}", 42);
+  };
+  EXPECT_WRITE(stdout, write_to_stdout(), "42");
+
+#if FMT_USE_FCNTL
+  auto pipe = fmt::pipe();
+  auto write_end = pipe.write_end.fdopen("w");
+  fmt::writer(write_end.get()).print("42");
+  write_end.close();
+  auto read_end = pipe.read_end.fdopen("r");
+  int n = 0;
+  int result = fscanf(read_end.get(), "%d", &n);
+  (void)result;
+  EXPECT_EQ(n, 42);
+#endif
+
+  auto s = fmt::string_buffer();
+  fmt::writer(s).print("foo");
+  EXPECT_EQ(s.str(), "foo");
 }
