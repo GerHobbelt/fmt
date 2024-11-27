@@ -474,20 +474,21 @@ TEST(module_test, sprintf) {
 }
 
 TEST(module_test, vprintf) {
-  //EXPECT_WRITE(stdout, fmt::vprintf("%d", fmt::make_printf_args(42)), "42");
-  //EXPECT_WRITE(stdout, fmt::vprintf(L"%d", fmt::make_wprintf_args(42)), as_string(L"42"));
+  EXPECT_WRITE(stdout, fmt::vprintf("%d", fmt::make_printf_args(42)), "42");
+  EXPECT_WRITE(stdout, fmt::vprintf(L"%d", fmt::make_wprintf_args(42)),
+               as_string(L"42"));
 }
 
 TEST(module_test, vfprintf) {
   auto args = fmt::make_printf_args(42);
-  //EXPECT_WRITE(stderr, fmt::vfprintf(stderr, "%d", args), "42");
+  EXPECT_WRITE(stderr, fmt::vfprintf(stderr, "%d", args), "42");
   auto wargs = fmt::make_wprintf_args(42);
-  //EXPECT_WRITE(stderr, fmt::vfprintf(stderr, L"%d", wargs), as_string(L"42"));
+  EXPECT_WRITE(stderr, fmt::vfprintf(stderr, L"%d", wargs), as_string(L"42"));
 }
 
 TEST(module_test, vsprintf) {
-  //EXPECT_EQ("42", fmt::vsprintf("%d", fmt::make_printf_args(42)));
-  //EXPECT_EQ(L"42", fmt::vsprintf(L"%d", fmt::make_wprintf_args(42)));
+  EXPECT_EQ("42", fmt::vsprintf("%d", fmt::make_printf_args(42)));
+  EXPECT_EQ(L"42", fmt::vsprintf(L"%d", fmt::make_wprintf_args(42)));
 }
 
 TEST(module_test, color) {

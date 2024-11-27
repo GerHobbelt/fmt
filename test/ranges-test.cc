@@ -335,12 +335,12 @@ template <typename T> class noncopyable_range {
 
 TEST(ranges_test, range) {
   auto&& w = noncopyable_range<int>(3u, 0);
-  //EXPECT_EQ(fmt::format("{}", w), "[0, 0, 0]");
-  //EXPECT_EQ(fmt::format("{}", noncopyable_range<int>(3u, 0)), "[0, 0, 0]");
+  EXPECT_EQ(fmt::format("{}", w), "[0, 0, 0]");
+  EXPECT_EQ(fmt::format("{}", noncopyable_range<int>(3u, 0)), "[0, 0, 0]");
 
   auto x = non_const_only_range<int>(3u, 0);
-  //EXPECT_EQ(fmt::format("{}", x), "[0, 0, 0]");
-  //EXPECT_EQ(fmt::format("{}", non_const_only_range<int>(3u, 0)), "[0, 0, 0]");
+  EXPECT_EQ(fmt::format("{}", x), "[0, 0, 0]");
+  EXPECT_EQ(fmt::format("{}", non_const_only_range<int>(3u, 0)), "[0, 0, 0]");
 
   auto y = std::vector<int>(3u, 0);
   EXPECT_EQ(fmt::format("{}", y), "[0, 0, 0]");
