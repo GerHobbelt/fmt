@@ -357,7 +357,7 @@ void write_codecvt(codecvt_result<CodeUnit>& out, string_view in_buf,
 template <typename OutputIt>
 auto write_encoded_tm_str(OutputIt out, string_view in, const std::locale& loc)
     -> OutputIt {
-  if (detail::use_utf8() && loc != get_classic_locale()) {
+  if (FMT_USE_UTF8 && loc != get_classic_locale()) {
     // char16_t and char32_t codecvts are broken in MSVC (linkage errors) and
     // gcc-4.
 #if FMT_MSC_VERSION != 0 ||  \
@@ -651,7 +651,8 @@ FMT_CONSTEXPR inline auto get_units() -> const char* {
   if (std::is_same<Period, std::femto>::value) return "fs";
   if (std::is_same<Period, std::pico>::value) return "ps";
   if (std::is_same<Period, std::nano>::value) return "ns";
-  if (std::is_same<Period, std::micro>::value) return use_utf8() ? "µs" : "us";
+  if (std::is_same<Period, std::micro>::value)
+    return FMT_USE_UTF8 ? "µs" : "us";
   if (std::is_same<Period, std::milli>::value) return "ms";
   if (std::is_same<Period, std::centi>::value) return "cs";
   if (std::is_same<Period, std::deci>::value) return "ds";
@@ -2098,8 +2099,7 @@ struct formatter<weekday, Char> : private formatter<std::tm, Char> {
   bool use_tm_formatter_ = false;
 
  public:
-  FMT_CONSTEXPR auto parse(basic_format_parse_context<Char>& ctx)
-      -> decltype(ctx.begin()) {
+  FMT_CONSTEXPR auto parse(parse_context<Char>& ctx) -> const Char* {
     auto it = ctx.begin(), end = ctx.end();
     if (it != end && *it == 'L') {
       ++it;
@@ -2128,8 +2128,7 @@ struct formatter<day, Char> : private formatter<std::tm, Char> {
   bool use_tm_formatter_ = false;
 
  public:
-  FMT_CONSTEXPR auto parse(basic_format_parse_context<Char>& ctx)
-      -> decltype(ctx.begin()) {
+  FMT_CONSTEXPR auto parse(parse_context<Char>& ctx) -> const Char* {
     auto it = ctx.begin(), end = ctx.end();
     use_tm_formatter_ = it != end && *it != '}';
     return use_tm_formatter_ ? formatter<std::tm, Char>::parse(ctx) : it;
@@ -2154,8 +2153,7 @@ struct formatter<month, Char> : private formatter<std::tm, Char> {
   bool use_tm_formatter_ = false;
 
  public:
-  FMT_CONSTEXPR auto parse(basic_format_parse_context<Char>& ctx)
-      -> decltype(ctx.begin()) {
+  FMT_CONSTEXPR auto parse(parse_context<Char>& ctx) -> const Char* {
     auto it = ctx.begin(), end = ctx.end();
     if (it != end && *it == 'L') {
       ++it;
@@ -2184,8 +2182,7 @@ struct formatter<year, Char> : private formatter<std::tm, Char> {
   bool use_tm_formatter_ = false;
 
  public:
-  FMT_CONSTEXPR auto parse(basic_format_parse_context<Char>& ctx)
-      -> decltype(ctx.begin()) {
+  FMT_CONSTEXPR auto parse(parse_context<Char>& ctx) -> const Char* {
     auto it = ctx.begin(), end = ctx.end();
     use_tm_formatter_ = it != end && *it != '}';
     return use_tm_formatter_ ? formatter<std::tm, Char>::parse(ctx) : it;
@@ -2209,8 +2206,7 @@ struct formatter<year_month_day, Char> : private formatter<std::tm, Char> {
   bool use_tm_formatter_ = false;
 
  public:
-  FMT_CONSTEXPR auto parse(basic_format_parse_context<Char>& ctx)
-      -> decltype(ctx.begin()) {
+  FMT_CONSTEXPR auto parse(parse_context<Char>& ctx) -> const Char* {
     auto it = ctx.begin(), end = ctx.end();
     use_tm_formatter_ = it != end && *it != '}';
     return use_tm_formatter_ ? formatter<std::tm, Char>::parse(ctx) : it;
@@ -2241,8 +2237,7 @@ struct formatter<std::chrono::duration<Rep, Period>, Char> {
   basic_string_view<Char> format_str_;
 
  public:
-  FMT_CONSTEXPR auto parse(basic_format_parse_context<Char>& ctx)
-      -> decltype(ctx.begin()) {
+  FMT_CONSTEXPR auto parse(parse_context<Char>& ctx) -> const Char* {
     auto it = ctx.begin(), end = ctx.end();
     if (it == end || *it == '}') return it;
 
@@ -2327,8 +2322,7 @@ template <typename Char> struct formatter<std::tm, Char> {
   }
 
  public:
-  FMT_CONSTEXPR auto parse(basic_format_parse_context<Char>& ctx)
-      -> decltype(ctx.begin()) {
+  FMT_CONSTEXPR auto parse(parse_context<Char>& ctx) -> const Char* {
     auto it = ctx.begin(), end = ctx.end();
     if (it == end || *it == '}') return it;
 

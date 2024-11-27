@@ -33,7 +33,7 @@ template <typename Char> class basic_printf_context {
 
  public:
   using char_type = Char;
-  using parse_context_type = basic_format_parse_context<Char>;
+  using parse_context_type = parse_context<Char>;
   template <typename T> using formatter_type = printf_formatter<T>;
   enum { builtin_types = 1 };
 
@@ -54,6 +54,23 @@ template <typename Char> class basic_printf_context {
 };
 
 namespace detail {
+
+// Return the result via the out param to workaround gcc bug 77539.
+template <bool IS_CONSTEXPR, typename T, typename Ptr = const T*>
+FMT_CONSTEXPR auto find(Ptr first, Ptr last, T value, Ptr& out) -> bool {
+  for (out = first; out != last; ++out) {
+    if (*out == value) return true;
+  }
+  return false;
+}
+
+template <>
+inline auto find<false, char>(const char* first, const char* last, char value,
+                              const char*& out) -> bool {
+  out =
+      static_cast<const char*>(memchr(first, value, to_unsigned(last - first)));
+  return out != nullptr;
+}
 
 // Checks if a value fits in int - used to avoid warnings about comparing
 // signed and unsigned integers.
@@ -306,7 +323,7 @@ class printf_arg_formatter : public arg_formatter<Char> {
   }
 
   void operator()(typename basic_format_arg<context_type>::handle handle) {
-    auto parse_ctx = basic_format_parse_context<Char>({});
+    auto parse_ctx = parse_context<Char>({});
     handle.format(parse_ctx, context_);
   }
 };
@@ -427,7 +444,7 @@ void vprintf(buffer<Char>& buf, basic_string_view<Char> format,
   using iterator = basic_appender<Char>;
   auto out = iterator(buf);
   auto context = basic_printf_context<Char>(out, args);
-  auto parse_ctx = basic_format_parse_context<Char>(format);
+  auto parse_ctx = parse_context<Char>(format);
 
   // Returns the argument with specified index or, if arg_index is -1, the next
   // argument.
@@ -480,7 +497,7 @@ void vprintf(buffer<Char>& buf, basic_string_view<Char> format,
     auto arg = get_arg(arg_index);
     // For d, i, o, u, x, and X conversion specifiers, if a precision is
     // specified, the '0' flag is ignored
-    if (specs.precision >= 0 && arg.is_integral()) {
+    if (specs.precision >= 0 && is_integral_type(arg.type())) {
       // Ignore '0' for non-numeric types or if '-' present.
       specs.set_fill(' ');
     }
@@ -494,7 +511,7 @@ void vprintf(buffer<Char>& buf, basic_string_view<Char> format,
     }
     if (specs.alt() && arg.visit(is_zero_int())) specs.clear_alt();
     if (specs.fill_unit<Char>() == '0') {
-      if (arg.is_arithmetic() && specs.align() != align::left) {
+      if (is_arithmetic_type(arg.type()) && specs.align() != align::left) {
         specs.set_align(align::numeric);
       } else {
         // Ignore '0' flag for non-numeric types or if '-' flag is also present.
@@ -545,7 +562,7 @@ void vprintf(buffer<Char>& buf, basic_string_view<Char> format,
     // Parse type.
     if (it == end) report_error("invalid format string");
     char type = static_cast<char>(*it++);
-    if (arg.is_integral()) {
+    if (is_integral_type(arg.type())) {
       // Normalize type.
       switch (type) {
       case 'i':
@@ -607,7 +624,7 @@ inline auto vsprintf(basic_string_view<Char> fmt,
  *
  *     std::string message = fmt::sprintf("The answer is %d", 42);
  */
-template <typename S, typename... T, typename Char = char_t<S>>
+template <typename S, typename... T, typename Char = detail::char_t<S>>
 inline auto sprintf(const S& fmt, const T&... args) -> std::basic_string<Char> {
   return vsprintf(detail::to_string_view(fmt),
                   fmt::make_format_args<basic_printf_context<Char>>(args...));
@@ -632,7 +649,7 @@ inline auto vfprintf(std::FILE* f, basic_string_view<Char> fmt,
  *
  *     fmt::fprintf(stderr, "Don't %s!", "panic");
  */
-template <typename S, typename... T, typename Char = char_t<S>>
+template <typename S, typename... T, typename Char = detail::char_t<S>>
 inline auto fprintf(std::FILE* f, const S& fmt, const T&... args) -> int {
   return vfprintf(f, detail::to_string_view(fmt),
                   make_printf_args<Char>(args...));
