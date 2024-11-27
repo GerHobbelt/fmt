@@ -157,6 +157,8 @@
 // Use the provided definition.
 #elif defined(__GNUC__) && !defined(__EXCEPTIONS)
 #  define FMT_USE_EXCEPTIONS 0
+#elif defined(__clang__) && !defined(__cpp_exceptions)
+#  define FMT_USE_EXCEPTIONS 0
 #elif FMT_MSC_VERSION && !_HAS_EXCEPTIONS
 #  define FMT_USE_EXCEPTIONS 0
 #else
@@ -743,7 +745,7 @@ class basic_specs {
     max_fill_size = 4
   };
 
-  unsigned long data_ = 1 << fill_size_shift;
+  size_t data_ = 1 << fill_size_shift;
 
   // Character (code unit) type is erased to prevent template bloat.
   char fill_data_[max_fill_size] = {' '};
@@ -822,7 +824,8 @@ class basic_specs {
   template <typename Char> constexpr auto fill_unit() const -> Char {
     using uchar = unsigned char;
     return static_cast<Char>(static_cast<uchar>(fill_data_[0]) |
-                             (static_cast<uchar>(fill_data_[1]) << 8));
+                             (static_cast<uchar>(fill_data_[1]) << 8) |
+                             (static_cast<uchar>(fill_data_[2]) << 16));
   }
 
   FMT_CONSTEXPR void set_fill(char c) {
@@ -838,6 +841,7 @@ class basic_specs {
       unsigned uchar = static_cast<detail::unsigned_char<Char>>(s[0]);
       fill_data_[0] = static_cast<char>(uchar);
       fill_data_[1] = static_cast<char>(uchar >> 8);
+      fill_data_[2] = static_cast<char>(uchar >> 16);
       return;
     }
     FMT_ASSERT(size <= max_fill_size, "invalid fill");
@@ -1995,12 +1999,34 @@ template <typename T = char> class counting_buffer : public buffer<T> {
 template <typename T>
 struct is_back_insert_iterator<basic_appender<T>> : std::true_type {};
 
+template <typename OutputIt, typename InputIt, typename = void>
+struct has_back_insert_iterator_container_append : std::false_type {};
+template <typename OutputIt, typename InputIt>
+struct has_back_insert_iterator_container_append<
+    OutputIt, InputIt,
+    void_t<decltype(get_container(std::declval<OutputIt>())
+                        .append(std::declval<InputIt>(),
+                                std::declval<InputIt>()))>> : std::true_type {};
+
 // An optimized version of std::copy with the output value type (T).
 template <typename T, typename InputIt, typename OutputIt,
-          FMT_ENABLE_IF(is_back_insert_iterator<OutputIt>::value)>
+          FMT_ENABLE_IF(is_back_insert_iterator<OutputIt>::value&&
+                            has_back_insert_iterator_container_append<
+                                OutputIt, InputIt>::value)>
 FMT_CONSTEXPR20 auto copy(InputIt begin, InputIt end, OutputIt out)
     -> OutputIt {
   get_container(out).append(begin, end);
+  return out;
+}
+
+template <typename T, typename InputIt, typename OutputIt,
+          FMT_ENABLE_IF(is_back_insert_iterator<OutputIt>::value &&
+                        !has_back_insert_iterator_container_append<
+                            OutputIt, InputIt>::value)>
+FMT_CONSTEXPR20 auto copy(InputIt begin, InputIt end, OutputIt out)
+    -> OutputIt {
+  auto& c = get_container(out);
+  c.insert(c.end(), begin, end);
   return out;
 }
 
@@ -2660,12 +2686,14 @@ inline auto runtime(string_view s) -> runtime_format_string<> { return {{s}}; }
 /// A compile-time format string.
 template <typename... T> struct fstring {
  private:
-  static constexpr int num_static_named_args =
+  static constexpr size_t num_static_named_args =
       detail::count_static_named_args<T...>();
 
-  using checker = detail::format_string_checker<
-      char, static_cast<int>(sizeof...(T)), num_static_named_args,
-      num_static_named_args != detail::count_named_args<T...>()>;
+  using checker =
+      detail::format_string_checker<char, static_cast<int>(sizeof...(T)),
+                                    static_cast<int>(num_static_named_args),
+                                    num_static_named_args !=
+                                        detail::count_named_args<T...>()>;
 
   using arg_pack = detail::arg_pack<T...>;
 
