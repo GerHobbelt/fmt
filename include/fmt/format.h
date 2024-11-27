@@ -89,12 +89,6 @@
 #  define FMT_INLINE_API
 #endif
 
-#ifdef __has_builtin
-#  define FMT_HAS_BUILTIN(x) __has_builtin(x)
-#else
-#  define FMT_HAS_BUILTIN(x) 0
-#endif
-
 #if FMT_GCC_VERSION || FMT_CLANG_VERSION
 #  define FMT_NOINLINE __attribute__((noinline))
 #else
@@ -204,7 +198,7 @@ FMT_END_NAMESPACE
 #  endif
 #endif
 
-#if FMT_MSC_VERSION
+#if FMT_MSC_VERSION && !defined(FMT_MODULE)
 #  include <intrin.h>  // _BitScanReverse[64], _BitScanForward[64], _umul128
 #endif
 
@@ -288,6 +282,11 @@ FMT_BEGIN_NAMESPACE
 template <typename Char, typename Traits, typename Allocator>
 struct is_contiguous<std::basic_string<Char, Traits, Allocator>>
     : std::true_type {};
+
+template <typename T> struct type_identity {
+  using type = T;
+};
+template <typename T> using type_identity_t = typename type_identity<T>::type;
 
 namespace detail {
 
@@ -1010,6 +1009,12 @@ struct is_contiguous<basic_memory_buffer<T, SIZE, Allocator>> : std::true_type {
 
 FMT_END_EXPORT
 namespace detail {
+
+template <typename Context, typename T>
+FMT_CONSTEXPR auto make_arg(T& val) -> basic_format_arg<Context> {
+  return {arg_mapper<typename Context::char_type>::map(val)};
+}
+
 FMT_API auto write_console(int fd, string_view text) -> bool;
 FMT_API auto write_console(std::FILE* f, string_view text) -> bool;
 FMT_API void print(std::FILE*, string_view);
@@ -3818,6 +3823,71 @@ template <typename Char> struct udl_arg {
 #  endif
 #endif  // FMT_USE_USER_DEFINED_LITERALS
 
+template <typename Char> struct format_handler {
+  parse_context<Char> parse_ctx;
+  buffered_context<Char> ctx;
+
+  void on_text(const Char* begin, const Char* end) {
+    copy_noinline<Char>(begin, end, ctx.out());
+  }
+
+  FMT_CONSTEXPR auto on_arg_id() -> int { return parse_ctx.next_arg_id(); }
+  FMT_CONSTEXPR auto on_arg_id(int id) -> int {
+    parse_ctx.check_arg_id(id);
+    return id;
+  }
+  FMT_CONSTEXPR auto on_arg_id(basic_string_view<Char> id) -> int {
+    parse_ctx.check_arg_id(id);
+    int arg_id = ctx.arg_id(id);
+    if (arg_id < 0) report_error("argument not found");
+    return arg_id;
+  }
+
+  FMT_INLINE void on_replacement_field(int id, const Char*) {
+    ctx.arg(id).visit(default_arg_formatter<Char>{ctx.out()});
+  }
+
+  auto on_format_specs(int id, const Char* begin, const Char* end)
+      -> const Char* {
+    auto arg = get_arg(ctx, id);
+    // Not using a visitor for custom types gives better codegen.
+    if (arg.format_custom(begin, parse_ctx, ctx)) return parse_ctx.begin();
+
+    auto specs = dynamic_format_specs<Char>();
+    begin = parse_format_specs(begin, end, specs, parse_ctx, arg.type());
+    if (specs.dynamic()) {
+      handle_dynamic_spec(specs.dynamic_width(), specs.width, specs.width_ref,
+                          ctx);
+      handle_dynamic_spec(specs.dynamic_precision(), specs.precision,
+                          specs.precision_ref, ctx);
+    }
+
+    arg.visit(arg_formatter<Char>{ctx.out(), specs, ctx.locale()});
+    return begin;
+  }
+
+  FMT_NORETURN void on_error(const char* message) { report_error(message); }
+};
+
+// DEPRECATED!
+// Use vformat_args and avoid type_identity to keep symbols short.
+template <typename Char = char> struct vformat_args {
+  using type = basic_format_args<buffered_context<Char>>;
+};
+template <> struct vformat_args<char> {
+  using type = format_args;
+};
+
+template <typename Char>
+void vformat_to(buffer<Char>& buf, basic_string_view<Char> fmt,
+                typename vformat_args<Char>::type args, locale_ref loc = {}) {
+  auto out = basic_appender<Char>(buf);
+  if (fmt.size() == 2 && equal2(fmt.data(), "{}"))
+    return args.get(0).visit(default_arg_formatter<Char>{out});
+  parse_format_string(
+      fmt, format_handler<Char>{parse_context<Char>(fmt), {out, args, loc}});
+}
+
 template <typename Locale, typename Char>
 auto vformat(const Locale& loc, basic_string_view<Char> fmt,
              typename detail::vformat_args<Char>::type args)
@@ -3983,10 +4053,11 @@ template <typename Char, typename Traits, typename Allocator>
 class formatter<std::basic_string<Char, Traits, Allocator>, Char>
     : public formatter<basic_string_view<Char>, Char> {};
 
-template <typename T, typename Char>
-struct formatter<T, Char,
-                 enable_if_t<(detail::bitint_traits<T>::is_formattable)>>
-    : formatter<typename detail::bitint_traits<T>::format_type, Char> {};
+template <int N, typename Char>
+struct formatter<detail::bitint<N>, Char> : formatter<long long, Char> {};
+template <int N, typename Char>
+struct formatter<detail::ubitint<N>, Char>
+    : formatter<unsigned long long, Char> {};
 
 /**
  * Converts `p` to `const void*` for pointer formatting.
@@ -4197,68 +4268,9 @@ FMT_END_EXPORT
 
 namespace detail {
 
-template <typename Char> struct format_handler {
-  parse_context<Char> parse_ctx;
-  buffered_context<Char> ctx;
-
-  void on_text(const Char* begin, const Char* end) {
-    copy_noinline<Char>(begin, end, ctx.out());
-  }
-
-  FMT_CONSTEXPR auto on_arg_id() -> int { return parse_ctx.next_arg_id(); }
-  FMT_CONSTEXPR auto on_arg_id(int id) -> int {
-    parse_ctx.check_arg_id(id);
-    return id;
-  }
-  FMT_CONSTEXPR auto on_arg_id(basic_string_view<Char> id) -> int {
-    parse_ctx.check_arg_id(id);
-    int arg_id = ctx.arg_id(id);
-    if (arg_id < 0) report_error("argument not found");
-    return arg_id;
-  }
-
-  FMT_INLINE void on_replacement_field(int id, const Char*) {
-    ctx.arg(id).visit(default_arg_formatter<Char>{ctx.out()});
-  }
-
-  auto on_format_specs(int id, const Char* begin, const Char* end)
-      -> const Char* {
-    auto arg = get_arg(ctx, id);
-    // Not using a visitor for custom types gives better codegen.
-    if (arg.format_custom(begin, parse_ctx, ctx)) return parse_ctx.begin();
-
-    auto specs = dynamic_format_specs<Char>();
-    begin = parse_format_specs(begin, end, specs, parse_ctx, arg.type());
-    if (specs.dynamic()) {
-      handle_dynamic_spec(specs.dynamic_width(), specs.width, specs.width_ref,
-                          ctx);
-      handle_dynamic_spec(specs.dynamic_precision(), specs.precision,
-                          specs.precision_ref, ctx);
-    }
-
-    arg.visit(arg_formatter<Char>{ctx.out(), specs, ctx.locale()});
-    return begin;
-  }
-
-  FMT_NORETURN void on_error(const char* message) { report_error(message); }
-};
-
-template <typename Char>
-void vformat_to(buffer<Char>& buf, basic_string_view<Char> fmt,
-                typename vformat_args<Char>::type args, locale_ref loc) {
-  auto out = basic_appender<Char>(buf);
-  if (fmt.size() == 2 && equal2(fmt.data(), "{}"))
-    return args.get(0).visit(default_arg_formatter<Char>{out});
-  parse_format_string(
-      fmt, format_handler<Char>{parse_context<Char>(fmt), {out, args, loc}});
-}
-
 FMT_BEGIN_EXPORT
 
 #ifndef FMT_HEADER_ONLY
-extern template FMT_API void vformat_to(buffer<char>&, string_view,
-                                        typename vformat_args<>::type,
-                                        locale_ref);
 extern template FMT_API auto thousands_sep_impl<char>(locale_ref)
     -> thousands_sep_result<char>;
 extern template FMT_API auto thousands_sep_impl<wchar_t>(locale_ref)
@@ -4370,8 +4382,8 @@ FMT_NODISCARD FMT_INLINE auto formatted_size(const Locale& loc,
                                              format_string<T...> fmt,
                                              T&&... args) -> size_t {
   auto buf = detail::counting_buffer<>();
-  detail::vformat_to<char>(buf, fmt, fmt::make_format_args(args...),
-                           detail::locale_ref(loc));
+  detail::vformat_to(buf, fmt, fmt::make_format_args(args...),
+                     detail::locale_ref(loc));
   return buf.count();
 }
 
