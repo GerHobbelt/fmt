@@ -731,9 +731,7 @@ FMT_CONSTEXPR auto parse_chrono_format(const Char* begin, const Char* end,
     if (ptr == end) FMT_THROW(format_error("invalid format"));
     c = *ptr++;
     switch (c) {
-    case '%':
-      handler.on_text(ptr - 1, ptr);
-      break;
+    case '%': handler.on_text(ptr - 1, ptr); break;
     case 'n': {
       const Char newline[] = {'\n'};
       handler.on_text(newline, newline + 1);
@@ -745,45 +743,21 @@ FMT_CONSTEXPR auto parse_chrono_format(const Char* begin, const Char* end,
       break;
     }
     // Year:
-    case 'Y':
-      handler.on_year(numeric_system::standard);
-      break;
-    case 'y':
-      handler.on_short_year(numeric_system::standard);
-      break;
-    case 'C':
-      handler.on_century(numeric_system::standard);
-      break;
-    case 'G':
-      handler.on_iso_week_based_year();
-      break;
-    case 'g':
-      handler.on_iso_week_based_short_year();
-      break;
+    case 'Y': handler.on_year(numeric_system::standard); break;
+    case 'y': handler.on_short_year(numeric_system::standard); break;
+    case 'C': handler.on_century(numeric_system::standard); break;
+    case 'G': handler.on_iso_week_based_year(); break;
+    case 'g': handler.on_iso_week_based_short_year(); break;
     // Day of the week:
-    case 'a':
-      handler.on_abbr_weekday();
-      break;
-    case 'A':
-      handler.on_full_weekday();
-      break;
-    case 'w':
-      handler.on_dec0_weekday(numeric_system::standard);
-      break;
-    case 'u':
-      handler.on_dec1_weekday(numeric_system::standard);
-      break;
+    case 'a': handler.on_abbr_weekday(); break;
+    case 'A': handler.on_full_weekday(); break;
+    case 'w': handler.on_dec0_weekday(numeric_system::standard); break;
+    case 'u': handler.on_dec1_weekday(numeric_system::standard); break;
     // Month:
     case 'b':
-    case 'h':
-      handler.on_abbr_month();
-      break;
-    case 'B':
-      handler.on_full_month();
-      break;
-    case 'm':
-      handler.on_dec_month(numeric_system::standard);
-      break;
+    case 'h': handler.on_abbr_month(); break;
+    case 'B': handler.on_full_month(); break;
+    case 'm': handler.on_dec_month(numeric_system::standard); break;
     // Day of the year/month:
     case 'U':
       handler.on_dec0_week_of_year(numeric_system::standard, pad);
@@ -791,99 +765,44 @@ FMT_CONSTEXPR auto parse_chrono_format(const Char* begin, const Char* end,
     case 'W':
       handler.on_dec1_week_of_year(numeric_system::standard, pad);
       break;
-    case 'V':
-      handler.on_iso_week_of_year(numeric_system::standard, pad);
-      break;
-    case 'j':
-      handler.on_day_of_year();
-      break;
-    case 'd':
-      handler.on_day_of_month(numeric_system::standard, pad);
-      break;
+    case 'V': handler.on_iso_week_of_year(numeric_system::standard, pad); break;
+    case 'j': handler.on_day_of_year(); break;
+    case 'd': handler.on_day_of_month(numeric_system::standard, pad); break;
     case 'e':
       handler.on_day_of_month(numeric_system::standard, pad_type::space);
       break;
     // Hour, minute, second:
-    case 'H':
-      handler.on_24_hour(numeric_system::standard, pad);
-      break;
-    case 'I':
-      handler.on_12_hour(numeric_system::standard, pad);
-      break;
-    case 'M':
-      handler.on_minute(numeric_system::standard, pad);
-      break;
-    case 'S':
-      handler.on_second(numeric_system::standard, pad);
-      break;
+    case 'H': handler.on_24_hour(numeric_system::standard, pad); break;
+    case 'I': handler.on_12_hour(numeric_system::standard, pad); break;
+    case 'M': handler.on_minute(numeric_system::standard, pad); break;
+    case 'S': handler.on_second(numeric_system::standard, pad); break;
     // Other:
-    case 'c':
-      handler.on_datetime(numeric_system::standard);
-      break;
-    case 'x':
-      handler.on_loc_date(numeric_system::standard);
-      break;
-    case 'X':
-      handler.on_loc_time(numeric_system::standard);
-      break;
-    case 'D':
-      handler.on_us_date();
-      break;
-    case 'F':
-      handler.on_iso_date();
-      break;
-    case 'r':
-      handler.on_12_hour_time();
-      break;
-    case 'R':
-      handler.on_24_hour_time();
-      break;
-    case 'T':
-      handler.on_iso_time();
-      break;
-    case 'p':
-      handler.on_am_pm();
-      break;
-    case 'Q':
-      handler.on_duration_value();
-      break;
-    case 'q':
-      handler.on_duration_unit();
-      break;
-    case 'z':
-      handler.on_utc_offset(numeric_system::standard);
-      break;
-    case 'Z':
-      handler.on_tz_name();
-      break;
+    case 'c': handler.on_datetime(numeric_system::standard); break;
+    case 'x': handler.on_loc_date(numeric_system::standard); break;
+    case 'X': handler.on_loc_time(numeric_system::standard); break;
+    case 'D': handler.on_us_date(); break;
+    case 'F': handler.on_iso_date(); break;
+    case 'r': handler.on_12_hour_time(); break;
+    case 'R': handler.on_24_hour_time(); break;
+    case 'T': handler.on_iso_time(); break;
+    case 'p': handler.on_am_pm(); break;
+    case 'Q': handler.on_duration_value(); break;
+    case 'q': handler.on_duration_unit(); break;
+    case 'z': handler.on_utc_offset(numeric_system::standard); break;
+    case 'Z': handler.on_tz_name(); break;
     // Alternative representation:
     case 'E': {
       if (ptr == end) FMT_THROW(format_error("invalid format"));
       c = *ptr++;
       switch (c) {
-      case 'Y':
-        handler.on_year(numeric_system::alternative);
-        break;
-      case 'y':
-        handler.on_offset_year();
-        break;
-      case 'C':
-        handler.on_century(numeric_system::alternative);
-        break;
-      case 'c':
-        handler.on_datetime(numeric_system::alternative);
-        break;
-      case 'x':
-        handler.on_loc_date(numeric_system::alternative);
-        break;
-      case 'X':
-        handler.on_loc_time(numeric_system::alternative);
-        break;
-      case 'z':
-        handler.on_utc_offset(numeric_system::alternative);
-        break;
-      default:
-        FMT_THROW(format_error("invalid format"));
+      case 'Y': handler.on_year(numeric_system::alternative); break;
+      case 'y': handler.on_offset_year(); break;
+      case 'C': handler.on_century(numeric_system::alternative); break;
+      case 'c': handler.on_datetime(numeric_system::alternative); break;
+      case 'x': handler.on_loc_date(numeric_system::alternative); break;
+      case 'X': handler.on_loc_time(numeric_system::alternative); break;
+      case 'z': handler.on_utc_offset(numeric_system::alternative); break;
+      default:  FMT_THROW(format_error("invalid format"));
       }
       break;
     }
@@ -891,12 +810,8 @@ FMT_CONSTEXPR auto parse_chrono_format(const Char* begin, const Char* end,
       if (ptr == end) FMT_THROW(format_error("invalid format"));
       c = *ptr++;
       switch (c) {
-      case 'y':
-        handler.on_short_year(numeric_system::alternative);
-        break;
-      case 'm':
-        handler.on_dec_month(numeric_system::alternative);
-        break;
+      case 'y': handler.on_short_year(numeric_system::alternative); break;
+      case 'm': handler.on_dec_month(numeric_system::alternative); break;
       case 'U':
         handler.on_dec0_week_of_year(numeric_system::alternative, pad);
         break;
@@ -912,33 +827,17 @@ FMT_CONSTEXPR auto parse_chrono_format(const Char* begin, const Char* end,
       case 'e':
         handler.on_day_of_month(numeric_system::alternative, pad_type::space);
         break;
-      case 'w':
-        handler.on_dec0_weekday(numeric_system::alternative);
-        break;
-      case 'u':
-        handler.on_dec1_weekday(numeric_system::alternative);
-        break;
-      case 'H':
-        handler.on_24_hour(numeric_system::alternative, pad);
-        break;
-      case 'I':
-        handler.on_12_hour(numeric_system::alternative, pad);
-        break;
-      case 'M':
-        handler.on_minute(numeric_system::alternative, pad);
-        break;
-      case 'S':
-        handler.on_second(numeric_system::alternative, pad);
-        break;
-      case 'z':
-        handler.on_utc_offset(numeric_system::alternative);
-        break;
-      default:
-        FMT_THROW(format_error("invalid format"));
+      case 'w': handler.on_dec0_weekday(numeric_system::alternative); break;
+      case 'u': handler.on_dec1_weekday(numeric_system::alternative); break;
+      case 'H': handler.on_24_hour(numeric_system::alternative, pad); break;
+      case 'I': handler.on_12_hour(numeric_system::alternative, pad); break;
+      case 'M': handler.on_minute(numeric_system::alternative, pad); break;
+      case 'S': handler.on_second(numeric_system::alternative, pad); break;
+      case 'z': handler.on_utc_offset(numeric_system::alternative); break;
+      default:  FMT_THROW(format_error("invalid format"));
       }
       break;
-    default:
-      FMT_THROW(format_error("invalid format"));
+    default: FMT_THROW(format_error("invalid format"));
     }
     begin = ptr;
   }
@@ -2234,7 +2133,7 @@ struct formatter<std::chrono::duration<Rep, Period>, Char> {
   detail::arg_ref<Char> width_ref_;
   detail::arg_ref<Char> precision_ref_;
   bool localized_ = false;
-  basic_string_view<Char> format_str_;
+  basic_string_view<Char> fmt_;
 
  public:
   FMT_CONSTEXPR auto parse(parse_context<Char>& ctx) -> const Char* {
@@ -2260,7 +2159,7 @@ struct formatter<std::chrono::duration<Rep, Period>, Char> {
       ++it;
     }
     end = detail::parse_chrono_format(it, end, checker);
-    format_str_ = {it, detail::to_unsigned(end - it)};
+    fmt_ = {it, detail::to_unsigned(end - it)};
     return end;
   }
 
@@ -2270,7 +2169,7 @@ struct formatter<std::chrono::duration<Rep, Period>, Char> {
     auto specs = specs_;
     auto precision = specs.precision;
     specs.precision = -1;
-    auto begin = format_str_.begin(), end = format_str_.end();
+    auto begin = fmt_.begin(), end = fmt_.end();
     // As a possible future optimization, we could avoid extra copying if width
     // is not specified.
     auto buf = basic_memory_buffer<Char>();
@@ -2301,7 +2200,7 @@ template <typename Char> struct formatter<std::tm, Char> {
   detail::arg_ref<Char> width_ref_;
 
  protected:
-  basic_string_view<Char> format_str_;
+  basic_string_view<Char> fmt_;
 
   template <typename Duration, typename FormatContext>
   auto do_format(const std::tm& tm, FormatContext& ctx,
@@ -2316,7 +2215,7 @@ template <typename Char> struct formatter<std::tm, Char> {
     detail::get_locale loc(static_cast<bool>(loc_ref), loc_ref);
     auto w =
         detail::tm_writer<decltype(out), Char, Duration>(loc, out, tm, subsecs);
-    detail::parse_chrono_format(format_str_.begin(), format_str_.end(), w);
+    detail::parse_chrono_format(fmt_.begin(), fmt_.end(), w);
     return detail::write(
         ctx.out(), basic_string_view<Char>(buf.data(), buf.size()), specs);
   }
@@ -2336,8 +2235,8 @@ template <typename Char> struct formatter<std::tm, Char> {
     }
 
     end = detail::parse_chrono_format(it, end, detail::tm_format_checker());
-    // Replace the default format_str only if the new spec is not empty.
-    if (end != it) format_str_ = {it, detail::to_unsigned(end - it)};
+    // Replace the default format string only if the new spec is not empty.
+    if (end != it) fmt_ = {it, detail::to_unsigned(end - it)};
     return end;
   }
 
@@ -2351,7 +2250,7 @@ template <typename Char> struct formatter<std::tm, Char> {
 template <typename Char, typename Duration>
 struct formatter<sys_time<Duration>, Char> : formatter<std::tm, Char> {
   FMT_CONSTEXPR formatter() {
-    this->format_str_ = detail::string_literal<Char, '%', 'F', ' ', '%', 'T'>();
+    this->fmt_ = detail::string_literal<Char, '%', 'F', ' ', '%', 'T'>();
   }
 
   template <typename FormatContext>
@@ -2393,7 +2292,7 @@ struct formatter<utc_time<Duration>, Char>
 template <typename Duration, typename Char>
 struct formatter<local_time<Duration>, Char> : formatter<std::tm, Char> {
   FMT_CONSTEXPR formatter() {
-    this->format_str_ = detail::string_literal<Char, '%', 'F', ' ', '%', 'T'>();
+    this->fmt_ = detail::string_literal<Char, '%', 'F', ' ', '%', 'T'>();
   }
 
   template <typename FormatContext>
