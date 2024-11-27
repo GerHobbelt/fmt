@@ -2410,11 +2410,6 @@ template <typename T> class basic_appender {
   detail::buffer<T>* container;
 
  public:
-  using iterator_category = int;
-  using value_type = T;
-  using pointer = T*;
-  using reference = T&;
-  using difference_type = decltype(pointer() - pointer());
   using container_type = detail::buffer<T>;
 
   FMT_CONSTEXPR basic_appender(detail::buffer<T>& buf) : container(&buf) {}
@@ -2695,7 +2690,7 @@ template <typename... T> struct fstring {
   template <typename S,
             FMT_ENABLE_IF(std::is_convertible<const S&, string_view>::value)>
   FMT_CONSTEVAL FMT_ALWAYS_INLINE fstring(const S& s) : str(s) {
-    FMT_CONSTEXPR auto sv = string_view(S());
+    auto sv = string_view(str);
     if (FMT_USE_CONSTEVAL)
       detail::parse_format_string<char>(sv, checker(sv, arg_pack()));
 #ifdef FMT_ENFORCE_COMPILE_STRING
