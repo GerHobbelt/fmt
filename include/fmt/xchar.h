@@ -15,7 +15,7 @@
 
 #ifndef FMT_MODULE
 #  include <cwchar>
-#  if !defined(FMT_STATIC_THOUSANDS_SEPARATOR)
+#  if FMT_USE_LOCALE
 #    include <locale>
 #  endif
 #endif
@@ -45,7 +45,7 @@ using format_string_char_t = typename format_string_char<S>::type;
 
 inline auto write_loc(basic_appender<wchar_t> out, loc_value value,
                       const format_specs& specs, locale_ref loc) -> bool {
-#ifndef FMT_STATIC_THOUSANDS_SEPARATOR
+#if FMT_USE_LOCALE
   auto& numpunct =
       std::use_facet<std::numpunct<wchar_t>>(loc.get<std::locale>());
   auto separator = std::wstring();
@@ -117,8 +117,7 @@ template <> struct is_char<char16_t> : std::true_type {};
 template <> struct is_char<char32_t> : std::true_type {};
 
 #ifdef __cpp_char8_t
-template <>
-struct is_char<char8_t> : bool_constant<detail::is_utf8_enabled()> {};
+template <> struct is_char<char8_t> : bool_constant<detail::is_utf8_enabled> {};
 #endif
 
 template <typename... T>
@@ -127,14 +126,13 @@ constexpr auto make_wformat_args(T&... args)
   return fmt::make_format_args<wformat_context>(args...);
 }
 
+#if !FMT_USE_NONTYPE_TEMPLATE_ARGS
 inline namespace literals {
-#if FMT_USE_USER_LITERALS && !FMT_USE_NONTYPE_TEMPLATE_ARGS
-constexpr auto operator""_a(const wchar_t* s, size_t)
-    -> detail::udl_arg<wchar_t> {
+inline auto operator""_a(const wchar_t* s, size_t) -> detail::udl_arg<wchar_t> {
   return {s};
 }
-#endif
 }  // namespace literals
+#endif
 
 template <typename It, typename Sentinel>
 auto join(It begin, Sentinel end, wstring_view sep)

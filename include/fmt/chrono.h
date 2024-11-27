@@ -23,6 +23,17 @@
 #include "format.h"
 
 namespace fmt_detail {
+struct time_zone {
+  template <typename Duration, typename T>
+  auto to_sys(T)
+      -> std::chrono::time_point<std::chrono::system_clock, Duration> {
+    return {};
+  }
+};
+template <typename... T> inline auto current_zone(T...) -> time_zone* {
+  return nullptr;
+}
+
 template <typename... T> inline void _tzset(T...) {}
 }  // namespace fmt_detail
 
@@ -293,12 +304,12 @@ inline auto gmtime_s(...) -> null<> { return null<>(); }
 
 // It is defined here and not in ostream.h because the latter has expensive
 // includes.
-template <typename Streambuf> class formatbuf : public Streambuf {
+template <typename StreamBuf> class formatbuf : public StreamBuf {
  private:
-  using char_type = typename Streambuf::char_type;
-  using streamsize = decltype(std::declval<Streambuf>().sputn(nullptr, 0));
-  using int_type = typename Streambuf::int_type;
-  using traits_type = typename Streambuf::traits_type;
+  using char_type = typename StreamBuf::char_type;
+  using streamsize = decltype(std::declval<StreamBuf>().sputn(nullptr, 0));
+  using int_type = typename StreamBuf::int_type;
+  using traits_type = typename StreamBuf::traits_type;
 
   buffer<char_type>& buffer_;
 
@@ -336,20 +347,16 @@ template <typename CodeUnit> struct codecvt_result {
 };
 
 template <typename CodeUnit>
-void write_codecvt(codecvt_result<CodeUnit>& out, string_view in_buf,
+void write_codecvt(codecvt_result<CodeUnit>& out, string_view in,
                    const std::locale& loc) {
-#if FMT_CLANG_VERSION
-#  pragma clang diagnostic push
-#  pragma clang diagnostic ignored "-Wdeprecated"
+  FMT_PRAGMA_CLANG(diagnostic push)
+  FMT_PRAGMA_CLANG(diagnostic ignored "-Wdeprecated")
   auto& f = std::use_facet<std::codecvt<CodeUnit, char, std::mbstate_t>>(loc);
-#  pragma clang diagnostic pop
-#else
-  auto& f = std::use_facet<std::codecvt<CodeUnit, char, std::mbstate_t>>(loc);
-#endif
+  FMT_PRAGMA_CLANG(diagnostic pop)
   auto mb = std::mbstate_t();
   const char* from_next = nullptr;
-  auto result = f.in(mb, in_buf.begin(), in_buf.end(), from_next,
-                     std::begin(out.buf), std::end(out.buf), out.end);
+  auto result = f.in(mb, in.begin(), in.end(), from_next, std::begin(out.buf),
+                     std::end(out.buf), out.end);
   if (result != std::codecvt_base::ok)
     FMT_THROW(format_error("failed to format time"));
 }
@@ -357,7 +364,7 @@ void write_codecvt(codecvt_result<CodeUnit>& out, string_view in_buf,
 template <typename OutputIt>
 auto write_encoded_tm_str(OutputIt out, string_view in, const std::locale& loc)
     -> OutputIt {
-  if (FMT_USE_UTF8 && loc != get_classic_locale()) {
+  if (detail::use_utf8 && loc != get_classic_locale()) {
     // char16_t and char32_t codecvts are broken in MSVC (linkage errors) and
     // gcc-4.
 #if FMT_MSC_VERSION != 0 ||  \
@@ -511,6 +518,14 @@ auto to_time_t(sys_time<Duration> time_point) -> std::time_t {
              time_point.time_since_epoch())
       .count();
 }
+
+// Workaround a bug in libstc++ which sets __cpp_lib_chrono to 201907 without
+// providing current_zone(): https://github.com/fmtlib/fmt/issues/4160.
+template <typename T> FMT_CONSTEXPR auto has_current_zone() -> bool {
+  using namespace std::chrono;
+  using namespace fmt_detail;
+  return !std::is_same<decltype(current_zone()), fmt_detail::time_zone*>::value;
+}
 }  // namespace detail
 
 FMT_BEGIN_EXPORT
@@ -557,10 +572,12 @@ inline auto localtime(std::time_t time) -> std::tm {
 }
 
 #if FMT_USE_LOCAL_TIME
-template <typename Duration>
+template <typename Duration,
+          FMT_ENABLE_IF(detail::has_current_zone<Duration>())>
 inline auto localtime(std::chrono::local_time<Duration> time) -> std::tm {
-  return localtime(
-      detail::to_time_t(std::chrono::current_zone()->to_sys(time)));
+  using namespace std::chrono;
+  using namespace fmt_detail;
+  return localtime(detail::to_time_t(current_zone()->to_sys<Duration>(time)));
 }
 #endif
 
@@ -652,7 +669,7 @@ FMT_CONSTEXPR inline auto get_units() -> const char* {
   if (std::is_same<Period, std::pico>::value) return "ps";
   if (std::is_same<Period, std::nano>::value) return "ns";
   if (std::is_same<Period, std::micro>::value)
-    return FMT_USE_UTF8 ? "µs" : "us";
+    return detail::use_utf8 ? "µs" : "us";
   if (std::is_same<Period, std::milli>::value) return "ms";
   if (std::is_same<Period, std::centi>::value) return "cs";
   if (std::is_same<Period, std::deci>::value) return "ds";
@@ -1563,9 +1580,8 @@ struct chrono_format_checker : null_chrono_spec_handler<chrono_format_checker> {
   FMT_CONSTEXPR void on_iso_time() {}
   FMT_CONSTEXPR void on_am_pm() {}
   FMT_CONSTEXPR void on_duration_value() const {
-    if (has_precision_integral) {
+    if (has_precision_integral)
       FMT_THROW(format_error("precision not allowed for this argument type"));
-    }
   }
   FMT_CONSTEXPR void on_duration_unit() {}
 };
@@ -1672,10 +1688,8 @@ class get_locale {
 
  public:
   get_locale(bool localized, locale_ref loc) : has_locale_(localized) {
-#ifndef FMT_STATIC_THOUSANDS_SEPARATOR
     if (localized)
       ::new (&locale_) std::locale(loc.template get<std::locale>());
-#endif
   }
   ~get_locale() {
     if (has_locale_) locale_.~locale();

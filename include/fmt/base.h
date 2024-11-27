@@ -155,16 +155,16 @@
 #endif
 
 // Check if exceptions are disabled.
-#ifdef FMT_EXCEPTIONS
+#ifdef FMT_USE_EXCEPTIONS
 // Use the provided definition.
 #elif defined(__GNUC__) && !defined(__EXCEPTIONS)
-#  define FMT_EXCEPTIONS 0
+#  define FMT_USE_EXCEPTIONS 0
 #elif FMT_MSC_VERSION && !_HAS_EXCEPTIONS
-#  define FMT_EXCEPTIONS 0
+#  define FMT_USE_EXCEPTIONS 0
 #else
-#  define FMT_EXCEPTIONS 1
+#  define FMT_USE_EXCEPTIONS 1
 #endif
-#if FMT_EXCEPTIONS
+#if FMT_USE_EXCEPTIONS
 #  define FMT_TRY try
 #  define FMT_CATCH(x) catch (x)
 #else
@@ -213,7 +213,7 @@
 #else
 #  define FMT_ALWAYS_INLINE inline
 #endif
-// A version of FMT_INLINE to prevent code bloat in debug mode.
+// A version of FMT_ALWAYS_INLINE to prevent code bloat in debug mode.
 #ifdef NDEBUG
 #  define FMT_INLINE FMT_ALWAYS_INLINE
 #else
@@ -226,24 +226,23 @@
 #  define FMT_VISIBILITY(value)
 #endif
 
-#ifdef FMT_GCC_PRAGMA
+#define FMT_PRAGMA_IMPL(x) _Pragma(#x)
+#ifdef FMT_PRAGMA_GCC
 // Use the provided definition.
 #elif FMT_GCC_VERSION >= 504 && !defined(__NVCOMPILER)
 // Workaround a _Pragma bug https://gcc.gnu.org/bugzilla/show_bug.cgi?id=59884
 // and an nvhpc warning: https://github.com/fmtlib/fmt/pull/2582.
-#  define FMT_GCC_PRAGMA_IMPL(x) _Pragma(#x)
-#  define FMT_GCC_PRAGMA(x) FMT_GCC_PRAGMA_IMPL(GCC x)
+#  define FMT_PRAGMA_GCC(x) FMT_PRAGMA_IMPL(GCC x)
 #else
-#  define FMT_GCC_PRAGMA(x)
+#  define FMT_PRAGMA_GCC(x)
 #endif
 
-#ifdef FMT_CLANG_PRAGMA
+#ifdef FMT_PRAGMA_CLANG
 // Use the provided definition.
 #elif FMT_CLANG_VERSION
-#  define FMT_CLANG_PRAGMA_IMPL(x) _Pragma(#x)
-#  define FMT_CLANG_PRAGMA(x) FMT_CLANG_PRAGMA_IMPL(clang x)
+#  define FMT_PRAGMA_CLANG(x) FMT_PRAGMA_IMPL(clang x)
 #else
-#  define FMT_CLANG_PRAGMA(x)
+#  define FMT_PRAGMA_CLANG(x)
 #endif
 
 #if FMT_MSC_VERSION
@@ -308,11 +307,11 @@
   (void)ignore { 0, (expr, 0)... }
 
 // Enable minimal optimizations for more compact code in debug mode.
-FMT_GCC_PRAGMA(push_options)
+FMT_PRAGMA_GCC(push_options)
 #if !defined(__OPTIMIZE__) && !defined(__CUDACC__)
-FMT_GCC_PRAGMA(optimize("Og"))
+FMT_PRAGMA_GCC(optimize("Og"))
 #endif
-FMT_CLANG_PRAGMA(diagnostic push)
+FMT_PRAGMA_CLANG(diagnostic push)
 
 FMT_BEGIN_NAMESPACE
 
@@ -423,7 +422,7 @@ inline auto map(uint128_opt) -> monostate { return {}; }
 #endif
 
 #if FMT_USE_BITINT
-FMT_CLANG_PRAGMA(diagnostic ignored "-Wbit-int-extension")
+FMT_PRAGMA_CLANG(diagnostic ignored "-Wbit-int-extension")
 template <int N> using bitint = _BitInt(N);
 template <int N> using ubitint = unsigned _BitInt(N);
 #else
@@ -451,20 +450,19 @@ struct is_std_string_like<T, void_t<decltype(std::declval<T>().find_first_of(
     : std::is_convertible<decltype(std::declval<T>().data()),
                           const typename T::value_type*> {};
 
-// Returns true iff the literal encoding is UTF-8.
-constexpr auto is_utf8_enabled() -> bool { return "\u00A7"[1] == '\xA7'; }
-// It is a macro for better debug codegen without if constexpr.
-#define FMT_USE_UTF8 (!FMT_MSC_VERSION || fmt::detail::is_utf8_enabled())
-
-template <typename T> constexpr const char* narrow(const T*) { return nullptr; }
-constexpr FMT_ALWAYS_INLINE const char* narrow(const char* s) { return s; }
+// Check if the literal encoding is UTF-8.
+enum { is_utf8_enabled = "\u00A7"[1] == '\xA7' };
+enum { use_utf8 = !FMT_MSC_VERSION || is_utf8_enabled };
 
 #ifndef FMT_UNICODE
 #  define FMT_UNICODE 1
 #endif
 
-static_assert(!FMT_UNICODE || FMT_USE_UTF8,
+static_assert(!FMT_UNICODE || use_utf8,
               "Unicode support requires compiling with /utf-8");
+
+template <typename T> constexpr const char* narrow(const T*) { return nullptr; }
+constexpr FMT_ALWAYS_INLINE const char* narrow(const char* s) { return s; }
 
 template <typename Char>
 FMT_CONSTEXPR auto compare(const Char* s1, const Char* s2, std::size_t n)
@@ -1314,7 +1312,7 @@ class compile_parse_context : public parse_context<Char> {
   using base::check_arg_id;
 
   FMT_CONSTEXPR void check_dynamic_spec(int arg_id) {
-    detail::ignore_unused(arg_id);
+    ignore_unused(arg_id);
     if (arg_id < num_args_ && types_ && !is_integral_type(types_[arg_id]))
       report_error("width/precision is not integer");
   }
@@ -2048,7 +2046,7 @@ class container_buffer : public buffer<typename Container::value_type> {
 template <typename OutputIt>
 class iterator_buffer<
     OutputIt,
-    enable_if_t<detail::is_back_insert_iterator<OutputIt>::value &&
+    enable_if_t<is_back_insert_iterator<OutputIt>::value &&
                     is_contiguous<typename OutputIt::container_type>::value,
                 typename OutputIt::container_type::value_type>>
     : public container_buffer<typename OutputIt::container_type> {
@@ -2314,12 +2312,8 @@ struct is_output_iterator<
     void_t<decltype(*std::declval<decay_t<It>&>()++ = std::declval<T>())>>
     : std::true_type {};
 
-#ifdef FMT_USE_LOCALE
-// Use the provided definition.
-#elif defined(FMT_STATIC_THOUSANDS_SEPARATOR) || FMT_OPTIMIZE_SIZE > 1
-#  define FMT_USE_LOCALE 0
-#else
-#  define FMT_USE_LOCALE 1
+#ifndef FMT_USE_LOCALE
+#  define FMT_USE_LOCALE (FMT_OPTIMIZE_SIZE <= 1)
 #endif
 
 // A type-erased reference to an std::locale to avoid a heavy <locale> include.
@@ -2348,7 +2342,7 @@ constexpr auto encode_types() -> unsigned long long {
 }
 
 template <typename Context, typename... T, size_t NUM_ARGS = sizeof...(T)>
-constexpr unsigned long long make_descriptor() {
+constexpr auto make_descriptor() -> unsigned long long {
   return NUM_ARGS <= max_packed_args ? encode_types<Context, T...>()
                                      : is_unpacked_bit | NUM_ARGS;
 }
@@ -2423,7 +2417,7 @@ template <typename T, typename Char, type TYPE> struct native_formatter {
     specs_.set_type(set ? presentation_type::debug : presentation_type::none);
   }
 
-  FMT_CLANG_PRAGMA(diagnostic ignored "-Wundefined-inline")
+  FMT_PRAGMA_CLANG(diagnostic ignored "-Wundefined-inline")
   template <typename FormatContext>
   FMT_CONSTEXPR auto format(const T& val, FormatContext& ctx) const
       -> decltype(ctx.out());
@@ -2699,8 +2693,9 @@ class context : private detail::locale_ref {
 
   /// Constructs a `context` object. References to the arguments are stored
   /// in the object so make sure they have appropriate lifetimes.
-  FMT_CONSTEXPR context(iterator out, format_args a, detail::locale_ref l = {})
-      : locale_ref(l), out_(out), args_(a) {}
+  FMT_CONSTEXPR context(iterator out, format_args args,
+                        detail::locale_ref loc = {})
+      : locale_ref(loc), out_(out), args_(args) {}
   context(context&&) = default;
   context(const context&) = delete;
   void operator=(const context&) = delete;
@@ -2829,7 +2824,7 @@ template <typename Context = context, typename... T,
 constexpr FMT_ALWAYS_INLINE auto make_format_args(T&... args)
     -> detail::format_arg_store<Context, NUM_ARGS, NUM_NAMED_ARGS, DESC> {
   // Suppress warnings for pathological types convertible to detail::value.
-  FMT_GCC_PRAGMA(diagnostic ignored "-Wconversion")
+  FMT_PRAGMA_GCC(diagnostic ignored "-Wconversion")
   return {{args...}};
 }
 
@@ -2949,8 +2944,8 @@ FMT_NODISCARD FMT_INLINE auto formatted_size(format_string<T...> fmt,
 
 FMT_API void vprint(string_view fmt, format_args args);
 FMT_API void vprint(FILE* f, string_view fmt, format_args args);
-FMT_API void vprint_buffered(FILE* f, string_view fmt, format_args args);
 FMT_API void vprintln(FILE* f, string_view fmt, format_args args);
+FMT_API void vprint_buffered(FILE* f, string_view fmt, format_args args);
 
 /**
  * Formats `args` according to specifications in `fmt` and writes the output
@@ -2963,7 +2958,8 @@ FMT_API void vprintln(FILE* f, string_view fmt, format_args args);
 template <typename... T>
 FMT_INLINE void print(format_string<T...> fmt, T&&... args) {
   vargs<T...> va = {{args...}};
-  if (!FMT_USE_UTF8) return detail::vprint_mojibake(stdout, fmt.str, va, false);
+  if (!detail::use_utf8)
+    return detail::vprint_mojibake(stdout, fmt.str, va, false);
   return detail::is_locking<T...>() ? vprint_buffered(stdout, fmt.str, va)
                                     : vprint(fmt.str, va);
 }
@@ -2979,7 +2975,7 @@ FMT_INLINE void print(format_string<T...> fmt, T&&... args) {
 template <typename... T>
 FMT_INLINE void print(FILE* f, format_string<T...> fmt, T&&... args) {
   vargs<T...> va = {{args...}};
-  if (!FMT_USE_UTF8) return detail::vprint_mojibake(f, fmt.str, va, false);
+  if (!detail::use_utf8) return detail::vprint_mojibake(f, fmt.str, va, false);
   return detail::is_locking<T...>() ? vprint_buffered(f, fmt.str, va)
                                     : vprint(f, fmt.str, va);
 }
@@ -2989,8 +2985,8 @@ FMT_INLINE void print(FILE* f, format_string<T...> fmt, T&&... args) {
 template <typename... T>
 FMT_INLINE void println(FILE* f, format_string<T...> fmt, T&&... args) {
   vargs<T...> va = {{args...}};
-  return FMT_USE_UTF8 ? vprintln(f, fmt.str, va)
-                      : detail::vprint_mojibake(f, fmt.str, va, true);
+  return detail::use_utf8 ? vprintln(f, fmt.str, va)
+                          : detail::vprint_mojibake(f, fmt.str, va, true);
 }
 
 /// Formats `args` according to specifications in `fmt` and writes the output
@@ -3001,8 +2997,8 @@ FMT_INLINE void println(format_string<T...> fmt, T&&... args) {
 }
 
 FMT_END_EXPORT
-FMT_CLANG_PRAGMA(diagnostic pop)
-FMT_GCC_PRAGMA(pop_options)
+FMT_PRAGMA_CLANG(diagnostic pop)
+FMT_PRAGMA_GCC(pop_options)
 FMT_END_NAMESPACE
 
 #ifdef FMT_HEADER_ONLY

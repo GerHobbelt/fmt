@@ -125,12 +125,13 @@ namespace std {
 template <> struct iterator_traits<fmt::appender> {
   using iterator_category = output_iterator_tag;
   using value_type = char;
+  using reference = char&;
   using difference_type = ptrdiff_t;
 };
 }  // namespace std
 
 #ifndef FMT_THROW
-#  if FMT_EXCEPTIONS
+#  if FMT_USE_EXCEPTIONS
 #    if FMT_MSC_VERSION || defined(__NVCC__)
 FMT_BEGIN_NAMESPACE
 namespace detail {
@@ -164,25 +165,6 @@ FMT_END_NAMESPACE
 #endif
 #ifndef FMT_NO_UNIQUE_ADDRESS
 #  define FMT_NO_UNIQUE_ADDRESS
-#endif
-
-#ifndef FMT_MAYBE_UNUSED
-#  if FMT_HAS_CPP17_ATTRIBUTE(maybe_unused)
-#    define FMT_MAYBE_UNUSED [[maybe_unused]]
-#  else
-#    define FMT_MAYBE_UNUSED
-#  endif
-#endif
-
-#ifndef FMT_USE_USER_LITERALS
-// EDG based compilers (Intel, NVIDIA, Elbrus, etc), GCC and MSVC support UDLs.
-#  if (FMT_HAS_FEATURE(cxx_user_literals) || FMT_GCC_VERSION || \
-       FMT_MSC_VERSION >= 1900) &&                              \
-      (!defined(__EDG_VERSION__) || __EDG_VERSION__ >= /* UDL feature */ 480)
-#    define FMT_USE_USER_LITERALS 1
-#  else
-#    define FMT_USE_USER_LITERALS 0
-#  endif
 #endif
 
 // Defining FMT_REDUCE_INT_INSTANTIATIONS to 1, will reduce the number of
@@ -728,7 +710,7 @@ FMT_CONSTEXPR inline auto compute_width(string_view s) -> size_t {
   struct count_code_points {
     size_t* count;
     FMT_CONSTEXPR auto operator()(uint32_t cp, string_view) const -> bool {
-      *count += detail::to_unsigned(
+      *count += to_unsigned(
           1 +
           (cp >= 0x1100 &&
            (cp <= 0x115f ||  // Hangul Jamo init. consonants
@@ -1035,7 +1017,7 @@ FMT_API void print(FILE*, string_view);
 FMT_BEGIN_EXPORT
 
 // Suppress a misleading warning in older versions of clang.
-FMT_CLANG_PRAGMA(diagnostic ignored "-Wweak-vtables")
+FMT_PRAGMA_CLANG(diagnostic ignored "-Wweak-vtables")
 
 /// An error reported from a formatting function.
 class FMT_SO_VISIBILITY("default") format_error : public std::runtime_error {
@@ -1087,9 +1069,9 @@ template <typename OutputIt, typename Char> class generic_context {
   enum { builtin_types = FMT_BUILTIN_TYPES };
 
   constexpr generic_context(OutputIt out,
-                            basic_format_args<generic_context> ctx_args,
+                            basic_format_args<generic_context> args,
                             detail::locale_ref loc = {})
-      : out_(out), args_(ctx_args), loc_(loc) {}
+      : out_(out), args_(args), loc_(loc) {}
   generic_context(generic_context&&) = default;
   generic_context(const generic_context&) = delete;
   void operator=(const generic_context&) = delete;
@@ -1890,7 +1872,7 @@ auto find_escape(const Char* begin, const Char* end)
 
 inline auto find_escape(const char* begin, const char* end)
     -> find_escape_result<char> {
-  if (!FMT_USE_UTF8) return find_escape<char>(begin, end);
+  if (!detail::use_utf8) return find_escape<char>(begin, end);
   auto result = find_escape_result<char>{end, nullptr, 0};
   for_each_codepoint(string_view(begin, to_unsigned(end - begin)),
                      [&](uint32_t cp, string_view sv) {
@@ -1902,31 +1884,6 @@ inline auto find_escape(const char* begin, const char* end)
                      });
   return result;
 }
-
-#define FMT_STRING_IMPL(s, base)                                           \
-  [] {                                                                     \
-    /* Use the hidden visibility as a workaround for a GCC bug (#1973). */ \
-    /* Use a macro-like name to avoid shadowing warnings. */               \
-    struct FMT_VISIBILITY("hidden") FMT_COMPILE_STRING : base {            \
-      using char_type = fmt::remove_cvref_t<decltype(s[0])>;               \
-      FMT_MAYBE_UNUSED FMT_CONSTEXPR explicit                              \
-      operator fmt::basic_string_view<char_type>() const {                 \
-        return fmt::detail_exported::compile_string_to_view<char_type>(s); \
-      }                                                                    \
-    };                                                                     \
-    fmt::detail::ignore_unused(typename FMT_COMPILE_STRING::char_type());  \
-    return FMT_COMPILE_STRING();                                           \
-  }()
-
-/**
- * Constructs a compile-time format string from a string literal `s`.
- *
- * **Example**:
- *
- *     // A compile-time error because 'd' is an invalid specifier for strings.
- *     std::string s = fmt::format(FMT_STRING("{:d}"), "foo");
- */
-#define FMT_STRING(s) FMT_STRING_IMPL(s, fmt::detail::compile_string)
 
 template <size_t width, typename Char, typename OutputIt>
 auto write_codepoint(OutputIt out, char prefix, uint32_t cp) -> OutputIt {
@@ -3778,8 +3735,7 @@ FMT_CONSTEXPR void handle_dynamic_spec(
   if (kind != arg_id_kind::none) value = get_dynamic_spec(kind, ref, ctx);
 }
 
-#if FMT_USE_USER_LITERALS
-#  if FMT_USE_NONTYPE_TEMPLATE_ARGS
+#if FMT_USE_NONTYPE_TEMPLATE_ARGS
 template <typename T, typename Char, size_t N,
           fmt::detail_exported::fixed_string<Char, N> Str>
 struct static_named_arg : view {
@@ -3805,7 +3761,7 @@ struct udl_arg {
     return static_named_arg<T, Char, N, Str>(std::forward<T>(value));
   }
 };
-#  else
+#else
 template <typename Char> struct udl_arg {
   const Char* str;
 
@@ -3813,8 +3769,7 @@ template <typename Char> struct udl_arg {
     return {str, std::forward<T>(value)};
   }
 };
-#  endif  // FMT_USE_NONTYPE_TEMPLATE_ARGS
-#endif    // FMT_USE_USER_LITERALS
+#endif  // FMT_USE_NONTYPE_TEMPLATE_ARGS
 
 template <typename Char> struct format_handler {
   parse_context<Char> parse_ctx;
@@ -4135,8 +4090,13 @@ struct formatter<detail::float128, Char>
     : detail::native_formatter<detail::float128, Char,
                                detail::type::float_type> {};
 
-#if FMT_USE_USER_LITERALS
 inline namespace literals {
+#if FMT_USE_NONTYPE_TEMPLATE_ARGS
+template <detail_exported::fixed_string Str> constexpr auto operator""_a() {
+  using char_t = remove_cvref_t<decltype(Str.data[0])>;
+  return detail::udl_arg<char_t, sizeof(Str.data) / sizeof(char_t), Str>();
+}
+#else
 /**
  * User-defined literal equivalent of `fmt::arg`.
  *
@@ -4145,18 +4105,11 @@ inline namespace literals {
  *     using namespace fmt::literals;
  *     fmt::print("The answer is {answer}.", "answer"_a=42);
  */
-#  if FMT_USE_NONTYPE_TEMPLATE_ARGS
-template <detail_exported::fixed_string Str> constexpr auto operator""_a() {
-  using char_t = remove_cvref_t<decltype(Str.data[0])>;
-  return detail::udl_arg<char_t, sizeof(Str.data) / sizeof(char_t), Str>();
-}
-#  else
 constexpr auto operator""_a(const char* s, size_t) -> detail::udl_arg<char> {
   return {s};
 }
-#  endif
+#endif  // FMT_USE_NONTYPE_TEMPLATE_ARGS
 }  // namespace literals
-#endif  // FMT_USE_USER_LITERALS
 
 /// A fast integer formatter.
 class format_int {
@@ -4213,8 +4166,35 @@ class format_int {
   }
 
   /// Returns the content of the output buffer as an `std::string`.
-  auto str() const -> std::string { return std::string(str_, size()); }
+  auto str() const -> std::string { return {str_, size()}; }
 };
+
+#define FMT_STRING_IMPL(s, base)                                           \
+  [] {                                                                     \
+    /* Use the hidden visibility as a workaround for a GCC bug (#1973). */ \
+    /* Use a macro-like name to avoid shadowing warnings. */               \
+    struct FMT_VISIBILITY("hidden") FMT_COMPILE_STRING : base {            \
+      using char_type = fmt::remove_cvref_t<decltype(s[0])>;               \
+      FMT_CONSTEXPR explicit operator fmt::basic_string_view<char_type>()  \
+          const {                                                          \
+        return fmt::detail_exported::compile_string_to_view<char_type>(s); \
+      }                                                                    \
+    };                                                                     \
+    using FMT_STRING_VIEW =                                                \
+        fmt::basic_string_view<typename FMT_COMPILE_STRING::char_type>;    \
+    fmt::detail::ignore_unused(FMT_STRING_VIEW(FMT_COMPILE_STRING()));     \
+    return FMT_COMPILE_STRING();                                           \
+  }()
+
+/**
+ * Constructs a compile-time format string from a string literal `s`.
+ *
+ * **Example**:
+ *
+ *     // A compile-time error because 'd' is an invalid specifier for strings.
+ *     std::string s = fmt::format(FMT_STRING("{:d}"), "foo");
+ */
+#define FMT_STRING(s) FMT_STRING_IMPL(s, fmt::detail::compile_string)
 
 FMT_BEGIN_EXPORT
 FMT_API auto vsystem_error(int error_code, string_view fmt, format_args args)
@@ -4336,7 +4316,7 @@ FMT_NODISCARD auto to_string(T value) -> std::string {
   constexpr int max_size = detail::digits10<T>() + 2;
   char buffer[max_size > 5 ? static_cast<unsigned>(max_size) : 5];
   char* begin = buffer;
-  return std::string(buffer, detail::write<char>(begin, value));
+  return {buffer, detail::write<char>(begin, value)};
 }
 
 template <typename T, FMT_ENABLE_IF(!std::is_integral<T>::value &&
