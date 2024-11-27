@@ -10,6 +10,7 @@
 
 #include "color.h"
 #include "format.h"
+#include "ostream.h"
 #include "ranges.h"
 
 #ifndef FMT_MODULE
@@ -64,11 +65,49 @@ using wformat_context = buffered_context<wchar_t>;
 using wformat_args = basic_format_args<wformat_context>;
 using wmemory_buffer = basic_memory_buffer<wchar_t>;
 
+template <typename Char, typename... T> struct basic_fstring {
+ private:
+  basic_string_view<Char> str_;
+
+  static constexpr int num_static_named_args =
+      detail::count_static_named_args<T...>();
+
+  using checker = detail::format_string_checker<
+      Char, static_cast<int>(sizeof...(T)), num_static_named_args,
+      num_static_named_args != detail::count_named_args<T...>()>;
+
+  using arg_pack = detail::arg_pack<T...>;
+
+ public:
+  using t = basic_fstring;
+
+  template <typename S,
+            FMT_ENABLE_IF(
+                std::is_convertible<const S&, basic_string_view<Char>>::value)>
+  FMT_CONSTEVAL FMT_ALWAYS_INLINE basic_fstring(const S& s) : str_(s) {
+    if (FMT_USE_CONSTEVAL)
+      detail::parse_format_string<Char>(s, checker(s, arg_pack()));
+  }
+  template <typename S,
+            FMT_ENABLE_IF(std::is_base_of<detail::compile_string, S>::value&&
+                              std::is_same<typename S::char_type, Char>::value)>
+  FMT_ALWAYS_INLINE basic_fstring(const S&) : str_(S()) {
+    FMT_CONSTEXPR auto sv = basic_string_view<Char>(S());
+    FMT_CONSTEXPR int ignore =
+        (parse_format_string(sv, checker(sv, arg_pack())), 0);
+    detail::ignore_unused(ignore);
+  }
+  basic_fstring(runtime_format_string<Char> fmt) : str_(fmt.str) {}
+
+  operator basic_string_view<Char>() const { return str_; }
+  auto get() const -> basic_string_view<Char> { return str_; }
+};
+
 template <typename Char, typename... T>
-using basic_format_string = fstring<Char, T...>;
+using basic_format_string = basic_fstring<Char, T...>;
 
 template <typename... T>
-using wformat_string = typename fstring<wchar_t, T...>::t;
+using wformat_string = typename basic_format_string<wchar_t, T...>::t;
 inline auto runtime(wstring_view s) -> runtime_format_string<wchar_t> {
   return {{s}};
 }
@@ -89,7 +128,7 @@ constexpr auto make_wformat_args(T&... args)
 }
 
 inline namespace literals {
-#if FMT_USE_USER_DEFINED_LITERALS && !FMT_USE_NONTYPE_TEMPLATE_ARGS
+#if FMT_USE_USER_LITERALS && !FMT_USE_NONTYPE_TEMPLATE_ARGS
 constexpr auto operator""_a(const wchar_t* s, size_t)
     -> detail::udl_arg<wchar_t> {
   return {s};
@@ -308,6 +347,22 @@ template <typename... T>
 FMT_DEPRECATED void print(const text_style& ts, wformat_string<T...> fmt,
                           const T&... args) {
   return print(stdout, ts, fmt, args...);
+}
+
+inline void vprint(std::wostream& os, wstring_view fmt, wformat_args args) {
+  auto buffer = basic_memory_buffer<wchar_t>();
+  detail::vformat_to(buffer, fmt, args);
+  detail::write_buffer(os, buffer);
+}
+
+template <typename... T>
+void print(std::wostream& os, wformat_string<T...> fmt, T&&... args) {
+  vprint(os, fmt, fmt::make_format_args<buffered_context<wchar_t>>(args...));
+}
+
+template <typename... T>
+void println(std::wostream& os, wformat_string<T...> fmt, T&&... args) {
+  print(os, L"{}\n", fmt::format(fmt, std::forward<T>(args)...));
 }
 
 /// Converts `value` to `std::wstring` using the default format for type `T`.
