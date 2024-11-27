@@ -17,8 +17,6 @@
 #  include <stdio.h>   // FILE
 #  include <string.h>  // memcmp
 
-// <cstddef> is also included transitively from <type_traits>.
-#  include <cstddef>      // std::byte
 #  include <type_traits>  // std::enable_if
 #endif
 
@@ -226,32 +224,24 @@
 #  define FMT_VISIBILITY(value)
 #endif
 
+// Detect pragmas.
 #define FMT_PRAGMA_IMPL(x) _Pragma(#x)
-#ifdef FMT_PRAGMA_GCC
-// Use the provided definition.
-#elif FMT_GCC_VERSION >= 504 && !defined(__NVCOMPILER)
+#if FMT_GCC_VERSION >= 504 && !defined(__NVCOMPILER)
 // Workaround a _Pragma bug https://gcc.gnu.org/bugzilla/show_bug.cgi?id=59884
 // and an nvhpc warning: https://github.com/fmtlib/fmt/pull/2582.
 #  define FMT_PRAGMA_GCC(x) FMT_PRAGMA_IMPL(GCC x)
 #else
 #  define FMT_PRAGMA_GCC(x)
 #endif
-
-#ifdef FMT_PRAGMA_CLANG
-// Use the provided definition.
-#elif FMT_CLANG_VERSION
+#if FMT_CLANG_VERSION
 #  define FMT_PRAGMA_CLANG(x) FMT_PRAGMA_IMPL(clang x)
 #else
 #  define FMT_PRAGMA_CLANG(x)
 #endif
-
 #if FMT_MSC_VERSION
 #  define FMT_MSC_WARNING(...) __pragma(warning(__VA_ARGS__))
-#  define FMT_UNCHECKED_ITERATOR(It) \
-    using _Unchecked_type = It  // Mark iterator as checked.
 #else
 #  define FMT_MSC_WARNING(...)
-#  define FMT_UNCHECKED_ITERATOR(It) using unchecked_type = It
 #endif
 
 #ifndef FMT_BEGIN_NAMESPACE
@@ -338,6 +328,7 @@ using make_unsigned_t = typename std::make_unsigned<T>::type;
 template <typename T>
 using underlying_t = typename std::underlying_type<T>::type;
 template <typename T> using decay_t = typename std::decay<T>::type;
+using nullptr_t = decltype(nullptr);
 
 #if FMT_GCC_VERSION && FMT_GCC_VERSION < 500
 // A workaround for gcc 4.9 to make void_t work in a SFINAE context.
@@ -535,7 +526,7 @@ template <typename Char> class basic_string_view {
   constexpr basic_string_view(const Char* s, size_t count) noexcept
       : data_(s), size_(count) {}
 
-  constexpr basic_string_view(std::nullptr_t) = delete;
+  constexpr basic_string_view(nullptr_t) = delete;
 
   /// Constructs a string reference object from a C string.
 #if FMT_GCC_VERSION
@@ -671,15 +662,6 @@ struct formatter {
   // A deleted default constructor indicates a disabled formatter.
   formatter() = delete;
 };
-
-// This is defined in base.h instead of format.h to avoid injecting in std.
-// It is a template to avoid undesirable implicit conversions to std::byte.
-#ifdef __cpp_lib_byte
-template <typename T, FMT_ENABLE_IF(std::is_same<T, std::byte>::value)>
-inline auto format_as(T b) -> unsigned char {
-  return static_cast<unsigned char>(b);
-}
-#endif
 
 /// Reports a format error at compile time or, via a `format_error` exception,
 /// at runtime.
@@ -1101,22 +1083,32 @@ using ulong_type = conditional_t<long_short, unsigned, unsigned long long>;
 template <typename T>
 using format_as_result =
     remove_cvref_t<decltype(format_as(std::declval<const T&>()))>;
+template <typename T>
+using format_as_member_result =
+    remove_cvref_t<decltype(formatter<T>::format_as(std::declval<const T&>()))>;
 
 template <typename T, typename Enable = std::true_type>
 struct use_format_as : std::false_type {};
+// format_as member is only used to avoid injection into the std namespace.
+template <typename T, typename Enable = std::true_type>
+struct use_format_as_member : std::false_type {};
 
 // Only map owning types because mapping views can be unsafe.
 template <typename T>
 struct use_format_as<
-    T, bool_constant<std::is_integral<format_as_result<T>>::value>>
+    T, bool_constant<std::is_arithmetic<format_as_result<T>>::value>>
+    : std::true_type {};
+template <typename T>
+struct use_format_as_member<
+    T, bool_constant<std::is_arithmetic<format_as_member_result<T>>::value>>
     : std::true_type {};
 
 template <typename T, typename U = remove_const_t<T>>
-struct use_formatter
-    : bool_constant<(std::is_class<T>::value || std::is_enum<T>::value ||
-                     std::is_union<T>::value || std::is_array<T>::value) &&
-                    !has_to_string_view<T>::value && !is_named_arg<T>::value &&
-                    !use_format_as<T>::value> {};
+using use_formatter =
+    bool_constant<(std::is_class<T>::value || std::is_enum<T>::value ||
+                   std::is_union<T>::value || std::is_array<T>::value) &&
+                  !has_to_string_view<T>::value && !is_named_arg<T>::value &&
+                  !use_format_as<T>::value && !use_format_as_member<T>::value>;
 
 template <typename Char, typename T, typename U = remove_const_t<T>>
 auto has_formatter_impl(T* p, buffered_context<Char>* ctx = nullptr)
@@ -1170,13 +1162,15 @@ template <typename Char> struct type_mapper {
   static auto map(const void*) -> const void*;
   static auto map(volatile void*) -> const void*;
   static auto map(const volatile void*) -> const void*;
-  static auto map(std::nullptr_t) -> const void*;
+  static auto map(nullptr_t) -> const void*;
   template <typename T, FMT_ENABLE_IF(std::is_pointer<T>::value ||
                                       std::is_member_pointer<T>::value)>
   static auto map(const T&) -> void;
 
   template <typename T, FMT_ENABLE_IF(use_format_as<T>::value)>
   static auto map(const T& x) -> decltype(map(format_as(x)));
+  template <typename T, FMT_ENABLE_IF(use_format_as_member<T>::value)>
+  static auto map(const T& x) -> decltype(map(formatter<T>::format_as(x)));
 
   template <typename T, FMT_ENABLE_IF(use_formatter<T>::value)>
   static auto map(T&) -> conditional_t<has_formatter<T, Char>(), T&, void>;
@@ -1487,16 +1481,10 @@ FMT_CONSTEXPR auto parse_format_specs(const Char* begin, const Char* end,
       }
       ++begin;
       break;
-    case '1':
-    case '2':
-    case '3':
-    case '4':
-    case '5':
-    case '6':
-    case '7':
-    case '8':
-    case '9':
-    case '{':
+      // clang-format off
+    case '1': case '2': case '3': case '4': case '5':
+    case '6': case '7': case '8': case '9': case '{':
+      // clang-format on
       enter_state(state::width);
       begin = parse_width(begin, end, specs, specs.width_ref, ctx);
       break;
@@ -2164,7 +2152,7 @@ template <typename Context> class value {
       : pointer(const_cast<const void*>(x)) {}
   FMT_INLINE value(const volatile void* x FMT_BUILTIN)
       : pointer(const_cast<const void*>(x)) {}
-  FMT_INLINE value(std::nullptr_t) : pointer(nullptr) {}
+  FMT_INLINE value(nullptr_t) : pointer(nullptr) {}
 
   template <typename T, FMT_ENABLE_IF(std::is_pointer<T>::value ||
                                       std::is_member_pointer<T>::value)>
@@ -2178,6 +2166,8 @@ template <typename Context> class value {
 
   template <typename T, FMT_ENABLE_IF(use_format_as<T>::value)>
   value(const T& x) : value(format_as(x)) {}
+  template <typename T, FMT_ENABLE_IF(use_format_as_member<T>::value)>
+  value(const T& x) : value(formatter<T>::format_as(x)) {}
 
   template <typename T, FMT_ENABLE_IF(is_named_arg<T>::value)>
   value(const T& named_arg) : value(named_arg.value) {}
@@ -2412,11 +2402,10 @@ template <typename T> class basic_appender {
  public:
   using iterator_category = int;
   using value_type = T;
-  using difference_type = ptrdiff_t;
   using pointer = T*;
   using reference = T&;
+  using difference_type = decltype(pointer() - pointer());
   using container_type = detail::buffer<T>;
-  FMT_UNCHECKED_ITERATOR(basic_appender);
 
   FMT_CONSTEXPR basic_appender(detail::buffer<T>& buf) : container(&buf) {}
 
