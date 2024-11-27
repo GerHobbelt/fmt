@@ -415,7 +415,7 @@ inline auto map(uint128_opt) -> monostate { return {}; }
 #endif
 
 #ifndef FMT_USE_BITINT
-#  define FMT_USE_BITINT (FMT_CLANG_VERSION >= 1400)
+#  define FMT_USE_BITINT (FMT_CLANG_VERSION >= 1500)
 #endif
 
 #if FMT_USE_BITINT
@@ -1814,9 +1814,9 @@ template <typename T> class buffer {
 };
 
 struct buffer_traits {
-  explicit buffer_traits(size_t) {}
-  auto count() const -> size_t { return 0; }
-  auto limit(size_t size) -> size_t { return size; }
+  constexpr explicit buffer_traits(size_t) {}
+  constexpr auto count() const -> size_t { return 0; }
+  constexpr auto limit(size_t size) const -> size_t { return size; }
 };
 
 class fixed_buffer_traits {
@@ -1825,9 +1825,9 @@ class fixed_buffer_traits {
   size_t limit_;
 
  public:
-  explicit fixed_buffer_traits(size_t limit) : limit_(limit) {}
-  auto count() const -> size_t { return count_; }
-  auto limit(size_t size) -> size_t {
+  constexpr explicit fixed_buffer_traits(size_t limit) : limit_(limit) {}
+  constexpr auto count() const -> size_t { return count_; }
+  FMT_CONSTEXPR auto limit(size_t size) -> size_t {
     size_t n = limit_ > count_ ? limit_ - count_ : 0;
     count_ += size;
     return size < n ? size : n;
@@ -2248,9 +2248,12 @@ struct locale_ref {
 
  public:
   constexpr locale_ref() : locale_(nullptr) {}
-  template <typename Locale> explicit locale_ref(const Locale& loc);
-  explicit operator bool() const noexcept { return locale_ != nullptr; }
-#endif
+
+  template <typename Locale, FMT_ENABLE_IF(sizeof(Locale::collate) != 0)>
+  locale_ref(const Locale& loc);
+
+  inline explicit operator bool() const noexcept { return locale_ != nullptr; }
+#endif  // FMT_USE_LOCALE
 
   template <typename Locale> auto get() const -> Locale;
 };
@@ -2624,7 +2627,7 @@ class context : private detail::locale_ref {
   void operator=(const context&) = delete;
 
   FMT_CONSTEXPR auto arg(int id) const -> format_arg { return args_.get(id); }
-  auto arg(string_view name) -> format_arg { return args_.get(name); }
+  inline auto arg(string_view name) -> format_arg { return args_.get(name); }
   FMT_CONSTEXPR auto arg_id(string_view name) -> int {
     return args_.get_id(name);
   }
@@ -2633,7 +2636,7 @@ class context : private detail::locale_ref {
   FMT_CONSTEXPR auto out() -> iterator { return out_; }
 
   // Advances the begin iterator to `it`.
-  void advance_to(iterator) {}
+  FMT_CONSTEXPR void advance_to(iterator) {}
 
   FMT_CONSTEXPR auto locale() -> detail::locale_ref { return *this; }
 };
