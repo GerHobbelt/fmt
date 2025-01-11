@@ -2981,8 +2981,12 @@ constexpr auto fractional_part_rounding_thresholds(int index) -> uint32_t {
   // It is equal to ceil(2^31 + 2^32/10^(k + 1)).
   // These are stored in a string literal because we cannot have static arrays
   // in constexpr functions and non-static ones are poorly optimized.
-  return U"\x9999999a\x828f5c29\x80418938\x80068db9\x8000a7c6\x800010c7"
-         U"\x800001ae\x8000002b"[index];
+  constexpr uint32_t thresholds[] = {
+        0x9999999a, 0x828f5c29, 0x80418938, 0x80068db9,
+        0x8000a7c6, 0x800010c7, 0x800001ae, 0x8000002b
+    };
+
+    return thresholds[index];
 }
 
 template <typename Float>
