@@ -1,4 +1,8 @@
-# 11.1.2 - TBD
+# 11.1.3 - TBD
+
+- Fixed compilation on GCC 9.4 (https://github.com/fmtlib/fmt/issues/4313).
+
+# 11.1.2 - 2025-01-12
 
 - Fixed ABI compatibility with earlier 11.x versions
   (https://github.com/fmtlib/fmt/issues/4292).
@@ -14,6 +18,10 @@
 
 - Updated docs for meson (https://github.com/fmtlib/fmt/pull/4291).
   Thanks @trim21.
+
+- Fixed a compilation error in chrono on nvcc
+  (https://github.com/fmtlib/fmt/issues/4297,
+  https://github.com/fmtlib/fmt/pull/4301). Thanks @breyerml.
 
 - Fixed various warnings
   (https://github.com/fmtlib/fmt/pull/4288,

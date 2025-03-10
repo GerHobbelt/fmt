@@ -32,7 +32,7 @@
 //#define FMT_LOCALE
 
 // The fmt library version in the form major * 10000 + minor * 100 + patch.
-#define FMT_VERSION 110101
+#define FMT_VERSION 110103
 
 // Detect compiler versions.
 #if defined(__clang__) && !defined(__ibmxl__)
@@ -320,7 +320,7 @@
 
 // Enable minimal optimizations for more compact code in debug mode.
 FMT_PRAGMA_GCC(push_options)
-#if !defined(__OPTIMIZE__) && !defined(__CUDACC__)
+#if !defined(__OPTIMIZE__) && !defined(__CUDACC__) && !defined(FMT_MODULE)
 FMT_PRAGMA_GCC(optimize("Og"))
 #endif
 FMT_PRAGMA_CLANG(diagnostic push)
@@ -761,13 +761,15 @@ class basic_specs {
     max_fill_size = 4
   };
 
-  size_t data_ = 1 << fill_size_shift;
+  unsigned data_ = 1 << fill_size_shift;
+  static_assert(sizeof(data_) * CHAR_BIT >= 18, "");
 
   // Character (code unit) type is erased to prevent template bloat.
   char fill_data_[max_fill_size] = {' '};
 
   FMT_CONSTEXPR void set_fill_size(size_t size) {
-    data_ = (data_ & ~fill_size_mask) | (size << fill_size_shift);
+    data_ = (data_ & ~fill_size_mask) |
+            (static_cast<unsigned>(size) << fill_size_shift);
   }
 
  public:
@@ -865,7 +867,7 @@ class basic_specs {
       fill_data_[i & 3] = static_cast<char>(s[i]);
   }
 
-  FMT_CONSTEXPR void set_fill(const basic_specs& specs) {
+  FMT_CONSTEXPR void copy_fill_from(const basic_specs& specs) {
     set_fill_size(specs.fill_size());
     for (size_t i = 0; i < max_fill_size; ++i)
       fill_data_[i] = specs.fill_data_[i];
@@ -2682,6 +2684,7 @@ class context {
   FMT_CONSTEXPR auto arg_id(string_view name) const -> int {
     return args_.get_id(name);
   }
+  auto args() const -> const format_args& { return args_; }
 
   // Returns an iterator to the beginning of the output range.
   FMT_CONSTEXPR auto out() const -> iterator { return out_; }
