@@ -315,8 +315,8 @@
 #endif
 
 #define FMT_APPLY_VARIADIC(expr) \
-  using ignore = int[];          \
-  (void)ignore { 0, (expr, 0)... }
+  using unused = int[];          \
+  (void)unused { 0, (expr, 0)... }
 
 // Enable minimal optimizations for more compact code in debug mode.
 FMT_PRAGMA_GCC(push_options)
@@ -558,7 +558,7 @@ template <typename Char> class basic_string_view {
   FMT_ALWAYS_INLINE
 #endif
   FMT_CONSTEXPR20 basic_string_view(const Char* s) : data_(s) {
-#if FMT_HAS_BUILTIN(__buitin_strlen) || FMT_GCC_VERSION || FMT_CLANG_VERSION
+#if FMT_HAS_BUILTIN(__builtin_strlen) || FMT_GCC_VERSION || FMT_CLANG_VERSION
     if (std::is_same<Char, char>::value) {
       size_ = __builtin_strlen(detail::narrow(s));
       return;
@@ -762,7 +762,7 @@ class basic_specs {
   };
 
   unsigned data_ = 1 << fill_size_shift;
-  static_assert(sizeof(data_) * CHAR_BIT >= 18, "");
+  static_assert(sizeof(basic_specs::data_) * CHAR_BIT >= 18, "");
 
   // Character (code unit) type is erased to prevent template bloat.
   char fill_data_[max_fill_size] = {' '};
@@ -2291,8 +2291,8 @@ template <> struct is_output_iterator<appender, char> : std::true_type {};
 template <typename It, typename T>
 struct is_output_iterator<
     It, T,
-    void_t<decltype(*std::declval<decay_t<It>&>()++ = std::declval<T>())>>
-    : std::true_type {};
+    enable_if_t<std::is_assignable<decltype(*std::declval<decay_t<It>&>()++),
+                                   T>::value>> : std::true_type {};
 
 #ifndef FMT_USE_LOCALE
 #  define FMT_USE_LOCALE (FMT_OPTIMIZE_SIZE <= 1)
@@ -2757,9 +2757,9 @@ template <typename... T> struct fstring {
                               std::is_same<typename S::char_type, char>::value)>
   FMT_ALWAYS_INLINE fstring(const S&) : str(S()) {
     FMT_CONSTEXPR auto sv = string_view(S());
-    FMT_CONSTEXPR int ignore =
+    FMT_CONSTEXPR int unused =
         (parse_format_string(sv, checker(sv, arg_pack())), 0);
-    detail::ignore_unused(ignore);
+    detail::ignore_unused(unused);
   }
   fstring(runtime_format_string<> fmt) : str(fmt.str) {}
 
