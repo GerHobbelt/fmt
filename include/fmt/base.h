@@ -864,6 +864,12 @@ class basic_specs {
     for (size_t i = 0; i < size; ++i)
       fill_data_[i & 3] = static_cast<char>(s[i]);
   }
+
+  FMT_CONSTEXPR void set_fill(const basic_specs& specs) {
+    set_fill_size(specs.fill_size());
+    for (size_t i = 0; i < max_fill_size; ++i)
+      fill_data_[i] = specs.fill_data_[i];
+  }
 };
 
 // Format specifiers for built-in and string types.
@@ -2298,9 +2304,7 @@ struct locale_ref {
 
  public:
   constexpr locale_ref() : locale_(nullptr) {}
-
-  template <typename Locale, FMT_ENABLE_IF(sizeof(Locale::collate) != 0)>
-  locale_ref(const Locale& loc);
+  template <typename Locale> locale_ref(const Locale& loc);
 
   inline explicit operator bool() const noexcept { return locale_ != nullptr; }
 #endif  // FMT_USE_LOCALE
