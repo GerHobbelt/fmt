@@ -107,9 +107,9 @@
 // Detect C++14 relaxed constexpr.
 #ifdef FMT_USE_CONSTEXPR
 // Use the provided definition.
-#elif FMT_GCC_VERSION >= 600 && FMT_CPLUSPLUS >= 201402L
-// GCC only allows throw in constexpr since version 6:
-// https://gcc.gnu.org/bugzilla/show_bug.cgi?id=67371.
+#elif FMT_GCC_VERSION >= 702 && FMT_CPLUSPLUS >= 201402L
+// GCC only allows constexpr member functions in non-literal types since 7.2:
+// https://gcc.gnu.org/bugzilla/show_bug.cgi?id=66297.
 #  define FMT_USE_CONSTEXPR 1
 #elif FMT_ICC_VERSION
 #  define FMT_USE_CONSTEXPR 0  // https://github.com/fmtlib/fmt/issues/1628
@@ -1143,7 +1143,7 @@ using use_formatter =
     bool_constant<(std::is_class<T>::value || std::is_enum<T>::value ||
                    std::is_union<T>::value || std::is_array<T>::value) &&
                   !has_to_string_view<T>::value && !is_named_arg<T>::value &&
-                  !use_format_as<T>::value && !use_format_as_member<T>::value>;
+                  !use_format_as<T>::value && !use_format_as_member<U>::value>;
 
 template <typename Char, typename T, typename U = remove_const_t<T>>
 auto has_formatter_impl(T* p, buffered_context<Char>* ctx = nullptr)
