@@ -32,7 +32,7 @@
 //#define FMT_LOCALE
 
 // The fmt library version in the form major * 10000 + minor * 100 + patch.
-#define FMT_VERSION 110103
+#define FMT_VERSION 110104
 
 // Detect compiler versions.
 #if defined(__clang__) && !defined(__ibmxl__)
@@ -1086,6 +1086,16 @@ template <typename Char> struct named_arg_info {
   int id;
 };
 
+// named_args is non-const to suppress a bogus -Wmaybe-uninitalized in gcc 13.
+template <typename Char>
+FMT_CONSTEXPR void check_for_duplicate(named_arg_info<Char>* named_args,
+                                       int named_arg_index,
+                                       basic_string_view<Char> arg_name) {
+  for (int i = 0; i < named_arg_index; ++i) {
+    if (named_args[i].name == arg_name) report_error("duplicate named arg");
+  }
+}
+
 template <typename Char, typename T, FMT_ENABLE_IF(!is_named_arg<T>::value)>
 void init_named_arg(named_arg_info<Char>*, int& arg_index, int&, const T&) {
   ++arg_index;
@@ -1093,6 +1103,7 @@ void init_named_arg(named_arg_info<Char>*, int& arg_index, int&, const T&) {
 template <typename Char, typename T, FMT_ENABLE_IF(is_named_arg<T>::value)>
 void init_named_arg(named_arg_info<Char>* named_args, int& arg_index,
                     int& named_arg_index, const T& arg) {
+  check_for_duplicate<Char>(named_args, named_arg_index, arg.name);
   named_args[named_arg_index++] = {arg.name, arg_index++};
 }
 
@@ -1106,6 +1117,7 @@ template <typename T, typename Char,
           FMT_ENABLE_IF(is_static_named_arg<T>::value)>
 FMT_CONSTEXPR void init_static_named_arg(named_arg_info<Char>* named_args,
                                          int& arg_index, int& named_arg_index) {
+  check_for_duplicate<Char>(named_args, named_arg_index, T::name);
   named_args[named_arg_index++] = {T::name, arg_index++};
 }
 
@@ -2299,7 +2311,7 @@ struct is_output_iterator<
 #endif
 
 // A type-erased reference to an std::locale to avoid a heavy <locale> include.
-struct locale_ref {
+class locale_ref {
 #if FMT_USE_LOCALE
  private:
   const void* locale_;  // A type-erased pointer to std::locale.
@@ -2311,6 +2323,7 @@ struct locale_ref {
   inline explicit operator bool() const noexcept { return locale_ != nullptr; }
 #endif  // FMT_USE_LOCALE
 
+ public:
   template <typename Locale> auto get() const -> Locale;
 };
 
