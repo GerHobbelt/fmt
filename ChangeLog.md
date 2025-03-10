@@ -1,4 +1,13 @@
-# 11.1.0 - TBD
+# 11.1.1 - TBD
+
+- Fixed ABI compatibility with earlier 11.x versions
+  (https://github.com/fmtlib/fmt/issues/4278).
+
+- Defined CMake components (`core` and `doc`) to allow docs to be installed
+  separately (https://github.com/fmtlib/fmt/pull/4276).
+  Thanks @carlsmedstad.
+
+# 11.1.0 - 2024-12-25
 
 - Improved C++20 module support
   (https://github.com/fmtlib/fmt/issues/4081,
@@ -12,9 +21,10 @@
   https://github.com/fmtlib/fmt/pull/4239).
   Thanks @kamrann and @Arghnews.
 
-- Improved debug codegen and reduced the number of template instantiations when
-  passing formatting arguments. For example, unoptimized binary code size for
-  `fmt::print("{}", 42)` was reduced by ~40% on GCC and ~60% on clang (x86-64).
+- Reduced debug (unoptimized) binary code size and the number of template
+  instantiations when passing formatting arguments. For example, unoptimized
+  binary code size for `fmt::print("{}", 42)` was reduced by ~40% on GCC and
+  ~60% on clang (x86-64).
 
   GCC:
   - Before: 161 instructions of which 105 are in reusable functions
@@ -119,10 +129,10 @@
   https://github.com/fmtlib/fmt/pull/4164). Thanks @yfeldblum and @phprus.
 
 - Added experimental padding support (glibc `strftime` extension) to `%m`, `%j`
-  and `%Y`. (https://github.com/fmtlib/fmt/pull/4161). Thanks @KKhanhH.
+  and `%Y` (https://github.com/fmtlib/fmt/pull/4161). Thanks @KKhanhH.
 
 - Made microseconds formatted as `us` instead of `µs` if the Unicode support is
-  disabled (https://github.com/fmtlib/fmt/issues/4088.
+  disabled (https://github.com/fmtlib/fmt/issues/4088).
 
 - Fixed an unreleased regression in transcoding of surrogate pairs
   (https://github.com/fmtlib/fmt/issues/4094,
@@ -221,8 +231,7 @@
   https://github.com/fmtlib/fmt/pull/4267,
   https://github.com/fmtlib/fmt/pull/4271).
   Thanks @torsten48, @Arghnews, @tinfoilboy, @aminya, @Ottani, @zeroomega,
-  @c4v4, @kongy, @vinayyadav3016, @sergio-nsk, @phprus, @Arghnews and
-  @YexuanXiao.
+  @c4v4, @kongy, @vinayyadav3016, @sergio-nsk, @phprus and @YexuanXiao.
 
 # 11.0.2 - 2024-07-20
 
