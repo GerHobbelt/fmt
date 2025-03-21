@@ -8,6 +8,15 @@
 #ifndef FMT_BASE_H_
 #define FMT_BASE_H_
 
+// Inspired by https://vitaut.net/posts/2024/binary-size/
+// We are trying to minimise binary for a microprocessor target
+// We hacking this directly into fmtlib because of https://github.com/fmtlib/fmt/issues/4394
+#define FMT_USE_LOCALE 0     // Disable full locale support as not required
+#define FMT_BUILTIN_TYPES 1  // Set to 1 as we cannot use this on arm-eabi-none due to failure to format long. 
+                             // See https://github.com/fmtlib/fmt/issues/4394
+#define FMT_OPTIMIZE_SIZE 1  // Reduce size further
+#define FMT_THROW(x) abort() // Remove all exception generation as we don't have exception on microprocessor
+
 #if defined(FMT_IMPORT_STD) && !defined(FMT_MODULE)
 #  define FMT_MODULE
 #endif
@@ -2188,8 +2197,9 @@ template <typename Context> class value {
   constexpr FMT_INLINE value(long long x FMT_BUILTIN) : long_long_value(x) {}
   constexpr FMT_INLINE value(unsigned long long x FMT_BUILTIN)
       : ulong_long_value(x) {}
-  FMT_INLINE value(int128_opt x FMT_BUILTIN) : int128_value(x) {}
-  FMT_INLINE value(uint128_opt x FMT_BUILTIN) : uint128_value(x) {}
+  // Disable support for 128 bit integers
+  //FMT_INLINE value(int128_opt x FMT_BUILTIN) : int128_value(x) {}
+  //FMT_INLINE value(uint128_opt x FMT_BUILTIN) : uint128_value(x) {}
   constexpr FMT_INLINE value(bool x FMT_BUILTIN) : bool_value(x) {}
 
   template <int N>
@@ -2208,9 +2218,16 @@ template <typename Context> class value {
         "mixing character types is disallowed");
   }
 
-  constexpr FMT_INLINE value(float x FMT_BUILTIN) : float_value(x) {}
-  constexpr FMT_INLINE value(double x FMT_BUILTIN) : double_value(x) {}
-  FMT_INLINE value(long double x FMT_BUILTIN) : long_double_value(x) {}
+  // disable normal processing of floating point number
+  //constexpr FMT_INLINE value(float x FMT_BUILTIN) : float_value(x) {}
+  //constexpr FMT_INLINE value(double x FMT_BUILTIN) : double_value(x) {}
+  //FMT_INLINE value(long double x FMT_BUILTIN) : long_double_value(x) {}
+
+  // Redirect float and double through custom handler. The
+  // idea is to allow very simple and cheap formatting of floating point number
+  // for things like voltages and temperatures
+  constexpr FMT_INLINE value(float& x FMT_BUILTIN) : value(x, custom_tag()) {}
+  constexpr FMT_INLINE value(double& x FMT_BUILTIN) : value(x, custom_tag()) {}
 
   FMT_CONSTEXPR FMT_INLINE value(char_type* x FMT_BUILTIN) {
     string.data = x;
@@ -2550,13 +2567,16 @@ template <typename Context> class basic_format_arg {
     case detail::type::uint_type:        return vis(value_.uint_value);
     case detail::type::long_long_type:   return vis(value_.long_long_value);
     case detail::type::ulong_long_type:  return vis(value_.ulong_long_value);
-    case detail::type::int128_type:      return vis(map(value_.int128_value));
-    case detail::type::uint128_type:     return vis(map(value_.uint128_value));
+    //disable as not supporting 128bit ints
+    //case detail::type::int128_type:      return vis(map(value_.int128_value));
+    //case detail::type::uint128_type:     return vis(map(value_.uint128_value));
     case detail::type::bool_type:        return vis(value_.bool_value);
     case detail::type::char_type:        return vis(value_.char_value);
-    case detail::type::float_type:       return vis(value_.float_value);
-    case detail::type::double_type:      return vis(value_.double_value);
-    case detail::type::long_double_type: return vis(value_.long_double_value);
+    // float and double go via custom handler
+    case detail::type::float_type:       return vis(handle(value_.custom));
+    case detail::type::double_type:      return vis(handle(value_.custom));
+    //disable as not supporting long double type
+    //case detail::type::long_double_type: return vis(value_.long_double_value);
     case detail::type::cstring_type:     return vis(value_.string.data);
     case detail::type::string_type:      return vis(value_.string.str());
     case detail::type::pointer_type:     return vis(value_.pointer);

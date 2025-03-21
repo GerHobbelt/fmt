@@ -4311,6 +4311,44 @@ FMT_NODISCARD FMT_CONSTEXPR_STRING auto to_string(const T& value)
   return {buffer.data(), buffer.size()};
 }
 
+// Custom light weight formatters for double and float
+template <> struct formatter<float> : formatter<string_view> {
+  auto format(float a_fValue, format_context& ctx) const
+      -> format_context::iterator {
+    // Integer part will capture whether the number is positive or negative so
+    // we will make this int32_t. The decimal part can therefore be uint32_t,
+    // since only its magnitude is relevant.
+    auto a_unDecimalPlaces = 2;
+    auto nIntegerPart = static_cast<int32_t>(a_fValue);
+    const auto unMultiplier = static_cast<uint32_t>(pow(10, a_unDecimalPlaces));
+    auto unDecimalPart = static_cast<uint32_t>(
+        std::round(std::abs(a_fValue - nIntegerPart) * unMultiplier));
+
+    // Rounding may cause the decimal part to become larger than the multiplier,
+    // which would have numbers like 29.9995422 report as 29.100, since 99.95 is
+    // rounded to 100. To avoid this, if the decimal part becomes larger than
+    // the multiplier, increment the integer part and reduce the decimal part by
+    // unMultiplier.
+    if (unDecimalPart >= unMultiplier) {
+      unDecimalPart -= unMultiplier;
+      nIntegerPart++;
+    }
+
+    // Return the integer and decimal parts separated by a decimal point. If no
+    // decimal places are requested, just return the integer part.
+    auto str=fmt::format("{}{}{:0>{}}", nIntegerPart, a_unDecimalPlaces > 0 ? "." : "",
+                         unDecimalPart, a_unDecimalPlaces);
+    return formatter<string_view>::format("BLAH", ctx);
+  }
+};
+
+template <> struct formatter<double> : formatter<float> {
+  auto format(double value, format_context& ctx) const
+      -> format_context::iterator {
+    return formatter<float>::format(static_cast<float>(value), ctx);
+  }
+};
+
 FMT_END_EXPORT
 FMT_END_NAMESPACE
 
