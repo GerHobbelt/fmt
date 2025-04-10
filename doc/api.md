@@ -193,15 +193,14 @@ In general the formatter has the following form:
       // Parses format specifiers and stores them in the formatter.
       //
       // [ctx.begin(), ctx.end()) is a, possibly empty, character range that
-      // contains a part of the format string starting from the format
-      // specifications to be parsed, e.g. in
+      // contains the format string starting from the format specifications 
+      // to be parsed, e.g. in
       //
       //   fmt::format("{:f} continued", ...);
       //
-      // the range will contain "f} continued". The formatter should parse
-      // specifiers until '}' or the end of the range. In this example the
-      // formatter should parse the 'f' specifier and return an iterator
-      // pointing to '}'.
+      // the range will contain "f}". The formatter should parse specifiers
+      // until '}' or the end of the range. In this example the formatter 
+      // should parse the 'f' specifier and return an iterator pointing to '}'.
       constexpr auto parse(format_parse_context& ctx)
         -> format_parse_context::iterator;
 
