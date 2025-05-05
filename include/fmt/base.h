@@ -32,7 +32,7 @@
 //#define FMT_LOCALE
 
 // The fmt library version in the form major * 10000 + minor * 100 + patch.
-#define FMT_VERSION 110104
+#define FMT_VERSION 110105
 
 // Detect compiler versions.
 #if defined(__clang__) && !defined(__ibmxl__)
@@ -220,20 +220,6 @@
 #  define FMT_DEPRECATED /* deprecated */
 #endif
 
-#ifdef FMT_ALWAYS_INLINE
-// Use the provided definition.
-#elif FMT_GCC_VERSION || FMT_CLANG_VERSION
-#  define FMT_ALWAYS_INLINE inline __attribute__((always_inline))
-#else
-#  define FMT_ALWAYS_INLINE inline
-#endif
-// A version of FMT_ALWAYS_INLINE to prevent code bloat in debug mode.
-#ifdef NDEBUG
-#  define FMT_INLINE FMT_ALWAYS_INLINE
-#else
-#  define FMT_INLINE inline
-#endif
-
 #if FMT_GCC_VERSION || FMT_CLANG_VERSION
 #  define FMT_VISIBILITY(value) __attribute__((visibility(value)))
 #else
@@ -258,6 +244,28 @@
 #  define FMT_MSC_WARNING(...) __pragma(warning(__VA_ARGS__))
 #else
 #  define FMT_MSC_WARNING(...)
+#endif
+
+// Enable minimal optimizations for more compact code in debug mode.
+FMT_PRAGMA_GCC(push_options)
+#if !defined(__OPTIMIZE__) && !defined(__CUDACC__) && !defined(FMT_MODULE)
+FMT_PRAGMA_GCC(optimize("Og"))
+#  define FMT_GCC_OPTIMIZED
+#endif
+FMT_PRAGMA_CLANG(diagnostic push)
+
+#ifdef FMT_ALWAYS_INLINE
+// Use the provided definition.
+#elif FMT_GCC_VERSION || FMT_CLANG_VERSION
+#  define FMT_ALWAYS_INLINE inline __attribute__((always_inline))
+#else
+#  define FMT_ALWAYS_INLINE inline
+#endif
+// A version of FMT_ALWAYS_INLINE to prevent code bloat in debug mode.
+#if defined(NDEBUG) || defined(FMT_GCC_OPTIMIZED)
+#  define FMT_INLINE FMT_ALWAYS_INLINE
+#else
+#  define FMT_INLINE inline
 #endif
 
 #ifndef FMT_BEGIN_NAMESPACE
@@ -317,13 +325,6 @@
 #define FMT_APPLY_VARIADIC(expr) \
   using unused = int[];          \
   (void)unused { 0, (expr, 0)... }
-
-// Enable minimal optimizations for more compact code in debug mode.
-FMT_PRAGMA_GCC(push_options)
-#if !defined(__OPTIMIZE__) && !defined(__CUDACC__) && !defined(FMT_MODULE)
-FMT_PRAGMA_GCC(optimize("Og"))
-#endif
-FMT_PRAGMA_CLANG(diagnostic push)
 
 FMT_BEGIN_NAMESPACE
 
@@ -1123,7 +1124,7 @@ FMT_CONSTEXPR void init_static_named_arg(named_arg_info<Char>* named_args,
 
 // To minimize the number of types we need to deal with, long is translated
 // either to int or to long long depending on its size.
-enum { long_short = sizeof(long) == sizeof(int) };
+enum { long_short = sizeof(long) == sizeof(int) && FMT_BUILTIN_TYPES };
 using long_type = conditional_t<long_short, int, long long>;
 using ulong_type = conditional_t<long_short, unsigned, unsigned long long>;
 
@@ -1748,14 +1749,12 @@ class format_string_checker {
     // If id is out of range, it means we do not know the type and cannot parse
     // the format at compile time. Instead, skip over content until we finish
     // the format spec, accounting for any nested replacements.
-    auto bracket_count = 0;
-    while (begin != end && (bracket_count > 0 || *begin != '}')) {
+    for (int bracket_count = 0;
+         begin != end && (bracket_count > 0 || *begin != '}'); ++begin) {
       if (*begin == '{')
         ++bracket_count;
       else if (*begin == '}')
         --bracket_count;
-
-      ++begin;
     }
     return begin;
   }

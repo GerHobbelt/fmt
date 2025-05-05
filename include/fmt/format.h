@@ -713,7 +713,7 @@ using is_integer =
 
 #if defined(FMT_USE_FLOAT128)
 // Use the provided definition.
-#elif FMT_CLANG_VERSION && FMT_HAS_INCLUDE(<quadmath.h>)
+#elif FMT_CLANG_VERSION >= 309 && FMT_HAS_INCLUDE(<quadmath.h>)
 #  define FMT_USE_FLOAT128 1
 #elif FMT_GCC_VERSION && defined(_GLIBCXX_USE_FLOAT128) && \
     !defined(__STRICT_ANSI__)
@@ -782,7 +782,9 @@ enum { inline_buffer_size = 500 };
  * converted to `std::string` with `to_string(out)`.
  */
 template <typename T, size_t SIZE = inline_buffer_size,
-          typename Allocator = detail::allocator<T>>
+          // DEPRECATED! std::allocator should be replaced with
+          // detail::allocator
+          typename Allocator = std::allocator<T>>
 class basic_memory_buffer : public detail::buffer<T> {
  private:
   T store_[SIZE];
@@ -2604,7 +2606,7 @@ class bigint {
   }
 
  public:
-  FMT_CONSTEXPR bigint() : exp_(0) {}
+  FMT_CONSTEXPR20 bigint() : exp_(0) {}
   explicit bigint(uint64_t n) { assign(n); }
 
   bigint(const bigint&) = delete;
