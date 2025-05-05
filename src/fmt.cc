@@ -141,7 +141,6 @@ extern "C++" {
 #include "fmt/format.h"
 #if FMT_OS
 #  include "fmt/os.h"
-#  include "fmt/ostream.h"
 #endif
 #include "fmt/ostream.h"
 #include "fmt/printf.h"
