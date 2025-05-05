@@ -347,8 +347,8 @@ using underlying_t = typename std::underlying_type<T>::type;
 template <typename T> using decay_t = typename std::decay<T>::type;
 using nullptr_t = decltype(nullptr);
 
-#if FMT_GCC_VERSION && FMT_GCC_VERSION < 500
-// A workaround for gcc 4.9 to make void_t work in a SFINAE context.
+#if (FMT_GCC_VERSION && FMT_GCC_VERSION < 500) || FMT_MSC_VERSION
+// A workaround for gcc 4.9 & MSVC v141 to make void_t work in a SFINAE context.
 template <typename...> struct void_t_impl {
   using type = void;
 };
@@ -1054,6 +1054,11 @@ enum {
 };
 
 struct view {};
+
+template <typename T, typename Enable = std::true_type>
+struct is_view : std::false_type {};
+template <typename T>
+struct is_view<T, bool_constant<sizeof(T) != 0>> : std::is_base_of<view, T> {};
 
 template <typename Char, typename T> struct named_arg;
 template <typename T> struct is_named_arg : std::false_type {};
@@ -2754,7 +2759,7 @@ template <typename... T> struct fstring {
   template <size_t N>
   FMT_CONSTEVAL FMT_ALWAYS_INLINE fstring(const char (&s)[N]) : str(s, N - 1) {
     using namespace detail;
-    static_assert(count<(std::is_base_of<view, remove_reference_t<T>>::value &&
+    static_assert(count<(is_view<remove_cvref_t<T>>::value &&
                          std::is_reference<T>::value)...>() == 0,
                   "passing views as lvalues is disallowed");
     if (FMT_USE_CONSTEVAL) parse_format_string<char>(s, checker(s, arg_pack()));
