@@ -15,7 +15,6 @@
 #ifndef FMT_MODULE
 #  include <initializer_list>
 #  include <iterator>
-#  include <string>
 #  include <tuple>
 #  include <type_traits>
 #  include <utility>
@@ -50,12 +49,11 @@ template <typename T> class is_set {
 };
 
 // C array overload
-template <typename T, std::size_t N>
+template <typename T, size_t N>
 auto range_begin(const T (&arr)[N]) -> const T* {
   return arr;
 }
-template <typename T, std::size_t N>
-auto range_end(const T (&arr)[N]) -> const T* {
+template <typename T, size_t N> auto range_end(const T (&arr)[N]) -> const T* {
   return arr + N;
 }
 
@@ -213,7 +211,7 @@ template <typename Char, typename... T>
 using result_t = std::tuple<formatter<remove_cvref_t<T>, Char>...>;
 
 using std::get;
-template <typename Tuple, typename Char, std::size_t... Is>
+template <typename Tuple, typename Char, size_t... Is>
 auto get_formatters(index_sequence<Is...>)
     -> result_t<Char, decltype(get<Is>(std::declval<Tuple>()))...>;
 }  // namespace tuple
@@ -224,7 +222,7 @@ template <typename R> struct range_reference_type_impl {
   using type = decltype(*detail::range_begin(std::declval<R&>()));
 };
 
-template <typename T, std::size_t N> struct range_reference_type_impl<T[N]> {
+template <typename T, size_t N> struct range_reference_type_impl<T[N]> {
   using type = T&;
 };
 
