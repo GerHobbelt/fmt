@@ -548,20 +548,20 @@ template <typename Char> class basic_string_view {
 
   constexpr basic_string_view() noexcept : data_(nullptr), size_(0) {}
 
-  /// Constructs a string reference object from a C string and a size.
+  /// Constructs a string view object from a C string and a size.
   constexpr basic_string_view(const Char* s, size_t count) noexcept
       : data_(s), size_(count) {}
 
   constexpr basic_string_view(nullptr_t) = delete;
 
-  /// Constructs a string reference object from a C string.
+  /// Constructs a string view object from a C string.
 #if FMT_GCC_VERSION
   FMT_ALWAYS_INLINE
 #endif
   FMT_CONSTEXPR20 basic_string_view(const Char* s) : data_(s) {
 #if FMT_HAS_BUILTIN(__builtin_strlen) || FMT_GCC_VERSION || FMT_CLANG_VERSION
-    if (std::is_same<Char, char>::value) {
-      size_ = __builtin_strlen(detail::narrow(s));
+    if (std::is_same<Char, char>::value && !detail::is_constant_evaluated()) {
+      size_ = __builtin_strlen(detail::narrow(s));  // strlen is not costexpr.
       return;
     }
 #endif
@@ -570,7 +570,7 @@ template <typename Char> class basic_string_view {
     size_ = len;
   }
 
-  /// Constructs a string reference from a `std::basic_string` or a
+  /// Constructs a string view from a `std::basic_string` or a
   /// `std::basic_string_view` object.
   template <typename S,
             FMT_ENABLE_IF(detail::is_std_string_like<S>::value&& std::is_same<
@@ -607,7 +607,6 @@ template <typename Char> class basic_string_view {
     return starts_with(basic_string_view<Char>(s));
   }
 
-  // Lexicographically compare this string reference to other.
   FMT_CONSTEXPR auto compare(basic_string_view other) const -> int {
     int result =
         detail::compare(data_, other.data_, min_of(size_, other.size_));
@@ -638,7 +637,7 @@ template <typename Char> class basic_string_view {
 
 using string_view = basic_string_view<char>;
 
-/// Specifies if `T` is an extended character type. Can be specialized by users.
+// DEPRECATED! Will be merged with is_char and moved to detail.
 template <typename T> struct is_xchar : std::false_type {};
 template <> struct is_xchar<wchar_t> : std::true_type {};
 template <> struct is_xchar<char16_t> : std::true_type {};
@@ -647,7 +646,7 @@ template <> struct is_xchar<char32_t> : std::true_type {};
 template <> struct is_xchar<char8_t> : std::true_type {};
 #endif
 
-// DEPRECATED! Will be replaced with an alias to prevent specializations.
+// Specifies if `T` is a character (code unit) type.
 template <typename T> struct is_char : is_xchar<T> {};
 template <> struct is_char<char> : std::true_type {};
 

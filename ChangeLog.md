@@ -1,5 +1,8 @@
 # 11.2.0 - TBD
 
+- Added the `s` specifier that formats an error message as a string in
+  `std::error_code`.
+
 - Fixed compilation with GCC 15 and C++20 modules enabled
   (https://github.com/fmtlib/fmt/pull/4347). Thanks @tkhyn.
 
@@ -10,10 +13,53 @@
 - Added error reporting for duplicate named arguments
   (https://github.com/fmtlib/fmt/pull/4367). Thanks @dinomight.
 
-- Fixed formatting of `long` with `FMT_BUILTIN_TYPES=0`.
+- Fixed formatting of `long` with `FMT_BUILTIN_TYPES=0`
+  (https://github.com/fmtlib/fmt/issues/4375,
+  https://github.com/fmtlib/fmt/issues/4394).
+
+- Fixed formatting of `std::chrono::local_time`
+  (https://github.com/fmtlib/fmt/issues/3815,
+  https://github.com/fmtlib/fmt/issues/4350).
+
+- Added diagnostics for cases when timezone information is not available.
+
+- Deprecated `fmt::localtime` in favor of `std::localtime`.
 
 - Optimized `text_style` using bit packing
   (https://github.com/fmtlib/fmt/pull/4363). Thanks @LocalSpook.
+
+- Added support for incomplete types (https://github.com/fmtlib/fmt/issues/3180,
+  https://github.com/fmtlib/fmt/pull/4383). Thanks @LocalSpook.
+
+- Fixed a missing flush in `fmt::print` when using libstdc++
+  (https://github.com/fmtlib/fmt/issues/4398).
+
+- Fixed `fmt::println` usage with `FMT_ENFORCE_COMPILE_STRING` and legacy
+  compile-time checks (https://github.com/fmtlib/fmt/pull/4407).
+  Thanks @madmaxoft.
+
+- Removed legacy header `fmt/core.h` from docs
+  (https://github.com/fmtlib/fmt/pull/4421,
+  https://github.com/fmtlib/fmt/pull/4422). Thanks @krzysztofkortas.
+
+- Worked around limitations of `__builtin_strlen` during constant evaluation
+  (https://github.com/fmtlib/fmt/issues/4423,
+  https://github.com/fmtlib/fmt/pull/4429). Thanks @BRevzin.
+
+- Worked around a bug in MSVC v141 (https://github.com/fmtlib/fmt/issues/4412,
+  https://github.com/fmtlib/fmt/pull/4413). Thanks @hirohira9119.
+
+- Replaced `fmt_detail` with a subnamespace of `fmt`
+  (https://github.com/fmtlib/fmt/issues/4324).
+
+- Removed specializations of `std::is_floating_point` in tests
+  (https://github.com/fmtlib/fmt/issues/4417).
+
+- Fixed a CMake error when setting `CMAKE_MODULE_PATH` in the pedantic mode
+  (https://github.com/fmtlib/fmt/pull/4426). Thanks @rlalik.
+
+- Updated the Bazel config (https://github.com/fmtlib/fmt/pull/4400).
+  Thanks @Vertexwahn.
 
 # 11.1.4 - 2025-02-26
 
