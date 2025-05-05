@@ -1,7 +1,7 @@
 # 11.2.0 - TBD
 
-- Added the `s` specifier that formats an error message as a string in
-  `std::error_code`. For example:
+- Added the `s` specifier for `std::error_code`. It allows formatting an error
+  message as a string. For example:
 
   ```c++
   #include <fmt/std.h>
@@ -19,7 +19,7 @@
   ```
   (The actual message is platform-specific.)
 
-- Fixed formatting of `std::chrono::local_time`
+- Fixed formatting of `std::chrono::local_time` and `tm`
   (https://github.com/fmtlib/fmt/issues/3815,
   https://github.com/fmtlib/fmt/issues/4350).
   For example ([godbolt](https://www.godbolt.org/z/8o4b1PPn5)):
@@ -35,7 +35,7 @@
   }
   ```
 
-  is now formatted consistenly between platforms.
+  is now formatted consistenly across platforms.
 
 - Added diagnostics for cases when timezone information is not available.
   For example:
