@@ -32,6 +32,7 @@
 
 #include <sstream>
 #if defined(_WIN64) || defined(_WIN32)
+#include <winsock2.h>   // [GHo] fixes issues elsewhere, e.g. spdlog, when this header file is loaded before another, which loads winsock2.h: you'll get clashes in preprocessor defines in ws2def.h vs. winsock2.h  :-((
 #include <windows.h>
 #endif 
 
