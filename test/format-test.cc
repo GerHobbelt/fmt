@@ -481,6 +481,12 @@ TEST(memory_buffer_test, max_size_allocator_overflow) {
   EXPECT_THROW(buffer.resize(161), std::exception);
 }
 
+TEST(memory_buffer_test, back_insert_iterator) {
+  fmt::memory_buffer buf;
+  using iterator = decltype(std::back_inserter(buf));
+  EXPECT_TRUE(fmt::detail::is_back_insert_iterator<iterator>::value);
+}
+
 TEST(format_test, digits2_alignment) {
   auto p =
       fmt::detail::bit_cast<fmt::detail::uintptr_t>(fmt::detail::digits2(0));
@@ -550,6 +556,10 @@ TEST(format_test, arg_errors) {
                    "invalid format string");
   EXPECT_THROW_MSG((void)fmt::format(runtime("{" + int_maxer + "}")),
                    format_error, "argument not found");
+}
+
+TEST(format_test, display_width_precision) {
+  EXPECT_EQ(fmt::format("{:.5}", "🐱🐱🐱"), "🐱🐱");
 }
 
 template <int N> struct test_format {
