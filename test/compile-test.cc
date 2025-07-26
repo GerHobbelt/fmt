@@ -433,10 +433,21 @@ TEST(compile_time_formatting_test, multibyte_fill) {
 #if FMT_USE_CONSTEXPR_STRING
 
 TEST(compile_test, constexpr_format) {
-  constexpr auto result = []() {
-    return fmt::format(FMT_COMPILE("{}"), 42) == "42";
-  }();
-  EXPECT_TRUE(result);
+  {
+    constexpr auto result = []() {
+      return fmt::format(FMT_COMPILE("{}"), 42) == "42";
+    }();
+    EXPECT_TRUE(result);
+  }
+
+  {
+    // Test with a larger string to avoid small string optimization.
+    constexpr std::string large(100, 'x');
+    constexpr auto result = []() {
+      return fmt::format(FMT_COMPILE("{}"), large) == large;
+    }();
+    EXPECT_TRUE(result);
+  }
 }
 
 #endif  // FMT_USE_CONSTEXPR_STRING
