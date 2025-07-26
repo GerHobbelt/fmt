@@ -562,6 +562,8 @@ FMT_CONSTEXPR auto fill_n(OutputIt out, Size count, const T& value)
 template <typename T, typename Size>
 FMT_CONSTEXPR20 auto fill_n(T* out, Size count, char value) -> T* {
   if (is_constant_evaluated()) return fill_n<T*, Size, T>(out, count, value);
+  static_assert(sizeof(T) == 1,
+                "sizeof(T) must be 1 to use char for initialization");
   std::memset(out, value, to_unsigned(count));
   return out + count;
 }
@@ -665,21 +667,9 @@ FMT_CONSTEXPR void for_each_codepoint(string_view s, F f) {
   } while (buf_ptr < buf + num_chars_left);
 }
 
-template <typename Char>
-inline auto compute_width(basic_string_view<Char> s) -> size_t {
-  return s.size();
-}
-
-// Computes approximate display width of a UTF-8 string.
-FMT_CONSTEXPR inline auto compute_width(string_view s) -> size_t {
-  size_t num_code_points = 0;
-  // It is not a lambda for compatibility with C++14.
-  struct count_code_points {
-    size_t* count;
-    FMT_CONSTEXPR auto operator()(uint32_t cp, string_view) const -> bool {
-      *count += to_unsigned(
-          1 +
-          (cp >= 0x1100 &&
+FMT_CONSTEXPR inline auto display_width_of(uint32_t cp) noexcept -> size_t {
+  return to_unsigned(
+      1 + (cp >= 0x1100 &&
            (cp <= 0x115f ||  // Hangul Jamo init. consonants
             cp == 0x2329 ||  // LEFT-POINTING ANGLE BRACKET
             cp == 0x232a ||  // RIGHT-POINTING ANGLE BRACKET
@@ -697,12 +687,6 @@ FMT_CONSTEXPR inline auto compute_width(string_view s) -> size_t {
             (cp >= 0x1f300 && cp <= 0x1f64f) ||
             // Supplemental Symbols and Pictographs:
             (cp >= 0x1f900 && cp <= 0x1f9ff))));
-      return true;
-    }
-  };
-  // We could avoid branches by using utf8_decode directly.
-  for_each_codepoint(s, count_code_points{&num_code_points});
-  return num_code_points;
 }
 
 template <typename T> struct is_integral : std::is_integral<T> {};
@@ -2138,35 +2122,98 @@ FMT_CONSTEXPR FMT_INLINE auto write(OutputIt out, T value,
   return write_int<Char>(out, make_write_int_arg(value, specs.sign()), specs);
 }
 
-inline auto convert_precision_to_size(string_view s, size_t precision)
-    -> size_t {
-  size_t display_width = 0;
-  size_t result = s.size();
-  for_each_codepoint(s, [&](uint32_t, string_view sv) {
-    display_width += compute_width(sv);
-    // Stop when display width exceeds precision.
-    if (display_width > precision) {
-      result = to_unsigned(sv.begin() - s.begin());
+template <typename Char, typename OutputIt,
+          FMT_ENABLE_IF(std::is_same<Char, char>::value)>
+FMT_CONSTEXPR auto write(OutputIt out, basic_string_view<Char> s,
+                         const format_specs& specs) -> OutputIt {
+  bool is_debug = specs.type() == presentation_type::debug;
+  if (specs.precision < 0 && specs.width == 0) {
+    auto&& it = reserve(out, s.size());
+    return is_debug ? write_escaped_string(it, s) : copy<char>(s, it);
+  }
+
+  size_t display_width_limit =
+      specs.precision < 0 ? SIZE_MAX : to_unsigned(specs.precision);
+  size_t display_width =
+      !is_debug || specs.precision == 0 ? 0 : 1;  // Account for opening "
+  size_t size = !is_debug || specs.precision == 0 ? 0 : 1;
+  for_each_codepoint(s, [&](uint32_t cp, string_view sv) {
+    if (is_debug && needs_escape(cp)) {
+      counting_buffer<char> buf;
+      write_escaped_cp(basic_appender<char>(buf),
+                       find_escape_result<char>{sv.begin(), sv.end(), cp});
+      // We're reinterpreting bytes as display width. That's okay
+      // because write_escaped_cp() only writes ASCII characters.
+      size_t cp_width = buf.count();
+      if (display_width + cp_width <= display_width_limit) {
+        display_width += cp_width;
+        size += cp_width;
+        // If this is the end of the string, account for closing "
+        if (display_width < display_width_limit && sv.end() == s.end()) {
+          ++display_width;
+          ++size;
+        }
+        return true;
+      }
+
+      size += display_width_limit - display_width;
+      display_width = display_width_limit;
       return false;
     }
-    return true;
+
+    size_t cp_width = display_width_of(cp);
+    if (cp_width + display_width <= display_width_limit) {
+      display_width += cp_width;
+      size += sv.size();
+      // If this is the end of the string, account for closing "
+      if (is_debug && display_width < display_width_limit &&
+          sv.end() == s.end()) {
+        ++display_width;
+        ++size;
+      }
+      return true;
+    }
+
+    return false;
   });
-  return result;
+
+  struct bounded_output_iterator {
+    reserve_iterator<OutputIt> underlying_iterator;
+    size_t bound;
+
+    FMT_CONSTEXPR auto operator*() -> bounded_output_iterator& { return *this; }
+    FMT_CONSTEXPR auto operator++() -> bounded_output_iterator& {
+      return *this;
+    }
+    FMT_CONSTEXPR auto operator++(int) -> bounded_output_iterator& {
+      return *this;
+    }
+    FMT_CONSTEXPR auto operator=(char c) -> bounded_output_iterator& {
+      if (bound > 0) {
+        *underlying_iterator++ = c;
+        --bound;
+      }
+      return *this;
+    }
+  };
+
+  return write_padded<char>(
+      out, specs, size, display_width, [&](reserve_iterator<OutputIt> it) {
+        return is_debug
+                   ? write_escaped_string(bounded_output_iterator{it, size}, s)
+                         .underlying_iterator
+                   : copy<char>(s.data(), s.data() + size, it);
+      });
 }
 
-template <typename Char, FMT_ENABLE_IF(!std::is_same<Char, char>::value)>
-auto convert_precision_to_size(basic_string_view<Char>, size_t precision)
-    -> size_t {
-  return precision;
-}
-
-template <typename Char, typename OutputIt>
+template <typename Char, typename OutputIt,
+          FMT_ENABLE_IF(!std::is_same<Char, char>::value)>
 FMT_CONSTEXPR auto write(OutputIt out, basic_string_view<Char> s,
                          const format_specs& specs) -> OutputIt {
   auto data = s.data();
   auto size = s.size();
   if (specs.precision >= 0 && to_unsigned(specs.precision) < size)
-    size = convert_precision_to_size(s, to_unsigned(specs.precision));
+    size = to_unsigned(specs.precision);
 
   bool is_debug = specs.type() == presentation_type::debug;
   if (is_debug) {
@@ -2175,22 +2222,19 @@ FMT_CONSTEXPR auto write(OutputIt out, basic_string_view<Char> s,
     size = buf.count();
   }
 
-  size_t width = 0;
-  if (specs.width != 0) {
-    width =
-        is_debug ? size : compute_width(basic_string_view<Char>(data, size));
-  }
   return write_padded<Char>(
-      out, specs, size, width, [=](reserve_iterator<OutputIt> it) {
+      out, specs, size, [&](reserve_iterator<OutputIt> it) {
         return is_debug ? write_escaped_string(it, s)
                         : copy<Char>(data, data + size, it);
       });
 }
+
 template <typename Char, typename OutputIt>
 FMT_CONSTEXPR auto write(OutputIt out, basic_string_view<Char> s,
                          const format_specs& specs, locale_ref) -> OutputIt {
   return write<Char>(out, s, specs);
 }
+
 template <typename Char, typename OutputIt>
 FMT_CONSTEXPR auto write(OutputIt out, const Char* s, const format_specs& specs,
                          locale_ref) -> OutputIt {
@@ -2792,7 +2836,7 @@ class bigint {
     bigits_.resize(to_unsigned(num_bigits + exp_difference));
     for (int i = num_bigits - 1, j = i + exp_difference; i >= 0; --i, --j)
       bigits_[j] = bigits_[i];
-    memset(bigits_.data(), 0, to_unsigned(exp_difference) * sizeof(bigit));
+    fill_n(bigits_.data(), to_unsigned(exp_difference), 0U);
     exp_ -= exp_difference;
   }
 
@@ -3437,7 +3481,7 @@ FMT_CONSTEXPR20 auto write(OutputIt out, T value) -> OutputIt {
   if (s != sign::none) *it++ = Char('-');
   // Insert a decimal point after the first digit and add an exponent.
   it = write_significand(it, dec.significand, significand_size, 1,
-                         has_decimal_point ? '.' : Char());
+                         has_decimal_point ? Char('.') : Char());
   *it++ = Char('e');
   it = write_exponent<Char>(exp, it);
   return base_iterator(out, it);
@@ -3914,13 +3958,14 @@ constexpr auto format_as(Enum e) noexcept -> underlying_t<Enum> {
 }  // namespace enums
 
 #ifdef __cpp_lib_byte
-template <> struct formatter<std::byte> : formatter<unsigned> {
+template <typename Char>
+struct formatter<std::byte, Char> : formatter<unsigned, Char> {
   static auto format_as(std::byte b) -> unsigned char {
     return static_cast<unsigned char>(b);
   }
   template <typename Context>
   auto format(std::byte b, Context& ctx) const -> decltype(ctx.out()) {
-    return formatter<unsigned>::format(format_as(b), ctx);
+    return formatter<unsigned, Char>::format(format_as(b), ctx);
   }
 };
 #endif
