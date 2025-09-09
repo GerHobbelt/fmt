@@ -3,7 +3,7 @@ from conans import ConanFile
 
 class FMTConan(ConanFile):
     name = "fmt"
-    version = "10.1.1"
+    version = "11.2.0"
     url = "https://github.com/Esri/fmt/tree/runtimecore"
     license = "https://github.com/Esri/fmt/blob/runtimecore/LICENSE"
     description = "{fmt} is an open-source formatting library providing a fast and safe alternative to C stdio and C++ iostreams."
