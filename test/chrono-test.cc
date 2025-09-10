@@ -18,6 +18,10 @@ using fmt::runtime;
 using fmt::sys_time;
 using testing::Contains;
 
+// fix for MSVC/Win32 system headers defining these maacros which clash with std::min and std::max functions.
+#undef min
+#undef max
+
 #if defined(__MINGW32__) && !defined(_UCRT)
 // Only C89 conversion specifiers when using MSVCRT instead of UCRT
 #  define FMT_HAS_C99_STRFTIME 0

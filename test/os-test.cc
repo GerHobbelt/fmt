@@ -23,7 +23,7 @@ static auto uniq_file_name(unsigned line_number) -> std::string {
   return "test-file" + std::to_string(line_number);
 }
 
-auto safe_fopen(const char* filename, const char* mode) -> FILE* {
+static auto safe_fopen(const char* filename, const char* mode) -> FILE* {
 #if defined(_WIN32) && !defined(__MINGW32__)
   // Fix MSVC warning about "unsafe" fopen.
   FILE* f = nullptr;

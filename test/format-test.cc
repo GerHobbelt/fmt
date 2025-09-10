@@ -7,6 +7,7 @@
 
 // Check if fmt/format.h compiles with windows.h included before it.
 #ifdef _WIN32
+#  include <winsock2.h>
 #  include <windows.h>
 #endif
 // clang-format off
