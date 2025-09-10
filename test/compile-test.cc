@@ -244,6 +244,12 @@ TEST(compile_test, constexpr_formatted_float_size) {
       fmt::formatted_size(FMT_COMPILE("{0:<4.2f}"), 42.0);
   EXPECT_EQ(5, s2);
 }
+
+TEST(compile_test, static_format) {
+  constexpr auto result = FMT_STATIC_FORMAT("{}", 42);
+  EXPECT_STREQ(result.c_str(), "42");
+  EXPECT_EQ(result.str(), "42");
+}
 #  endif
 
 TEST(compile_test, text_and_arg) {
@@ -431,8 +437,20 @@ TEST(compile_time_formatting_test, multibyte_fill) {
 #endif
 
 #if FMT_USE_CONSTEXPR_STRING
+TEST(compile_test, constexpr_string_format) {
+  constexpr auto result = []() {
+    return fmt::format(FMT_COMPILE("{}"), 42) == "42";
+  }();
+  EXPECT_TRUE(result);
 
-TEST(compile_test, constexpr_format) {
+  // Test with a larger string to avoid small string optimization.
+  constexpr auto big = []() {
+    return fmt::format(FMT_COMPILE("{:100}"), ' ') == std::string(100, ' ');
+  }();
+  EXPECT_TRUE(big);
+}
+
+TEST(compile_test, constexpr_format_large) {
   {
     constexpr auto result = []() {
       return fmt::format(FMT_COMPILE("{}"), 42) == "42";
