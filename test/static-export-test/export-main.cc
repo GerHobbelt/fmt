@@ -3,4 +3,11 @@
 
 extern std::string foo();
 
-int main(void) { std::cout << foo() << std::endl; }
+#if defined(BUILD_MONOLITHIC)
+#define main      fmt_test_static_export_main
+#endif
+
+int main(void) {
+  std::cout << foo() << std::endl;
+  return 0;
+}

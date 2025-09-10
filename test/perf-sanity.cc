@@ -7,6 +7,10 @@
 
 #include "fmt/format.h"
 
+#if defined(BUILD_MONOLITHIC)
+#define main      fmt_test_perf_sanity_main
+#endif
+
 int main(void) {
   const int n = 10000000;
 
@@ -22,4 +26,5 @@ int main(void) {
   // Print time in milliseconds.
   std::chrono::duration<double> duration = end - start;
   fmt::print("{:.1f}\n", duration.count() * 1000);
+  return 0;
 }
