@@ -23,7 +23,6 @@
 #include "format.h"
 
 FMT_BEGIN_NAMESPACE
-FMT_MODULE_EXPORT_BEGIN
 
 FMT_EXPORT
 enum class range_format { disabled, map, set, sequence, string, debug_string };
