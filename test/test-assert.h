@@ -11,6 +11,7 @@
 #include <stdexcept>
 
 void throw_assertion_failure(const char* message);
+
 #define FMT_ASSERT(condition, message) \
   ((condition) ? (void)0 : throw_assertion_failure(message))
 
