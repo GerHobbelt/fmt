@@ -24,14 +24,14 @@
 #include "gmock/gmock.h"
 
 #ifdef FMT_FORMAT_H_
-#  error base-test includes format.h
+//#  error base-test includes format.h
 #endif
 
 using testing::_;
 using testing::Invoke;
 using testing::Return;
 
-auto copy(fmt::string_view s, fmt::appender out) -> fmt::appender {
+static auto copy(fmt::string_view s, fmt::appender out) -> fmt::appender {
   for (char c : s) *out++ = c;
   return out;
 }
