@@ -1690,7 +1690,7 @@ FMT_CONSTEXPR auto write_padded(OutputIt out, const format_specs& specs,
   // Shifts are encoded as string literals because static constexpr is not
   // supported in constexpr functions.
   auto* shifts =
-      default_align == align::left ? "\x1f\x1f\x00\x01" : "\x00\x1f\x00\x01";
+      default_align == align::left ? "\x1f\x1f\x00\x01\x01\x01\x01" : "\x00\x1f\x00\x01\x01\x01\x01";
   size_t left_padding = padding >> shifts[static_cast<int>(specs.align())];
   size_t right_padding = padding - left_padding;
   auto it = reserve(out, size + padding * specs.fill_size());
