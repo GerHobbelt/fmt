@@ -1,8 +1,19 @@
-# 12.0.0 - TBD
+# 12.0.0 - 2025-09-17
 
 - Optimized the default floating point formatting
   (https://github.com/fmtlib/fmt/issues/3675,
-  https://github.com/fmtlib/fmt/issues/4516).
+  https://github.com/fmtlib/fmt/issues/4516). In particular, formatting a
+  `double` with format string compilation into a stack allocated buffer is
+  more than 60% faster in version 12.0 compared to 11.2 according to
+  [dtoa-benchmark](https://github.com/fmtlib/dtoa-benchmark):
+
+  ```
+  Function  Time (ns)  Speedup
+  fmt11        34.471    1.00x
+  fmt12        21.000    1.64x
+  ```
+
+  <img width="766" height="609" src="https://github.com/user-attachments/assets/d7d768ad-7543-468c-b0bb-449abf73b31b" />
 
 - Added `constexpr` support to `fmt::format`. For example:
 
@@ -16,15 +27,6 @@
   now works at compile time provided that `std::string` supports `constexpr`
   (https://github.com/fmtlib/fmt/issues/3403,
   https://github.com/fmtlib/fmt/pull/4456). Thanks @msvetkin.
-
-- Improved C++20 module support
-  (https://github.com/fmtlib/fmt/pull/4451,
-  https://github.com/fmtlib/fmt/pull/4459,
-  https://github.com/fmtlib/fmt/pull/4476,
-  https://github.com/fmtlib/fmt/pull/4488,
-  https://github.com/fmtlib/fmt/issues/4491,
-  https://github.com/fmtlib/fmt/pull/4495).
-  Thanks @arBmind, @tkhyn, @Mishura4, @anonymouspc and @autoantwort.
 
 - Added `FMT_STATIC_FORMAT` that allows formatting into a string of the exact
   required size at compile time.
@@ -46,6 +48,15 @@
 
   It can be accessed as a C string with `s.c_str()` or as a string view with
   `s.str()`.
+
+- Improved C++20 module support
+  (https://github.com/fmtlib/fmt/pull/4451,
+  https://github.com/fmtlib/fmt/pull/4459,
+  https://github.com/fmtlib/fmt/pull/4476,
+  https://github.com/fmtlib/fmt/pull/4488,
+  https://github.com/fmtlib/fmt/issues/4491,
+  https://github.com/fmtlib/fmt/pull/4495).
+  Thanks @arBmind, @tkhyn, @Mishura4, @anonymouspc and @autoantwort.
 
 - Switched to using estimated display width in precision. For example:
 

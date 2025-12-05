@@ -32,7 +32,7 @@
 //#define FMT_LOCALE
 
 // The fmt library version in the form major * 10000 + minor * 100 + patch.
-#define FMT_VERSION 110201
+#define FMT_VERSION 120000
 
 // Detect compiler versions.
 #if defined(__clang__) && !defined(__ibmxl__)
@@ -125,7 +125,9 @@
 #endif
 
 // Detect consteval, C++20 constexpr extensions and std::is_constant_evaluated.
-#if !defined(__cpp_lib_is_constant_evaluated)
+#ifdef FMT_USE_CONSTEVAL
+// Use the provided definition.
+#elif !defined(__cpp_lib_is_constant_evaluated)
 #  define FMT_USE_CONSTEVAL 0
 #elif FMT_CPLUSPLUS < 201709L
 #  define FMT_USE_CONSTEVAL 0
@@ -435,8 +437,12 @@ inline auto map(int128_opt) -> monostate { return {}; }
 inline auto map(uint128_opt) -> monostate { return {}; }
 #endif
 
-#ifndef FMT_USE_BITINT
-#  define FMT_USE_BITINT (FMT_CLANG_VERSION >= 1500)
+#ifdef FMT_USE_BITINT
+// Use the provided definition.
+#elif FMT_CLANG_VERSION >= 1500 && !defined(__CUDACC__)
+#  define FMT_USE_BITINT 1
+#else
+#  define FMT_USE_BITINT 0
 #endif
 
 #if FMT_USE_BITINT
@@ -1870,12 +1876,17 @@ template <typename T> class buffer {
       void
       append(const U* begin, const U* end) {
     while (begin != end) {
+      auto size = size_;
+      auto free_cap = capacity_ - size;
       auto count = to_unsigned(end - begin);
-      try_reserve(size_ + count);
-      auto free_cap = capacity_ - size_;
-      if (free_cap < count) count = free_cap;
+      if (free_cap < count) {
+        grow_(*this, size + count);
+        size = size_;
+        free_cap = capacity_ - size;
+        count = count < free_cap ? count : free_cap;
+      }
       // A loop is faster than memcpy on small sizes.
-      T* out = ptr_ + size_;
+      T* out = ptr_ + size;
       for (size_t i = 0; i < count; ++i) out[i] = begin[i];
       size_ += count;
       begin += count;
