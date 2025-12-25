@@ -27,7 +27,7 @@
 //#  error base-test includes format.h
 #endif
 
-using testing::_;
+using testing::_anything_;
 using testing::Invoke;
 using testing::Return;
 

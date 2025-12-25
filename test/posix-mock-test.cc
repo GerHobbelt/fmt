@@ -31,7 +31,7 @@
 
 using fmt::buffered_file;
 
-using testing::_;
+using testing::_anything_;
 using testing::Return;
 using testing::StrEq;
 
