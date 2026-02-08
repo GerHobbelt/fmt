@@ -506,7 +506,7 @@ FMT_BEGIN_EXPORT
 inline auto gmtime(std::time_t time) -> std::tm {
   struct dispatcher {
     std::time_t time_;
-    std::tm tm_;
+    std::tm tm_{};
 
     inline dispatcher(std::time_t t) : time_(t) {}
 

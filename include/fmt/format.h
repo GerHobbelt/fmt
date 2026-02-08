@@ -1668,7 +1668,7 @@ template <typename F> struct basic_fp {
     static_assert(std::numeric_limits<Float>::digits <= 113, "unsupported FP");
     // Assume Float is in the format [sign][exponent][significand].
     using carrier_uint = typename dragonbox::float_info<Float>::carrier_uint;
-    const auto num_float_significand_bits =
+    constexpr const auto num_float_significand_bits =
         detail::num_significand_bits<Float>();
     const auto implicit_bit = carrier_uint(1) << num_float_significand_bits;
     const auto significand_mask = implicit_bit - 1;
@@ -3144,7 +3144,7 @@ FMT_CONSTEXPR20 void format_hexfloat(Float value, format_specs specs,
   // Assume Float is in the format [sign][exponent][significand].
   using carrier_uint = typename info::carrier_uint;
 
-  const auto num_float_significand_bits = detail::num_significand_bits<Float>();
+  constexpr const auto num_float_significand_bits = detail::num_significand_bits<Float>();
 
   basic_fp<carrier_uint> f(value);
   f.e += num_float_significand_bits;
@@ -3268,7 +3268,7 @@ FMT_CONSTEXPR20 auto format_float(Float value, int precision,
     using info = dragonbox::float_info<double>;
     auto br = bit_cast<uint64_t>(static_cast<double>(value));
 
-    const uint64_t significand_mask =
+    constexpr const uint64_t significand_mask =
         (static_cast<uint64_t>(1) << num_significand_bits<double>()) - 1;
     uint64_t significand = (br & significand_mask);
     int exponent = static_cast<int>((br & exponent_mask<double>()) >>
@@ -3591,7 +3591,7 @@ FMT_CONSTEXPR20 auto write(OutputIt out, T value) -> OutputIt {
   if (is_constant_evaluated()) return write<Char>(out, value, format_specs());
 
   auto s = detail::signbit(value) ? sign::minus : sign::none;
-  auto mask = exponent_mask<fast_float_t<T>>();
+  constexpr auto mask = exponent_mask<fast_float_t<T>>();
   if ((bit_cast<decltype(mask)>(value) & mask) == mask)
     return write_nonfinite<Char>(out, std::isnan(value), {}, s);
 
