@@ -141,7 +141,7 @@ template <typename T> struct mock_buffer final : fmt::detail::buffer<T> {
   mock_buffer(T* data = nullptr, size_t buf_capacity = 0)
       : fmt::detail::buffer<T>(grow) {
     this->set(data, buf_capacity);
-    ON_CALL(*this, do_grow(_)).WillByDefault(Invoke([](size_t capacity) {
+    ON_CALL(*this, do_grow(_anything_)).WillByDefault(Invoke([](size_t capacity) {
       return capacity;
     }));
   }
@@ -316,7 +316,7 @@ template <typename T> struct mock_visitor {
   };
 
   mock_visitor() {
-    ON_CALL(*this, visit(_)).WillByDefault(Return(test_result()));
+    ON_CALL(*this, visit(_anything_)).WillByDefault(Return(test_result()));
   }
 
   MOCK_METHOD(test_result, visit, (T));
@@ -425,13 +425,13 @@ TEST(arg_test, custom_arg) {
   using visitor =
       mock_visitor<fmt::basic_format_arg<fmt::format_context>::handle>;
   auto&& v = testing::StrictMock<visitor>();
-  EXPECT_CALL(v, visit(_)).WillOnce(Invoke(check_custom()));
+  EXPECT_CALL(v, visit(_anything_)).WillOnce(Invoke(check_custom()));
   fmt::basic_format_arg<fmt::format_context>(test).visit(v);
 }
 
 TEST(arg_test, visit_invalid_arg) {
   auto&& visitor = testing::StrictMock<mock_visitor<fmt::monostate>>();
-  EXPECT_CALL(visitor, visit(_));
+  EXPECT_CALL(visitor, visit(_anything_));
   fmt::basic_format_arg<fmt::format_context>().visit(visitor);
 }
 

@@ -39,7 +39,7 @@ int main(int argc, const char** argv) {
 #endif
   try {
     testing::InitGoogleTest(&argc, argv);
-    testing::FLAGS_gtest_death_test_style = "threadsafe";
+    testing::GTEST_FLAG(death_test_style) = "threadsafe";
     return RUN_ALL_TESTS();
   } catch (...) {
     // Catch all exceptions to make Coverity happy.

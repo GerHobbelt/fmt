@@ -15,6 +15,9 @@
 #include "gtest-extra.h"
 #include "util.h"
 
+#undef min
+#undef max
+
 using fmt::format;
 using fmt::format_error;
 using fmt::detail::max_value;

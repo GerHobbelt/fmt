@@ -45,6 +45,9 @@
 #include "fmt/compile.h"
 #endif
 
+#undef min
+#undef max
+
 #if (FMT_HAS_INCLUDE(<fcntl.h>) || defined(__APPLE__) ||   \
        defined(__linux__)) &&                              \
       (!defined(WINAPI_FAMILY) ||                          \

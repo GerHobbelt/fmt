@@ -10,6 +10,10 @@
 #  define _CRT_SECURE_NO_WARNINGS
 #endif
 
+#ifdef _WIN32
+#  include <winsock2.h>
+#endif
+
 #include "posix-mock.h"
 
 #include <errno.h>
